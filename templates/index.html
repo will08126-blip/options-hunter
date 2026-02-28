@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Options Hunter</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:       #0b0e14;
+      --surface:  #131720;
+      --border:   #1e2535;
+      --text:     #c9d1e0;
+      --muted:    #5a6480;
+      --green:    #00d084;
+      --red:      #ff4d6a;
+      --yellow:   #ffc107;
+      --blue:     #4d9fff;
+      --gold:     #ffd700;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; min-height: 100vh; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── Header ── */
+    .app-header {
+      background: linear-gradient(135deg, #0f1320 0%, #131a2e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { font-size: 1.3rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .logo span { color: var(--blue); }
+    .version-badge { background: var(--border); color: var(--muted); font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+
+    /* ── Sentiment Bar ── */
+    .sentiment-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    }
+    .sent-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: #0b0e14; border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 14px; font-size: 13px;
+    }
+    .sent-pill .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .sent-pill .value { font-weight: 600; }
+    .sent-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .dot-red    { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+    .dot-yellow { background: var(--yellow); }
+    .color-green  { color: var(--green); }
+    .color-red    { color: var(--red); }
+    .color-yellow { color: var(--yellow); }
+
+    /* ── Search Panel ── */
+    .search-panel {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+    }
+    .search-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .input-group-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .oh-input {
+      background: #0b0e14; border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 9px 14px; font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; font-weight: 600; text-transform: uppercase; width: 140px;
+      transition: border-color 0.2s;
+    }
+    .oh-input:focus { outline: none; border-color: var(--blue); }
+    .oh-select {
+      background: #0b0e14; border: 1px solid var(--border); color: var(--text);
+      border-radius: 8px; padding: 9px 14px; font-size: 14px; min-width: 180px;
+    }
+    .oh-select:focus { outline: none; border-color: var(--blue); }
+    .btn-load {
+      background: #1a2540; border: 1px solid var(--blue); color: var(--blue);
+      border-radius: 8px; padding: 9px 20px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-load:hover { background: var(--blue); color: #fff; }
+    .btn-analyze {
+      background: var(--blue); border: none; color: #fff;
+      border-radius: 8px; padding: 9px 24px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-analyze:hover { background: #3a8fff; }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Stock Info Strip ── */
+    .stock-strip {
+      background: #0f1320; border-bottom: 1px solid var(--border);
+      padding: 8px 20px; display: none; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .stock-strip.visible { display: flex; }
+    .stock-name { font-weight: 600; color: #fff; font-size: 15px; }
+    .stock-price { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--green); }
+    .stock-meta  { font-size: 12px; color: var(--muted); }
+
+    /* ── Filter Tabs ── */
+    .filter-bar {
+      padding: 12px 20px;
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      border-bottom: 1px solid var(--border); background: var(--surface);
+    }
+    .filter-btn {
+      background: #0b0e14; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 20px; padding: 5px 16px; font-size: 13px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover  { border-color: var(--blue); color: var(--blue); }
+    .filter-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+    .results-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; padding: 0 0 80px 0; }
+    .oh-table { width: 100%; border-collapse: collapse; }
+    .oh-table thead th {
+      background: #0d1018; color: var(--muted); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      white-space: nowrap; position: sticky; top: 0; z-index: 1;
+    }
+    .oh-table tbody tr {
+      border-bottom: 1px solid #1a1f2e;
+      transition: background 0.15s; cursor: pointer;
+    }
+    .oh-table tbody tr:hover { background: #131a2a; }
+    .oh-table td { padding: 10px 12px; white-space: nowrap; }
+
+    .badge-call { background: rgba(77,159,255,0.15); color: var(--blue);   border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+    .badge-put  { background: rgba(255,77,106,0.15); color: var(--red);    border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+    .itm-badge  { background: rgba(0,208,132,0.1);   color: var(--green);  border-radius: 4px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
+
+    /* Grade badges */
+    .grade { border-radius: 6px; padding: 3px 10px; font-weight: 700; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
+    .grade-Ap { background: rgba(0,208,132,0.2); color: var(--green); border: 1px solid rgba(0,208,132,0.4); }
+    .grade-A  { background: rgba(0,208,132,0.12); color: #00b870; }
+    .grade-Bp { background: rgba(77,159,255,0.15); color: var(--blue); }
+    .grade-B  { background: rgba(77,159,255,0.1);  color: #4d99cc; }
+    .grade-C  { background: rgba(255,193,7,0.15);  color: var(--yellow); }
+    .grade-D  { background: rgba(255,77,106,0.12); color: var(--red); }
+
+    /* Score bar */
+    .score-cell { display: flex; align-items: center; gap: 8px; }
+    .score-bar-bg { width: 50px; height: 4px; background: #1e2535; border-radius: 2px; }
+    .score-bar-fill { height: 100%; border-radius: 2px; }
+
+    /* ── Detail Drawer ── */
+    .detail-row td { padding: 0; }
+    .detail-inner {
+      background: #0d1320; border-top: 1px solid var(--border);
+      padding: 16px 20px; display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+    }
+    .detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .detail-card h6 { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .detail-item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
+    .detail-item .val { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+    .reason-list { list-style: none; }
+    .reason-list li { font-size: 12px; padding: 3px 0; display: flex; align-items: center; gap-6px; gap: 6px; }
+    .reason-list .r-good { color: var(--green); }
+    .reason-list .r-ok   { color: var(--yellow); }
+    .reason-list .r-warn { color: #ff944d; }
+    .reason-list .r-bad  { color: var(--red); }
+
+    /* ── Empty / Loading States ── */
+    .state-box { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .state-box .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
+    .state-box p { font-size: 15px; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; }
+    .toast-msg { background: #ff4d6a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .app-header { padding: 12px 14px; }
+      .search-panel { padding: 12px 14px; }
+      .oh-input { width: 100%; }
+      .oh-select { width: 100%; }
+      .btn-load, .btn-analyze { width: 100%; text-align: center; }
+      .filter-bar { padding: 10px 14px; }
+      .oh-table thead th:nth-child(n+7) { display: none; }
+      .oh-table td:nth-child(n+7) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="app-header">
+  <div class="logo">🎯 Options <span>Hunter</span></div>
+  <div class="version-badge">v1.0</div>
+</div>
+
+<!-- ── SENTIMENT BAR ── -->
+<div class="sentiment-bar" id="sentimentBar">
+  <div class="sent-pill">
+    <span class="label">Market</span>
+    <span class="dot dot-yellow" id="mktDot"></span>
+    <span class="value" id="mktSent">—</span>
+  </div>
+  <div class="sent-pill">
+    <span class="label">Sector</span>
+    <span class="dot dot-yellow" id="secDot"></span>
+    <span class="value" id="secSent">—</span>
+  </div>
+  <div class="sent-pill">
+    <span class="label">VIX</span>
+    <span class="value mono" id="vixVal">—</span>
+  </div>
+  <div class="sent-pill" id="secNamePill" style="display:none">
+    <span class="label">Sector</span>
+    <span class="value" id="secName">—</span>
+  </div>
+  <small id="mktDesc" style="color:var(--muted);font-size:12px;flex-basis:100%"></small>
+</div>
+
+<!-- ── SEARCH PANEL ── -->
+<div class="search-panel">
+  <div class="search-row">
+    <div>
+      <div class="input-group-label">Ticker</div>
+      <input class="oh-input" id="tickerInput" type="text" placeholder="AAPL" maxlength="8"/>
+    </div>
+    <div style="padding-bottom:1px">
+      <div class="input-group-label">&nbsp;</div>
+      <button class="btn-load" id="loadBtn" onclick="loadStock()">Load Stock</button>
+    </div>
+    <div id="expWrap" style="display:none">
+      <div class="input-group-label">Expiration Date</div>
+      <select class="oh-select" id="expSelect"></select>
+    </div>
+    <div id="analyzeWrap" style="display:none; padding-bottom:1px">
+      <div class="input-group-label">&nbsp;</div>
+      <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">Analyze Options</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── STOCK STRIP ── -->
+<div class="stock-strip" id="stockStrip">
+  <div class="stock-name" id="stockName">—</div>
+  <div class="stock-price mono" id="stockPrice">$—</div>
+  <div class="stock-meta" id="stockMeta">—</div>
+</div>
+
+<!-- ── FILTER BAR ── -->
+<div class="filter-bar" id="filterBar" style="display:none">
+  <button class="filter-btn active" onclick="setFilter('all')"   id="f-all">All</button>
+  <button class="filter-btn"        onclick="setFilter('call')"  id="f-call">Calls</button>
+  <button class="filter-btn"        onclick="setFilter('put')"   id="f-put">Puts</button>
+  <button class="filter-btn"        onclick="setFilter('best')"  id="f-best">⭐ Best Only (B+ &amp; above)</button>
+  <span class="results-count" id="resultsCount"></span>
+</div>
+
+<!-- ── RESULTS ── -->
+<div id="resultsArea">
+  <div class="state-box">
+    <div class="icon">🎯</div>
+    <p>Enter a ticker above to get started</p>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast-wrap" id="toastWrap" style="display:none">
+  <div class="toast-msg" id="toastMsg"></div>
+</div>
+
+<script>
+  let allResults   = [];
+  let currentFilter = 'all';
+  let openRow       = null;
+
+  // ── Load stock info & expiration dates ──────────────────────────────────────
+  async function loadStock() {
+    const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+    if (!ticker) return showToast('Enter a ticker symbol first');
+
+    setLoadingState();
+
+    try {
+      const res  = await fetch(`/api/stock/${ticker}`);
+      const data = await res.json();
+      if (data.error) return showToast(data.error);
+
+      // Sentiment
+      updateSentiment(data);
+
+      // Stock strip
+      document.getElementById('stockName').textContent  = data.stock.name;
+      document.getElementById('stockPrice').textContent = `$${data.stock.price}`;
+      document.getElementById('stockMeta').textContent  = `${data.sector.name} · ${data.sector.etf}`;
+      document.getElementById('stockStrip').classList.add('visible');
+
+      // Expirations
+      const sel = document.getElementById('expSelect');
+      sel.innerHTML = '';
+      data.expirations.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e; opt.textContent = formatDate(e);
+        sel.appendChild(opt);
+      });
+
+      document.getElementById('expWrap').style.display     = 'block';
+      document.getElementById('analyzeWrap').style.display = 'block';
+      resetResults();
+    } catch(e) {
+      showToast('Could not load stock. Check ticker and try again.');
+    }
+  }
+
+  // ── Run analysis ─────────────────────────────────────────────────────────────
+  async function analyze() {
+    const ticker     = document.getElementById('tickerInput').value.trim().toUpperCase();
+    const expiration = document.getElementById('expSelect').value;
+    if (!ticker || !expiration) return;
+
+    document.getElementById('analyzeBtn').disabled = true;
+    showLoading();
+
+    try {
+      const res  = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ticker, expiration})
+      });
+      const data = await res.json();
+      if (data.error) { showToast(data.error); return; }
+
+      allResults = data.results;
+      document.getElementById('filterBar').style.display = 'flex';
+      renderTable(currentFilter);
+    } catch(e) {
+      showToast('Analysis failed. Please try again.');
+    } finally {
+      document.getElementById('analyzeBtn').disabled = false;
+    }
+  }
+
+  // ── Render table ─────────────────────────────────────────────────────────────
+  function renderTable(filter) {
+    let rows = allResults;
+    if (filter === 'call') rows = rows.filter(r => r.type === 'CALL');
+    if (filter === 'put')  rows = rows.filter(r => r.type === 'PUT');
+    if (filter === 'best') rows = rows.filter(r => ['A+','A','B+'].includes(r.grade));
+
+    document.getElementById('resultsCount').textContent = `${rows.length} contracts`;
+
+    if (rows.length === 0) {
+      document.getElementById('resultsArea').innerHTML = `
+        <div class="state-box">
+          <div class="icon">🔍</div>
+          <p>No contracts match this filter</p>
+        </div>`;
+      return;
+    }
+
+    let html = `
+      <div class="table-wrap">
+      <table class="oh-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Type</th><th>Strike</th>
+            <th>Bid</th><th>Ask</th><th>Mid</th>
+            <th>Delta</th><th>Theta/day</th><th>IV%</th>
+            <th>Volume</th><th>OI</th><th>DTE</th>
+            <th>Score</th><th>Grade</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">`;
+
+    rows.forEach((r, idx) => {
+      const gradeClass = 'grade-' + r.grade.replace('+','p');
+      const barColor   = r.score >= 75 ? '#00d084' : r.score >= 55 ? '#4d9fff' : r.score >= 45 ? '#ffc107' : '#ff4d6a';
+      const itmBadge   = r.inTheMoney ? '<span class="itm-badge">ITM</span>' : '';
+      const typeClass  = r.type === 'CALL' ? 'badge-call' : 'badge-put';
+      const thetaDisp  = r.theta !== 0 ? `$${Math.abs(r.theta).toFixed(3)}` : '—';
+
+      html += `
+        <tr onclick="toggleDetail(${idx})" id="row-${idx}">
+          <td class="mono" style="color:var(--muted)">${r.rank}</td>
+          <td><span class="${typeClass}">${r.type}</span>${itmBadge}</td>
+          <td class="mono" style="font-weight:600">$${r.strike}</td>
+          <td class="mono">$${r.bid}</td>
+          <td class="mono">$${r.ask}</td>
+          <td class="mono" style="color:#fff;font-weight:600">$${r.mid}</td>
+          <td class="mono">${r.delta}</td>
+          <td class="mono">${thetaDisp}</td>
+          <td class="mono">${r.iv}%</td>
+          <td class="mono">${r.volume.toLocaleString()}</td>
+          <td class="mono">${r.openInterest.toLocaleString()}</td>
+          <td class="mono">${r.dte}d</td>
+          <td>
+            <div class="score-cell">
+              <span class="mono" style="font-weight:600;min-width:28px">${r.score}</span>
+              <div class="score-bar-bg">
+                <div class="score-bar-fill" style="width:${r.score}%;background:${barColor}"></div>
+              </div>
+            </div>
+          </td>
+          <td><span class="grade ${gradeClass}">${r.grade}</span></td>
+        </tr>
+        <tr class="detail-row" id="detail-${idx}" style="display:none">
+          <td colspan="14">${buildDetail(r)}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('resultsArea').innerHTML = html;
+    openRow = null;
+  }
+
+  // ── Detail drawer ─────────────────────────────────────────────────────────────
+  function buildDetail(r) {
+    const reasonsHtml = r.reasons.map(([type, text]) =>
+      `<li class="r-${type}">${type==='good'?'✓':type==='ok'?'◎':'✗'} ${text}</li>`
+    ).join('');
+
+    return `
+      <div class="detail-inner">
+        <div class="detail-card">
+          <h6>Contract Details</h6>
+          <div class="detail-item"><span>Strike</span>     <span class="val">$${r.strike}</span></div>
+          <div class="detail-item"><span>Type</span>       <span class="val">${r.type}</span></div>
+          <div class="detail-item"><span>Bid / Ask</span>  <span class="val">$${r.bid} / $${r.ask}</span></div>
+          <div class="detail-item"><span>Mid Price</span>  <span class="val" style="color:var(--green)">$${r.mid}</span></div>
+          <div class="detail-item"><span>DTE</span>        <span class="val">${r.dte} days</span></div>
+          <div class="detail-item"><span>In The Money</span><span class="val">${r.inTheMoney ? 'Yes' : 'No'}</span></div>
+        </div>
+        <div class="detail-card">
+          <h6>Greeks</h6>
+          <div class="detail-item"><span>Delta</span>  <span class="val">${r.delta}</span></div>
+          <div class="detail-item"><span>Theta/day</span><span class="val" style="color:var(--red)">$${Math.abs(r.theta).toFixed(4)}</span></div>
+          <div class="detail-item"><span>Gamma</span>  <span class="val">${r.gamma}</span></div>
+          <div class="detail-item"><span>Vega</span>   <span class="val">${r.vega}</span></div>
+          <div class="detail-item"><span>IV</span>     <span class="val">${r.iv}%</span></div>
+        </div>
+        <div class="detail-card">
+          <h6>Liquidity</h6>
+          <div class="detail-item"><span>Volume</span>       <span class="val">${r.volume.toLocaleString()}</span></div>
+          <div class="detail-item"><span>Open Interest</span><span class="val">${r.openInterest.toLocaleString()}</span></div>
+        </div>
+        <div class="detail-card" style="grid-column: span 1">
+          <h6>Score Breakdown — ${r.score}/100 (${r.grade})</h6>
+          <ul class="reason-list">${reasonsHtml}</ul>
+        </div>
+      </div>`;
+  }
+
+  function toggleDetail(idx) {
+    if (openRow !== null && openRow !== idx) {
+      document.getElementById(`detail-${openRow}`).style.display = 'none';
+    }
+    const d = document.getElementById(`detail-${idx}`);
+    if (d.style.display === 'none') { d.style.display = 'table-row'; openRow = idx; }
+    else { d.style.display = 'none'; openRow = null; }
+  }
+
+  // ── Sentiment UI ─────────────────────────────────────────────────────────────
+  function updateSentiment(data) {
+    const mktColor = data.market.color;
+    const secColor = data.sector.color;
+
+    document.getElementById('mktDot').className   = `dot dot-${mktColor}`;
+    document.getElementById('mktSent').className  = `value color-${mktColor}`;
+    document.getElementById('mktSent').textContent = data.market.sentiment;
+
+    document.getElementById('secDot').className   = `dot dot-${secColor}`;
+    document.getElementById('secSent').className  = `value color-${secColor}`;
+    document.getElementById('secSent').textContent = data.sector.sentiment;
+
+    document.getElementById('vixVal').textContent  = data.market.vix;
+    document.getElementById('mktDesc').textContent = `${data.market.desc}  ·  ${data.sector.desc}`;
+
+    document.getElementById('secNamePill').style.display = 'flex';
+    document.getElementById('secName').textContent = `${data.sector.name} (${data.sector.etf})`;
+  }
+
+  // ── Filters ──────────────────────────────────────────────────────────────────
+  function setFilter(f) {
+    currentFilter = f;
+    ['all','call','put','best'].forEach(id => {
+      document.getElementById(`f-${id}`).classList.toggle('active', id === f);
+    });
+    renderTable(f);
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function formatDate(d) {
+    const [y,m,day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
+  }
+
+  function showLoading() {
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="state-box">
+        <div class="spinner"></div>
+        <p>Fetching options chain & calculating Greeks...</p>
+      </div>`;
+  }
+
+  function setLoadingState() {
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="state-box">
+        <div class="spinner"></div>
+        <p>Loading stock data...</p>
+      </div>`;
+  }
+
+  function resetResults() {
+    document.getElementById('filterBar').style.display = 'none';
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="state-box">
+        <div class="icon">📅</div>
+        <p>Select an expiration date and click Analyze Options</p>
+      </div>`;
+  }
+
+  function showToast(msg) {
+    const w = document.getElementById('toastWrap');
+    document.getElementById('toastMsg').textContent = msg;
+    w.style.display = 'block';
+    setTimeout(() => w.style.display = 'none', 4000);
+  }
+
+  // Enter key on ticker input
+  document.getElementById('tickerInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadStock();
+  });
+</script>
+
+</body>
+</html>

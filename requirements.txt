@@ -1,0 +1,7 @@
+flask
+yfinance
+numpy
+scipy
+pandas
+gunicorn
+pyngrok
