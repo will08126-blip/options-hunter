@@ -28,7 +28,7 @@ app = Flask(__name__)
 
 # ─── SIMPLE IN-MEMORY CACHE ───────────────────────────────────────────────────
 _cache = {}
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 600  # 10 minutes
 
 def cache_get(key):
     if key in _cache and time.time() - _cache[key]['ts'] < CACHE_TTL:
@@ -68,8 +68,7 @@ CRYPTO_NAMES = {
 # ─── POPULAR STOCKS FOR TOP MOVERS ────────────────────────────────────────────
 POPULAR_STOCKS = [
     'AAPL','MSFT','NVDA','TSLA','META','GOOGL','AMZN','AMD','NFLX','PLTR',
-    'COIN','MSTR','JPM','BAC','XOM','GS','ORCL','CRM','ADBE','INTC',
-    'SHOP','UBER','LYFT','SNAP','RBLX','HOOD','SOFI','RIVN','NIO','LCID'
+    'COIN','JPM','XOM','HOOD','SOFI'
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -457,26 +456,29 @@ def get_crypto_indices():
 
 
 def get_top_movers():
-    """Get top 5 gainers and losers from popular stocks."""
+    """Get top 5 gainers and losers using fast_info per ticker (memory efficient)."""
     cached = cache_get('top_movers')
     if cached:
         return cached
-    try:
-        data = yf.download(
-            POPULAR_STOCKS, period='2d', interval='1d',
-            auto_adjust=True, progress=False, threads=True
-        )
-        close = data['Close']
-        if len(close) >= 2:
-            pct = ((close.iloc[-1] - close.iloc[-2]) / close.iloc[-2] * 100).dropna()
-            pct = pct.sort_values()
-            losers  = [{'ticker': t, 'change': round(float(v), 2)} for t, v in pct.head(5).items()]
-            gainers = [{'ticker': t, 'change': round(float(v), 2)} for t, v in pct.tail(5).iloc[::-1].items()]
-            result  = {'gainers': gainers, 'losers': losers}
-            cache_set('top_movers', result)
-            return result
-    except Exception as e:
-        print(f"Movers error: {e}")
+    movers = []
+    for sym in POPULAR_STOCKS:
+        try:
+            info  = yf.Ticker(sym).fast_info
+            price = float(info.last_price)
+            prev  = float(info.previous_close)
+            if prev > 0:
+                chg = round((price - prev) / prev * 100, 2)
+                movers.append({'ticker': sym, 'change': chg})
+        except Exception:
+            continue
+    if movers:
+        movers.sort(key=lambda x: x['change'])
+        result = {
+            'losers':  movers[:5],
+            'gainers': list(reversed(movers[-5:]))
+        }
+        cache_set('top_movers', result)
+        return result
     return {'gainers': [], 'losers': []}
 
 
@@ -600,7 +602,7 @@ def market_briefing():
     def fetch_movers():     return get_top_movers()
     def fetch_news():       return get_market_news()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
         fi = ex.submit(fetch_indices)
         fc = ex.submit(fetch_crypto)
         fci= ex.submit(fetch_ci)
