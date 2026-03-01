@@ -110,30 +110,23 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
     """
     Returns Cipher B signal info for a dataframe.
     Matches TradingView crossover() behavior (strict inequality).
-    Returns dict: {signal, bars_ago, wt1, wt2, stale}
+    Returns dict: {signal, bars_ago, wt1, wt2}
       signal: 2=gold, 1=green, -1=red, 0=none
-      bars_ago: how many bars since last signal
+      bars_ago: how many bars since last signal fired
       wt1/wt2: current WaveTrend values
-      stale: True if signal is too old to be actionable
     """
     wt1, wt2 = calc_wavetrend(df)
     if wt1 is None:
-        return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0, 'stale': True}
+        return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0}
 
     try:
         # Strict crossover — matches Pine Script crossover(wt1, wt2)
         cross_up   = (wt1 > wt2) & (wt1.shift(1) < wt2.shift(1))
         cross_down = (wt1 < wt2) & (wt1.shift(1) > wt2.shift(1))
 
-        green = cross_up   & (wt2 < os_level)
-        red   = cross_down & (wt2 > ob)
-
-        # Gold: bullish divergence — cross up in deeply oversold zone
-        # Price makes lower low but WT makes higher low (divergence)
-        lb       = 5
-        price_ll = df['Low'].iloc[-1] < df['Low'].rolling(lb).min().shift(1).iloc[-1]
-        wt_hl    = wt2 > wt2.rolling(lb).min().shift(1)
-        gold     = cross_up & (wt2 < os2) & wt_hl
+        green = cross_up   & (wt2 < os_level)   # buy: cross up from oversold
+        red   = cross_down & (wt2 > ob)          # sell: cross down from overbought
+        gold  = cross_up   & (wt2 < os2)         # strong buy: cross up from deeply oversold
 
         signals = pd.Series(0, index=wt1.index)
         signals[red]   = -1
@@ -143,23 +136,25 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
         cur_wt1 = round(float(wt1.iloc[-1]), 2)
         cur_wt2 = round(float(wt2.iloc[-1]), 2)
 
-        non_zero = signals[signals != 0]
-        if len(non_zero) == 0:
-            return {'signal': 0, 'bars_ago': 99, 'wt1': cur_wt1, 'wt2': cur_wt2, 'stale': True}
-
-        # How many bars since the last signal
-        last_loc = signals.index.get_loc(non_zero.index[-1])
-        bars_ago = len(signals) - 1 - last_loc
+        # Walk backwards through signal array — robust, no index lookups
+        sig_arr  = signals.values
+        bars_ago = 99
+        last_sig = 0
+        for i in range(len(sig_arr) - 1, -1, -1):
+            if sig_arr[i] != 0:
+                bars_ago = len(sig_arr) - 1 - i
+                last_sig = int(sig_arr[i])
+                break
 
         return {
-            'signal':   int(non_zero.iloc[-1]),
-            'bars_ago': int(bars_ago),
+            'signal':   last_sig,
+            'bars_ago': bars_ago,
             'wt1':      cur_wt1,
             'wt2':      cur_wt2,
-            'stale':    False,  # frontend decides staleness based on timeframe
         }
-    except Exception:
-        return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0, 'stale': True}
+    except Exception as e:
+        print(f"Cipher B signal error: {e}")
+        return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0}
 
 
 def calc_macd(df, fast=12, slow=26, signal=9, bars=60):
@@ -664,11 +659,7 @@ def market_briefing():
 @app.route('/api/technical/<ticker>')
 def technical_analysis(ticker):
     ticker = ticker.upper().strip()
-    cache_key = f'tech_{ticker}'
-    cached = cache_get(cache_key)
-    if cached:
-        return jsonify(cached)
-
+    # No cache — always fetch live data so signals are current
     try:
         # Fetch cipher B signals for all timeframes
         cipher_b = get_all_cipher_b(ticker)
@@ -718,7 +709,6 @@ def technical_analysis(ticker):
                 'overall':       overall,
             }
         }
-        cache_set(cache_key, result)
         return jsonify(result)
 
     except Exception as e:
