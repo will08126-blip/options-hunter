@@ -31,7 +31,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .oh-card-title{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:12px;font-weight:600;}
 
 /* ── METRIC PILLS ── */
-.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;}
 .metric-pill{background:#0b0e14;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
 .metric-pill .mp-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
 .metric-pill .mp-value{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;}
@@ -45,13 +45,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .mover-item.loser{border-left-color:var(--red);}
 .mover-ticker{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;}
 .mover-chg{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
-
-/* ── NEWS ── */
-.news-list{display:flex;flex-direction:column;gap:8px;}
-.news-item{padding:10px;background:#0b0e14;border-radius:8px;border-left:3px solid var(--blue);}
-.news-item a{color:var(--text);text-decoration:none;font-size:13px;font-weight:500;line-height:1.4;}
-.news-item a:hover{color:var(--blue);}
-.news-meta{font-size:11px;color:var(--muted);margin-top:4px;}
 
 /* ── CIPHER B TABLE ── */
 .cipher-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;}
@@ -173,16 +166,80 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 /* ── CONTAINER ── */
 .page-container{max-width:1100px;margin:0 auto;padding:14px 16px;}
 
+/* ════════════════════════════════════════════
+   MORNING BRIEFING — NEW STYLES
+════════════════════════════════════════════ */
+
+/* Header banner */
+.briefing-header{background:linear-gradient(135deg,#0d1320 0%,#0f1a2e 60%,#0b1420 100%);border-bottom:1px solid var(--border);padding:20px 20px 16px;position:relative;overflow:hidden;}
+.briefing-header::before{content:'';position:absolute;top:0;right:0;width:300px;height:100%;background:radial-gradient(ellipse at top right,rgba(77,159,255,.07) 0%,transparent 70%);pointer-events:none;}
+.bh-greeting{font-size:1.45rem;font-weight:700;color:#fff;margin-bottom:3px;letter-spacing:-.3px;}
+.bh-date{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.bh-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.bh-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid;}
+.bh-badge.bull{background:rgba(0,208,132,.1);border-color:rgba(0,208,132,.3);color:var(--green);}
+.bh-badge.bear{background:rgba(255,77,106,.1);border-color:rgba(255,77,106,.3);color:var(--red);}
+.bh-badge.neut{background:rgba(255,193,7,.1);border-color:rgba(255,193,7,.3);color:var(--yellow);}
+.bh-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.bh-dot.green{background:var(--green);box-shadow:0 0 6px var(--green);animation:livepulse 2s infinite;}
+.bh-dot.red{background:var(--red);box-shadow:0 0 6px var(--red);animation:livepulse 2s infinite;}
+.bh-dot.yellow{background:var(--yellow);}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.4}}
+.bh-updated{font-size:11px;color:var(--muted);}
+.bh-refresh{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;transition:all .2s;}
+.bh-refresh:hover{border-color:var(--blue);color:var(--blue);}
+
+/* Section dividers */
+.section-divider{display:flex;align-items:center;gap:10px;margin:18px 0 10px;}
+.section-divider .sd-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);white-space:nowrap;font-weight:600;}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* Index cards */
+.index-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
+.index-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 14px 12px;position:relative;overflow:hidden;transition:border-color .2s;}
+.index-card:hover{border-color:rgba(77,159,255,.3);}
+.index-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.index-card.pos-card::after{background:linear-gradient(90deg,transparent,var(--green),transparent);}
+.index-card.neg-card::after{background:linear-gradient(90deg,transparent,var(--red),transparent);}
+.ic-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600;}
+.ic-price{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:#fff;margin-bottom:5px;line-height:1;}
+.ic-change{font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;}
+.ic-raw{font-size:10px;color:var(--muted);margin-left:auto;}
+
+/* Narrative / pulse box */
+.narrative-box{background:linear-gradient(135deg,#0f1525,#101825);border:1px solid rgba(77,159,255,.2);border-left:3px solid var(--blue);border-radius:10px;padding:16px 18px;margin-bottom:14px;}
+.narrative-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--blue);margin-bottom:9px;font-weight:700;}
+.narrative-text{font-size:13px;color:var(--text);line-height:1.7;}
+
+/* Crypto index strip */
+.ci-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.ci-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.ci-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;font-weight:600;}
+.ci-val{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:#fff;margin-bottom:3px;}
+.ci-chg{font-size:11px;font-weight:600;}
+
+/* News cards */
+.news-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.news-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid transparent;border-radius:8px;padding:12px 14px;transition:all .2s;}
+.news-card:hover{border-color:var(--blue);border-left-color:var(--blue);}
+.news-card a{color:#dde4f0;text-decoration:none;font-size:13px;font-weight:500;line-height:1.5;display:block;margin-bottom:4px;}
+.news-card a:hover{color:var(--blue);}
+.news-pub{font-size:11px;color:var(--muted);}
+
 /* ── RESPONSIVE ── */
 @media(max-width:600px){
-  .nav-tab{padding:12px 12px;font-size:12px;}
+  .nav-tab{padding:12px 10px;font-size:11px;}
   .metric-grid{grid-template-columns:repeat(2,1fr);}
+  .index-cards{grid-template-columns:repeat(2,1fr);}
+  .ci-strip{grid-template-columns:repeat(3,1fr);}
   .cipher-grid{grid-template-columns:repeat(5,1fr);}
   .oh-table thead th:nth-child(n+8){display:none;}
   .oh-table td:nth-child(n+8){display:none;}
   .oh-input{width:100%;}
   .oh-select{width:100%;}
   .btn-primary-oh,.btn-outline-oh{width:100%;text-align:center;}
+  .ic-price{font-size:16px;}
+  .bh-greeting{font-size:1.2rem;}
 }
 </style>
 </head>
@@ -202,27 +259,46 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
      TAB 1 — MORNING BRIEFING
 ════════════════════════════════════════════════════════════════════════════ -->
 <div class="tab-content-oh active" id="content-briefing">
-  <div class="page-container">
 
-    <!-- Watchlist Editor -->
-    <div class="oh-card" style="margin-top:14px">
-      <div class="oh-card-title">⚙️ Crypto Watchlist <span style="color:var(--muted);font-size:10px;font-weight:400">(click × to remove, add your own)</span></div>
-      <div class="watchlist-editor">
-        <div class="watchlist-tags" id="watchlistTags"></div>
-        <div class="watchlist-add">
-          <input class="wl-input" id="wlInput" placeholder="e.g. DOGE" maxlength="10"/>
-          <button class="btn-sm-oh" onclick="addToWatchlist()">Add</button>
-          <button class="btn-sm-oh" onclick="resetWatchlist()" style="margin-left:auto">Reset</button>
-        </div>
-      </div>
-      <button class="btn-primary-oh" onclick="loadBriefing()" id="refreshBtn" style="font-size:13px;padding:8px 16px">
-        🔄 Refresh Briefing
-      </button>
-      <span style="font-size:11px;color:var(--muted);margin-left:12px" id="lastUpdated"></span>
+  <!-- Personal greeting header -->
+  <div class="briefing-header">
+    <div class="bh-greeting" id="bhGreeting">Good morning</div>
+    <div class="bh-date" id="bhDate"></div>
+    <div class="bh-status">
+      <span class="bh-badge neut" id="bhBadge">
+        <span class="bh-dot yellow" id="bhDot"></span>
+        <span id="bhStatusText">Loading market data...</span>
+      </span>
+      <span class="bh-updated" id="bhUpdated"></span>
+      <button class="bh-refresh" onclick="loadBriefing()" id="bhRefreshBtn">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Main briefing content -->
+  <div class="page-container">
+    <div id="briefingContent">
+      <div class="state-box"><div class="spinner"></div><p>Pulling your morning briefing...</p></div>
     </div>
 
-    <div id="briefingContent">
-      <div class="state-box"><div class="icon">🌅</div><p>Click Refresh Briefing to load today's data</p></div>
+    <!-- Watchlist editor — collapsed by default -->
+    <div class="oh-card">
+      <div class="oh-card-title" onclick="toggleWatchlistEditor()" style="cursor:pointer;user-select:none;">
+        ⚙️ Customize Crypto Watchlist
+        <span style="float:right;color:var(--muted);font-size:10px" id="wlToggleIcon">▼ expand</span>
+      </div>
+      <div id="watchlistEditorInner" style="display:none;margin-top:8px">
+        <div class="watchlist-editor">
+          <div class="watchlist-tags" id="watchlistTags"></div>
+          <div class="watchlist-add">
+            <input class="wl-input" id="wlInput" placeholder="e.g. DOGE" maxlength="10"/>
+            <button class="btn-sm-oh" onclick="addToWatchlist()">Add</button>
+            <button class="btn-sm-oh" onclick="resetWatchlist()" style="margin-left:auto">Reset</button>
+          </div>
+        </div>
+        <button class="btn-primary-oh" onclick="loadBriefing()" style="font-size:13px;padding:8px 16px;margin-top:4px">
+          🔄 Reload with new watchlist
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -301,11 +377,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 // ═════════════════════════════════════════════════════════════════════════════
 //  TAB SWITCHING
 // ═════════════════════════════════════════════════════════════════════════════
+let briefingLoaded = false;
+
 function switchTab(name) {
   document.querySelectorAll('.tab-content-oh').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
   document.getElementById('content-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'briefing' && !briefingLoaded) loadBriefing();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -351,10 +430,110 @@ function removeFromWatchlist(sym) {
 
 function resetWatchlist() { saveWatchlist(DEFAULT_WATCHLIST); renderWatchlistTags(); }
 
+function toggleWatchlistEditor() {
+  const inner = document.getElementById('watchlistEditorInner');
+  const icon  = document.getElementById('wlToggleIcon');
+  const open  = inner.style.display === 'none';
+  inner.style.display = open ? 'block' : 'none';
+  icon.textContent    = open ? '▲ collapse' : '▼ expand';
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning.';
+  if (h < 17) return 'Good afternoon.';
+  return 'Good evening.';
+}
+
+function setBriefingHeader() {
+  document.getElementById('bhGreeting').textContent = getGreeting();
+  document.getElementById('bhDate').textContent = new Date().toLocaleDateString('en-US', {
+    weekday:'long', year:'numeric', month:'long', day:'numeric'
+  });
+}
+
+function generateNarrative(data) {
+  const indices = data.indices || [];
+  const sp500  = indices.find(i => i.symbol === '^GSPC');
+  const nasdaq = indices.find(i => i.symbol === '^IXIC');
+  const dow    = indices.find(i => i.symbol === '^DJI');
+  const rut    = indices.find(i => i.symbol === '^RUT');
+  const vix    = indices.find(i => i.symbol === '^VIX');
+  const ci     = data.crypto_indices || {};
+  const movers = data.movers || {};
+  let parts = [];
+
+  // Overall market direction
+  if (sp500 && nasdaq) {
+    const bothUp   = sp500.positive && nasdaq.positive;
+    const bothDown = !sp500.positive && !nasdaq.positive;
+    if (bothUp) {
+      parts.push(`Markets are trading higher today. The S&P 500 is at $${sp500.price.toLocaleString()}, up ${Math.abs(sp500.change_pct).toFixed(2)}% — and NASDAQ is following, up ${Math.abs(nasdaq.change_pct).toFixed(2)}%.`);
+    } else if (bothDown) {
+      parts.push(`Markets are under pressure today. The S&P 500 is down ${Math.abs(sp500.change_pct).toFixed(2)}% to $${sp500.price.toLocaleString()}, with NASDAQ also selling off ${Math.abs(nasdaq.change_pct).toFixed(2)}%.`);
+    } else {
+      parts.push(`Markets are mixed today. The S&P 500 is ${sp500.positive ? 'up' : 'down'} ${Math.abs(sp500.change_pct).toFixed(2)}% while NASDAQ is ${nasdaq.positive ? 'up' : 'down'} ${Math.abs(nasdaq.change_pct).toFixed(2)}%.`);
+    }
+  }
+
+  // Small caps check
+  if (rut) {
+    if (rut.positive && sp500 && sp500.positive) {
+      parts.push(`Small caps are joining the rally — Russell 2000 is up ${Math.abs(rut.change_pct).toFixed(2)}%, signaling broad market participation.`);
+    } else if (!rut.positive && sp500 && sp500.positive) {
+      parts.push(`Worth noting: Russell 2000 is lagging, down ${Math.abs(rut.change_pct).toFixed(2)}% while large caps push higher — breadth is narrow.`);
+    }
+  }
+
+  // VIX read
+  if (vix) {
+    const v = vix.price;
+    if (v < 15) {
+      parts.push(`VIX is calm at ${v} — low fear, traders are relaxed. Good environment for swing trades.`);
+    } else if (v < 20) {
+      parts.push(`VIX is at ${v} — moderate volatility, manageable conditions for swing trading.`);
+    } else if (v < 28) {
+      parts.push(`VIX is elevated at ${v} — the market is showing some fear. Consider tighter stops and smaller position sizes today.`);
+    } else {
+      parts.push(`VIX is spiking at ${v} — high fear and volatility in the market. Be very selective with entries today.`);
+    }
+  }
+
+  // Crypto pulse
+  if (ci.total) {
+    const chg = ci.total.change_24h;
+    const dir = chg >= 0 ? 'up' : 'down';
+    if (Math.abs(chg) > 4) {
+      parts.push(`Crypto is making a big move — total market cap is ${dir} ${Math.abs(chg).toFixed(1)}% in 24 hours. BTC dominance sits at ${ci.btc_dom ? ci.btc_dom.value : '—'}.`);
+    } else if (Math.abs(chg) > 1.5) {
+      parts.push(`Crypto is ${dir} ${Math.abs(chg).toFixed(1)}% on the day. BTC dominance at ${ci.btc_dom ? ci.btc_dom.value : '—'}.`);
+    } else {
+      parts.push(`Crypto is relatively flat today. BTC dominance at ${ci.btc_dom ? ci.btc_dom.value : '—'}.`);
+    }
+  }
+
+  // Top mover shoutout
+  if (movers.gainers && movers.gainers.length > 0) {
+    const top = movers.gainers[0];
+    const bot = movers.losers && movers.losers.length > 0 ? movers.losers[0] : null;
+    if (bot) {
+      parts.push(`Biggest mover today: ${top.ticker} is ripping +${top.change}%. On the other side, ${bot.ticker} is down ${bot.change}%.`);
+    } else {
+      parts.push(`Leading mover today: ${top.ticker} is up +${top.change}%.`);
+    }
+  }
+
+  return parts.join(' ');
+}
+
 async function loadBriefing() {
-  const btn = document.getElementById('refreshBtn');
-  btn.textContent = '⏳ Loading...'; btn.disabled = true;
-  document.getElementById('briefingContent').innerHTML = '<div class="state-box"><div class="spinner"></div><p>Fetching market data...</p></div>';
+  briefingLoaded = true;
+  const btn = document.getElementById('bhRefreshBtn');
+  btn.textContent = '↻ Loading...';
+  btn.disabled = true;
+
+  document.getElementById('briefingContent').innerHTML =
+    '<div class="state-box"><div class="spinner"></div><p>Pulling your morning briefing...</p></div>';
 
   try {
     const watchlist = getWatchlist().join(',');
@@ -362,35 +541,77 @@ async function loadBriefing() {
     const data = await res.json();
     if (data.error) { showToast(data.error); return; }
 
-    document.getElementById('lastUpdated').textContent = `Updated ${data.updated}`;
+    document.getElementById('bhUpdated').textContent = `Updated ${data.updated}`;
+    updateBriefingHeader(data);
     renderBriefing(data);
   } catch(e) {
     showToast('Failed to load briefing. Check your connection.');
   } finally {
-    btn.textContent = '🔄 Refresh Briefing'; btn.disabled = false;
+    btn.textContent = '↻ Refresh'; btn.disabled = false;
   }
 }
 
+function updateBriefingHeader(data) {
+  const indices = data.indices || [];
+  const sp500 = indices.find(i => i.symbol === '^GSPC');
+  const vix   = indices.find(i => i.symbol === '^VIX');
+  const badge = document.getElementById('bhBadge');
+  const dot   = document.getElementById('bhDot');
+  const txt   = document.getElementById('bhStatusText');
+
+  let cls = 'neut', dotCls = 'yellow', label = 'Neutral Market';
+  if (sp500 && vix) {
+    if (sp500.positive && vix.price < 22) {
+      cls = 'bull'; dotCls = 'green'; label = 'Market is Bullish';
+    } else if (!sp500.positive || vix.price > 28) {
+      cls = 'bear'; dotCls = 'red'; label = 'Market is Bearish';
+    }
+  }
+  badge.className = `bh-badge ${cls}`;
+  dot.className   = `bh-dot ${dotCls}`;
+  txt.textContent = label;
+}
+
 function renderBriefing(data) {
-  const ci = data.crypto_indices || {};
+  const indices = data.indices || [];
+  const ci      = data.crypto_indices || {};
+  const movers  = data.movers || {gainers:[], losers:[]};
 
-  // Crypto index pills
-  const ciHtml = Object.values(ci).map(idx => `
-    <div class="metric-pill">
-      <div class="mp-label">${idx.label}</div>
-      <div class="mp-value">${idx.value}</div>
-      ${idx.change_24h != null ? `<div class="mp-change ${idx.change_24h >= 0 ? 'pos' : 'neg'}">${idx.change_24h >= 0 ? '▲' : '▼'} ${Math.abs(idx.change_24h).toFixed(1)}% 24h</div>` : ''}
-    </div>`).join('');
+  // ── Index cards ──
+  const idxHtml = indices.map(idx => {
+    const isPos  = idx.positive;
+    const cc     = isPos ? 'var(--green)' : 'var(--red)';
+    const arrow  = isPos ? '▲' : '▼';
+    const isVix  = idx.symbol === '^VIX';
+    const price  = isVix ? idx.price : '$' + idx.price.toLocaleString();
+    return `<div class="index-card ${isPos ? 'pos-card' : 'neg-card'}">
+      <div class="ic-label">${idx.name}</div>
+      <div class="ic-price">${price}</div>
+      <div class="ic-change" style="color:${cc}">
+        <span>${arrow} ${Math.abs(idx.change_pct).toFixed(2)}%</span>
+        <span class="ic-raw">${isPos ? '+' : ''}${idx.change}</span>
+      </div>
+    </div>`;
+  }).join('');
 
-  // Market indices
-  const idxHtml = (data.indices || []).map(idx => `
-    <div class="metric-pill">
-      <div class="mp-label">${idx.name}</div>
-      <div class="mp-value">${idx.symbol === '^VIX' ? idx.price : '$' + idx.price.toLocaleString()}</div>
-      <div class="mp-change ${idx.positive ? 'pos' : 'neg'}">${idx.positive ? '▲' : '▼'} ${Math.abs(idx.change_pct).toFixed(2)}%</div>
-    </div>`).join('');
+  // ── Narrative ──
+  const narrative = generateNarrative(data);
 
-  // Crypto prices
+  // ── Crypto index strip (TOTAL / TOTAL3 / BTC.D) ──
+  const ciVals = Object.values(ci);
+  const ciHtml = ciVals.length ? ciVals.map(idx => {
+    const chg = idx.change_24h;
+    const chgHtml = chg != null
+      ? `<div class="ci-chg ${chg >= 0 ? 'pos' : 'neg'}">${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}% 24h</div>`
+      : '';
+    return `<div class="ci-card">
+      <div class="ci-label">${idx.label}</div>
+      <div class="ci-val">${idx.value}</div>
+      ${chgHtml}
+    </div>`;
+  }).join('') : '<p style="color:var(--muted);font-size:12px">Crypto index data unavailable</p>';
+
+  // ── Watchlist prices ──
   const cryptoHtml = (data.crypto || []).map(c => `
     <div class="metric-pill">
       <div class="mp-label">${c.name}</div>
@@ -398,37 +619,54 @@ function renderBriefing(data) {
       <div class="mp-change ${c.positive ? 'pos' : 'neg'}">${c.positive ? '▲' : '▼'} ${Math.abs(c.change_pct).toFixed(2)}%</div>
     </div>`).join('');
 
-  // Top movers
-  const movers = data.movers || {gainers:[], losers:[]};
+  // ── Movers ──
   const gainersHtml = movers.gainers.map(g => `
     <div class="mover-item gainer">
       <span class="mover-ticker">${g.ticker}</span>
       <span class="mover-chg pos">+${g.change}%</span>
-    </div>`).join('');
+    </div>`).join('') || '<p style="color:var(--muted);font-size:12px;padding:4px 0">No data</p>';
+
   const losersHtml = movers.losers.map(l => `
     <div class="mover-item loser">
       <span class="mover-ticker">${l.ticker}</span>
       <span class="mover-chg neg">${l.change}%</span>
-    </div>`).join('');
+    </div>`).join('') || '<p style="color:var(--muted);font-size:12px;padding:4px 0">No data</p>';
 
-  // News
+  // ── News ──
   const newsHtml = (data.news || []).map(n => `
-    <div class="news-item">
-      <a href="${n.link}" target="_blank">${n.title}</a>
-      <div class="news-meta">${n.publisher || 'Market News'}</div>
+    <div class="news-card">
+      <a href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
+      <span class="news-pub">${n.publisher || 'Market News'}</span>
     </div>`).join('') || '<p style="color:var(--muted);font-size:13px">No headlines available right now.</p>';
 
   document.getElementById('briefingContent').innerHTML = `
-    <div class="oh-card"><div class="oh-card-title">📈 Market Indices</div><div class="metric-grid">${idxHtml}</div></div>
-    <div class="oh-card"><div class="oh-card-title">🌐 Crypto Market</div>
-      <div style="margin-bottom:10px"><div class="oh-card-title" style="margin-bottom:8px">Market Cap Indices</div><div class="metric-grid">${ciHtml}</div></div>
-      <div class="oh-card-title" style="margin-bottom:8px">Your Watchlist</div><div class="metric-grid">${cryptoHtml}</div>
+    <div class="section-divider"><span class="sd-label">📈 Market Indices</span></div>
+    <div class="index-cards">${idxHtml}</div>
+
+    <div class="narrative-box">
+      <div class="narrative-label">Today's Market Pulse</div>
+      <div class="narrative-text">${narrative || 'Market data is loading...'}</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div class="oh-card"><div class="oh-card-title">🚀 Top Gainers</div><div class="mover-list">${gainersHtml || '<p style="color:var(--muted);font-size:12px">Loading...</p>'}</div></div>
-      <div class="oh-card"><div class="oh-card-title">📉 Top Losers</div><div class="mover-list">${losersHtml || '<p style="color:var(--muted);font-size:12px">Loading...</p>'}</div></div>
+
+    <div class="section-divider"><span class="sd-label">🌐 Crypto Overview</span></div>
+    <div class="ci-strip">${ciHtml}</div>
+    <div class="metric-grid" style="margin-bottom:16px">${cryptoHtml}</div>
+
+    <div class="section-divider"><span class="sd-label">🔥 Top Movers</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
+      <div class="oh-card" style="margin:0">
+        <div class="oh-card-title">🚀 Gainers</div>
+        <div class="mover-list">${gainersHtml}</div>
+      </div>
+      <div class="oh-card" style="margin:0">
+        <div class="oh-card-title">📉 Losers</div>
+        <div class="mover-list">${losersHtml}</div>
+      </div>
     </div>
-    <div class="oh-card"><div class="oh-card-title">📰 Market Headlines</div><div class="news-list">${newsHtml}</div></div>`;
+
+    <div class="section-divider" style="margin-top:18px"><span class="sd-label">📰 Market Headlines</span></div>
+    <div class="news-grid">${newsHtml}</div>
+  `;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -453,14 +691,13 @@ async function loadTechnical() {
 }
 
 function renderTechnical(data) {
-  const cb     = data.cipher_b || {};
-  const macd   = data.macd;
-  const vol    = data.volume;
-  const summ   = data.summary || {};
+  const cb   = data.cipher_b || {};
+  const macd = data.macd;
+  const vol  = data.volume;
+  const summ = data.summary || {};
 
   const overallColor = summ.overall === 'Bullish' ? 'var(--green)' : summ.overall === 'Bearish' ? 'var(--red)' : 'var(--yellow)';
 
-  // Cipher B grid
   const TF_ORDER = ['5m','15m','30m','1H','2H','4H','6H','8H','12H','1D','2D','3D','5D','1W','1M'];
   const cbHtml = TF_ORDER.map(tf => {
     const sig = cb[tf];
@@ -472,7 +709,6 @@ function renderTechnical(data) {
     return `<div class="cipher-cell"><div class="tf-label">${tf}</div><div class="sig-dot ${dotClass}">${label}</div></div>`;
   }).join('');
 
-  // MACD status
   let macdStatusHtml = '<p style="color:var(--muted);font-size:12px">No MACD data</p>';
   if (macd) {
     const hColor = macd.bullish ? 'var(--green)' : 'var(--red)';
@@ -487,7 +723,6 @@ function renderTechnical(data) {
       <div class="chart-wrap"><canvas id="macdCanvas"></canvas></div>`;
   }
 
-  // Volume
   let volHtml = '<p style="color:var(--muted);font-size:12px">No volume data</p>';
   if (vol) {
     const vColor = vol.color === 'green' ? 'var(--green)' : vol.color === 'yellow' ? 'var(--yellow)' : 'var(--red)';
@@ -502,7 +737,6 @@ function renderTechnical(data) {
   }
 
   document.getElementById('technicalContent').innerHTML = `
-    <!-- Summary -->
     <div class="summary-box" style="margin-top:14px">
       <div class="summary-overall" style="color:${overallColor}">
         ${summ.overall === 'Bullish' ? '🟢' : summ.overall === 'Bearish' ? '🔴' : '🟡'} ${summ.overall || 'Mixed'} — ${data.ticker} @ $${data.price}
@@ -514,7 +748,6 @@ function renderTechnical(data) {
       </div>
     </div>
 
-    <!-- Cipher B -->
     <div class="oh-card">
       <div class="oh-card-title">🔮 Cipher B — Last Signal by Timeframe
         <span style="font-size:9px;color:var(--muted);margin-left:8px">🟢 BUY  🔴 SELL  🟡 GOLD (divergence)  ─ No signal</span>
@@ -522,19 +755,16 @@ function renderTechnical(data) {
       <div class="cipher-grid">${cbHtml}</div>
     </div>
 
-    <!-- MACD -->
     <div class="oh-card">
       <div class="oh-card-title">📈 MACD (12/26/9) — Daily</div>
       ${macdStatusHtml}
     </div>
 
-    <!-- Volume -->
     <div class="oh-card">
       <div class="oh-card-title">📊 Volume Analysis — Daily</div>
       ${volHtml}
     </div>`;
 
-  // Render MACD chart
   if (macd && macd.hist_values) {
     setTimeout(() => {
       const ctx = document.getElementById('macdCanvas');
@@ -549,8 +779,7 @@ function renderTechnical(data) {
             data:  macd.hist_values,
             backgroundColor: macd.hist_values.map(v => v >= 0 ? 'rgba(0,208,132,0.7)' : 'rgba(255,77,106,0.7)'),
             borderColor:     macd.hist_values.map(v => v >= 0 ? '#00d084' : '#ff4d6a'),
-            borderWidth: 1,
-            borderRadius: 2,
+            borderWidth: 1, borderRadius: 2,
           }]
         },
         options: {
@@ -558,7 +787,7 @@ function renderTechnical(data) {
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: '#5a6480', maxRotation: 45, font: { size: 9 } }, grid: { color: '#1e2535' } },
-            y: { ticks: { color: '#5a6480', font: { size: 9 } },                  grid: { color: '#1e2535' } }
+            y: { ticks: { color: '#5a6480', font: { size: 9 } }, grid: { color: '#1e2535' } }
           }
         }
       });
@@ -734,6 +963,8 @@ document.getElementById('wlInput').addEventListener('keydown',    e => { if(e.ke
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderWatchlistTags();
+setBriefingHeader();
+loadBriefing(); // auto-load on page open
 </script>
 </body>
 </html>
