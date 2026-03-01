@@ -108,37 +108,58 @@ def calc_wavetrend(df, n1=10, n2=21):
 
 def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
     """
-    Returns last Cipher B signal for a dataframe.
-    2 = gold (divergence), 1 = green (buy), -1 = red (sell), 0 = none
+    Returns Cipher B signal info for a dataframe.
+    Matches TradingView crossover() behavior (strict inequality).
+    Returns dict: {signal, bars_ago, wt1, wt2, stale}
+      signal: 2=gold, 1=green, -1=red, 0=none
+      bars_ago: how many bars since last signal
+      wt1/wt2: current WaveTrend values
+      stale: True if signal is too old to be actionable
     """
     wt1, wt2 = calc_wavetrend(df)
     if wt1 is None:
-        return 0
+        return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0, 'stale': True}
 
     try:
-        cross_up   = (wt1 > wt2) & (wt1.shift(1) <= wt2.shift(1))
-        cross_down = (wt1 < wt2) & (wt1.shift(1) >= wt2.shift(1))
+        # Strict crossover — matches Pine Script crossover(wt1, wt2)
+        cross_up   = (wt1 > wt2) & (wt1.shift(1) < wt2.shift(1))
+        cross_down = (wt1 < wt2) & (wt1.shift(1) > wt2.shift(1))
 
         green = cross_up   & (wt2 < os_level)
         red   = cross_down & (wt2 > ob)
 
-        # Gold: cross up in deeply oversold with divergence approximation
+        # Gold: bullish divergence — cross up in deeply oversold zone
+        # Price makes lower low but WT makes higher low (divergence)
         lb       = 5
-        price_ll = df['Low'] < df['Low'].rolling(lb).min().shift(1)
+        price_ll = df['Low'].iloc[-1] < df['Low'].rolling(lb).min().shift(1).iloc[-1]
         wt_hl    = wt2 > wt2.rolling(lb).min().shift(1)
-        gold     = cross_up & (wt2 < os2) & price_ll & wt_hl
+        gold     = cross_up & (wt2 < os2) & wt_hl
 
         signals = pd.Series(0, index=wt1.index)
         signals[red]   = -1
         signals[green] =  1
         signals[gold]  =  2
 
+        cur_wt1 = round(float(wt1.iloc[-1]), 2)
+        cur_wt2 = round(float(wt2.iloc[-1]), 2)
+
         non_zero = signals[signals != 0]
         if len(non_zero) == 0:
-            return 0
-        return int(non_zero.iloc[-1])
+            return {'signal': 0, 'bars_ago': 99, 'wt1': cur_wt1, 'wt2': cur_wt2, 'stale': True}
+
+        # How many bars since the last signal
+        last_loc = signals.index.get_loc(non_zero.index[-1])
+        bars_ago = len(signals) - 1 - last_loc
+
+        return {
+            'signal':   int(non_zero.iloc[-1]),
+            'bars_ago': int(bars_ago),
+            'wt1':      cur_wt1,
+            'wt2':      cur_wt2,
+            'stale':    False,  # frontend decides staleness based on timeframe
+        }
     except Exception:
-        return 0
+        return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0, 'stale': True}
 
 
 def calc_macd(df, fast=12, slow=26, signal=9, bars=60):
@@ -665,11 +686,11 @@ def technical_analysis(ticker):
         macd_weekly = calc_macd(df_1wk, bars=52)
         volume      = calc_volume_analysis(df_1d)
 
-        # Build summary
-        sig_vals = list(cipher_b.values())
-        bull_count  = sum(1 for v in sig_vals if v > 0)
-        bear_count  = sum(1 for v in sig_vals if v < 0)
-        neut_count  = sum(1 for v in sig_vals if v == 0)
+        # Build summary (cipher_b values are now dicts)
+        sig_vals    = list(cipher_b.values())
+        bull_count  = sum(1 for v in sig_vals if v['signal'] > 0)
+        bear_count  = sum(1 for v in sig_vals if v['signal'] < 0)
+        neut_count  = sum(1 for v in sig_vals if v['signal'] == 0)
 
         if bull_count > bear_count * 1.5:
             overall = 'Bullish'
