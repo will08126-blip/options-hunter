@@ -90,8 +90,11 @@ def resample_ohlcv(df, rule):
         return df
 
 
-def calc_wavetrend(df, n1=10, n2=21):
-    """Calculate VMC Cipher B / WaveTrend Oscillator."""
+def calc_wavetrend(df, n1=9, n2=12, ma_len=3):
+    """
+    Calculate VMC Cipher B / WaveTrend Oscillator.
+    Default parameters match user's indicator: Channel=9, Average=12, MA=3.
+    """
     if df is None or len(df) < n1 + n2 + 5:
         return None, None
     try:
@@ -100,7 +103,7 @@ def calc_wavetrend(df, n1=10, n2=21):
         d    = (hlc3 - esa).abs().ewm(span=n1, adjust=False).mean()
         ci   = (hlc3 - esa) / (0.015 * d)
         wt1  = ci.ewm(span=n2, adjust=False).mean()
-        wt2  = wt1.rolling(4).mean()
+        wt2  = wt1.rolling(ma_len).mean()
         return wt1, wt2
     except Exception:
         return None, None
