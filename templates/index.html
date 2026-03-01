@@ -1,541 +1,739 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Options Hunter</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --bg:       #0b0e14;
-      --surface:  #131720;
-      --border:   #1e2535;
-      --text:     #c9d1e0;
-      --muted:    #5a6480;
-      --green:    #00d084;
-      --red:      #ff4d6a;
-      --yellow:   #ffc107;
-      --blue:     #4d9fff;
-      --gold:     #ffd700;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; min-height: 100vh; }
-    .mono { font-family: 'JetBrains Mono', monospace; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Options Hunter</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0e14;--surface:#131720;--border:#1e2535;--text:#c9d1e0;--muted:#5a6480;--green:#00d084;--red:#ff4d6a;--yellow:#ffc107;--blue:#4d9fff;--gold:#ffd700;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;}
+.mono{font-family:'JetBrains Mono',monospace;}
 
-    /* ── Header ── */
-    .app-header {
-      background: linear-gradient(135deg, #0f1320 0%, #131a2e 100%);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .logo { font-size: 1.3rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
-    .logo span { color: var(--blue); }
-    .version-badge { background: var(--border); color: var(--muted); font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+/* ── NAV ── */
+.app-nav{background:#0d1018;border-bottom:2px solid var(--border);display:flex;align-items:center;padding:0 16px;position:sticky;top:0;z-index:100;}
+.logo{font-size:1.1rem;font-weight:700;color:#fff;padding:14px 20px 14px 0;border-right:1px solid var(--border);margin-right:8px;white-space:nowrap;}
+.logo span{color:var(--blue);}
+.nav-tabs-oh{display:flex;gap:2px;flex:1;}
+.nav-tab{padding:14px 18px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:13px;font-weight:500;transition:all .2s;white-space:nowrap;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:#fff;border-bottom-color:var(--blue);}
+.nav-tab .tab-icon{margin-right:6px;}
 
-    /* ── Sentiment Bar ── */
-    .sentiment-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 20px;
-      display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-    }
-    .sent-pill {
-      display: flex; align-items: center; gap: 8px;
-      background: #0b0e14; border: 1px solid var(--border);
-      border-radius: 20px; padding: 5px 14px; font-size: 13px;
-    }
-    .sent-pill .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .sent-pill .value { font-weight: 600; }
-    .sent-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
-    .dot-green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .dot-red    { background: var(--red);   box-shadow: 0 0 6px var(--red); }
-    .dot-yellow { background: var(--yellow); }
-    .color-green  { color: var(--green); }
-    .color-red    { color: var(--red); }
-    .color-yellow { color: var(--yellow); }
+/* ── TAB CONTENT ── */
+.tab-content-oh{display:none;}.tab-content-oh.active{display:block;}
 
-    /* ── Search Panel ── */
-    .search-panel {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 20px;
-    }
-    .search-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-    .input-group-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
-    .oh-input {
-      background: #0b0e14; border: 1px solid var(--border); color: var(--text);
-      border-radius: 8px; padding: 9px 14px; font-family: 'JetBrains Mono', monospace;
-      font-size: 14px; font-weight: 600; text-transform: uppercase; width: 140px;
-      transition: border-color 0.2s;
-    }
-    .oh-input:focus { outline: none; border-color: var(--blue); }
-    .oh-select {
-      background: #0b0e14; border: 1px solid var(--border); color: var(--text);
-      border-radius: 8px; padding: 9px 14px; font-size: 14px; min-width: 180px;
-    }
-    .oh-select:focus { outline: none; border-color: var(--blue); }
-    .btn-load {
-      background: #1a2540; border: 1px solid var(--blue); color: var(--blue);
-      border-radius: 8px; padding: 9px 20px; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; white-space: nowrap;
-    }
-    .btn-load:hover { background: var(--blue); color: #fff; }
-    .btn-analyze {
-      background: var(--blue); border: none; color: #fff;
-      border-radius: 8px; padding: 9px 24px; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; white-space: nowrap;
-    }
-    .btn-analyze:hover { background: #3a8fff; }
-    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+/* ── CARDS ── */
+.oh-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;}
+.oh-card-title{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:12px;font-weight:600;}
 
-    /* ── Stock Info Strip ── */
-    .stock-strip {
-      background: #0f1320; border-bottom: 1px solid var(--border);
-      padding: 8px 20px; display: none; align-items: center; gap: 20px; flex-wrap: wrap;
-    }
-    .stock-strip.visible { display: flex; }
-    .stock-name { font-weight: 600; color: #fff; font-size: 15px; }
-    .stock-price { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--green); }
-    .stock-meta  { font-size: 12px; color: var(--muted); }
+/* ── METRIC PILLS ── */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.metric-pill{background:#0b0e14;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.metric-pill .mp-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.metric-pill .mp-value{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;}
+.metric-pill .mp-change{font-size:11px;margin-top:2px;}
+.pos{color:var(--green);}.neg{color:var(--red);}.neut{color:var(--muted);}
 
-    /* ── Filter Tabs ── */
-    .filter-bar {
-      padding: 12px 20px;
-      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-      border-bottom: 1px solid var(--border); background: var(--surface);
-    }
-    .filter-btn {
-      background: #0b0e14; border: 1px solid var(--border); color: var(--muted);
-      border-radius: 20px; padding: 5px 16px; font-size: 13px; cursor: pointer;
-      transition: all 0.2s;
-    }
-    .filter-btn:hover  { border-color: var(--blue); color: var(--blue); }
-    .filter-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
-    .results-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+/* ── MOVERS ── */
+.mover-list{display:flex;flex-direction:column;gap:6px;}
+.mover-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#0b0e14;border-radius:6px;border-left:3px solid transparent;}
+.mover-item.gainer{border-left-color:var(--green);}
+.mover-item.loser{border-left-color:var(--red);}
+.mover-ticker{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;}
+.mover-chg{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
 
-    /* ── Table ── */
-    .table-wrap { overflow-x: auto; padding: 0 0 80px 0; }
-    .oh-table { width: 100%; border-collapse: collapse; }
-    .oh-table thead th {
-      background: #0d1018; color: var(--muted); font-size: 11px;
-      text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;
-      padding: 10px 12px; border-bottom: 1px solid var(--border);
-      white-space: nowrap; position: sticky; top: 0; z-index: 1;
-    }
-    .oh-table tbody tr {
-      border-bottom: 1px solid #1a1f2e;
-      transition: background 0.15s; cursor: pointer;
-    }
-    .oh-table tbody tr:hover { background: #131a2a; }
-    .oh-table td { padding: 10px 12px; white-space: nowrap; }
+/* ── NEWS ── */
+.news-list{display:flex;flex-direction:column;gap:8px;}
+.news-item{padding:10px;background:#0b0e14;border-radius:8px;border-left:3px solid var(--blue);}
+.news-item a{color:var(--text);text-decoration:none;font-size:13px;font-weight:500;line-height:1.4;}
+.news-item a:hover{color:var(--blue);}
+.news-meta{font-size:11px;color:var(--muted);margin-top:4px;}
 
-    .badge-call { background: rgba(77,159,255,0.15); color: var(--blue);   border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
-    .badge-put  { background: rgba(255,77,106,0.15); color: var(--red);    border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
-    .itm-badge  { background: rgba(0,208,132,0.1);   color: var(--green);  border-radius: 4px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
+/* ── CIPHER B TABLE ── */
+.cipher-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;}
+.cipher-cell{background:#0b0e14;border-radius:8px;padding:8px 4px;text-align:center;border:1px solid var(--border);}
+.cipher-cell .tf-label{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+.cipher-cell .sig-dot{width:20px;height:20px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+.sig-green{background:rgba(0,208,132,.25);border:2px solid var(--green);box-shadow:0 0 8px rgba(0,208,132,.4);}
+.sig-red{background:rgba(255,77,106,.2);border:2px solid var(--red);box-shadow:0 0 8px rgba(255,77,106,.3);}
+.sig-gold{background:rgba(255,215,0,.2);border:2px solid var(--gold);box-shadow:0 0 8px rgba(255,215,0,.3);}
+.sig-none{background:#1a1f2e;border:2px solid #2a2f3e;}
 
-    /* Grade badges */
-    .grade { border-radius: 6px; padding: 3px 10px; font-weight: 700; font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-    .grade-Ap { background: rgba(0,208,132,0.2); color: var(--green); border: 1px solid rgba(0,208,132,0.4); }
-    .grade-A  { background: rgba(0,208,132,0.12); color: #00b870; }
-    .grade-Bp { background: rgba(77,159,255,0.15); color: var(--blue); }
-    .grade-B  { background: rgba(77,159,255,0.1);  color: #4d99cc; }
-    .grade-C  { background: rgba(255,193,7,0.15);  color: var(--yellow); }
-    .grade-D  { background: rgba(255,77,106,0.12); color: var(--red); }
+/* ── SUMMARY BOX ── */
+.summary-box{background:#0b0e14;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;}
+.summary-overall{font-size:1.1rem;font-weight:700;margin-bottom:6px;}
+.summary-stats{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);}
+.summary-stats span b{color:var(--text);}
 
-    /* Score bar */
-    .score-cell { display: flex; align-items: center; gap: 8px; }
-    .score-bar-bg { width: 50px; height: 4px; background: #1e2535; border-radius: 2px; }
-    .score-bar-fill { height: 100%; border-radius: 2px; }
+/* ── MACD CHART ── */
+.chart-wrap{position:relative;height:160px;margin-top:8px;}
 
-    /* ── Detail Drawer ── */
-    .detail-row td { padding: 0; }
-    .detail-inner {
-      background: #0d1320; border-top: 1px solid var(--border);
-      padding: 16px 20px; display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
-    }
-    .detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-    .detail-card h6 { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .detail-item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; }
-    .detail-item .val { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-    .reason-list { list-style: none; }
-    .reason-list li { font-size: 12px; padding: 3px 0; display: flex; align-items: center; gap-6px; gap: 6px; }
-    .reason-list .r-good { color: var(--green); }
-    .reason-list .r-ok   { color: var(--yellow); }
-    .reason-list .r-warn { color: #ff944d; }
-    .reason-list .r-bad  { color: var(--red); }
+/* ── VOLUME BAR ── */
+.vol-bar-wrap{margin-top:8px;}
+.vol-ratio-label{font-size:12px;margin-bottom:6px;color:var(--muted);}
+.vol-bar-track{background:#1a1f2e;border-radius:4px;height:8px;width:100%;position:relative;}
+.vol-bar-fill{height:100%;border-radius:4px;transition:width .4s;}
 
-    /* ── Empty / Loading States ── */
-    .state-box { text-align: center; padding: 60px 20px; color: var(--muted); }
-    .state-box .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
-    .state-box p { font-size: 15px; }
-    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+/* ── SENTIMENT BAR ── */
+.sentiment-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.sent-pill{display:flex;align-items:center;gap:7px;background:#0b0e14;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;}
+.sent-pill .s-label{color:var(--muted);font-size:10px;text-transform:uppercase;}
+.s-dot{width:7px;height:7px;border-radius:50%;}
+.s-green{background:var(--green);box-shadow:0 0 5px var(--green);}
+.s-red{background:var(--red);box-shadow:0 0 5px var(--red);}
+.s-yellow{background:var(--yellow);}
+.s-desc{font-size:11px;color:var(--muted);flex-basis:100%;}
 
-    /* ── Toast ── */
-    .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; }
-    .toast-msg { background: #ff4d6a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+/* ── SEARCH PANEL ── */
+.search-panel{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;}
+.search-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;}
+.field-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.oh-input{background:#0b0e14;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;text-transform:uppercase;width:130px;transition:border-color .2s;}
+.oh-input:focus{outline:none;border-color:var(--blue);}
+.oh-select{background:#0b0e14;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;min-width:170px;}
+.oh-select:focus{outline:none;border-color:var(--blue);}
+.btn-primary-oh{background:var(--blue);border:none;color:#fff;border-radius:8px;padding:8px 20px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn-primary-oh:hover{background:#3a8fff;}
+.btn-primary-oh:disabled{opacity:.4;cursor:not-allowed;}
+.btn-outline-oh{background:#1a2540;border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:8px 18px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn-outline-oh:hover{background:var(--blue);color:#fff;}
 
-    /* ── Responsive ── */
-    @media (max-width: 600px) {
-      .app-header { padding: 12px 14px; }
-      .search-panel { padding: 12px 14px; }
-      .oh-input { width: 100%; }
-      .oh-select { width: 100%; }
-      .btn-load, .btn-analyze { width: 100%; text-align: center; }
-      .filter-bar { padding: 10px 14px; }
-      .oh-table thead th:nth-child(n+7) { display: none; }
-      .oh-table td:nth-child(n+7) { display: none; }
-    }
-  </style>
+/* ── STOCK STRIP ── */
+.stock-strip{background:#0f1320;border-bottom:1px solid var(--border);padding:7px 16px;display:none;align-items:center;gap:16px;flex-wrap:wrap;}
+.stock-strip.visible{display:flex;}
+.stock-name{font-weight:600;color:#fff;font-size:14px;}
+.stock-price{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:var(--green);}
+.stock-meta{font-size:11px;color:var(--muted);}
+
+/* ── FILTER BAR ── */
+.filter-bar{padding:10px 16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);}
+.filter-btn{background:#0b0e14;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:4px 14px;font-size:12px;cursor:pointer;transition:all .2s;}
+.filter-btn:hover{border-color:var(--blue);color:var(--blue);}
+.filter-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
+.results-count{margin-left:auto;font-size:11px;color:var(--muted);}
+
+/* ── OPTIONS TABLE ── */
+.table-wrap{overflow-x:auto;padding-bottom:80px;}
+.oh-table{width:100%;border-collapse:collapse;}
+.oh-table thead th{background:#0d1018;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;font-weight:500;padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1;}
+.oh-table tbody tr{border-bottom:1px solid #1a1f2e;transition:background .15s;cursor:pointer;}
+.oh-table tbody tr:hover{background:#131a2a;}
+.oh-table td{padding:9px 10px;white-space:nowrap;}
+.badge-call{background:rgba(77,159,255,.15);color:var(--blue);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;}
+.badge-put{background:rgba(255,77,106,.15);color:var(--red);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;}
+.itm-badge{background:rgba(0,208,132,.1);color:var(--green);border-radius:4px;padding:1px 5px;font-size:9px;margin-left:3px;}
+.grade{border-radius:5px;padding:2px 8px;font-weight:700;font-size:12px;font-family:'JetBrains Mono',monospace;}
+.grade-Ap{background:rgba(0,208,132,.2);color:var(--green);border:1px solid rgba(0,208,132,.4);}
+.grade-A{background:rgba(0,208,132,.12);color:#00b870;}
+.grade-Bp{background:rgba(77,159,255,.15);color:var(--blue);}
+.grade-B{background:rgba(77,159,255,.1);color:#4d99cc;}
+.grade-C{background:rgba(255,193,7,.15);color:var(--yellow);}
+.grade-D{background:rgba(255,77,106,.12);color:var(--red);}
+.score-cell{display:flex;align-items:center;gap:6px;}
+.score-bar-bg{width:44px;height:3px;background:#1e2535;border-radius:2px;}
+.score-bar-fill{height:100%;border-radius:2px;}
+
+/* ── DETAIL DRAWER ── */
+.detail-row td{padding:0;}
+.detail-inner{background:#0d1320;border-top:1px solid var(--border);padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;}
+.detail-card h6{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.detail-item{display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;}
+.detail-item .val{font-family:'JetBrains Mono',monospace;font-weight:600;}
+.reason-list{list-style:none;}
+.reason-list li{font-size:11px;padding:2px 0;display:flex;align-items:flex-start;gap:5px;}
+.r-good{color:var(--green);}.r-ok{color:var(--yellow);}.r-warn{color:#ff944d;}.r-bad{color:var(--red);}
+
+/* ── WATCHLIST EDITOR ── */
+.watchlist-editor{background:#0b0e14;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;}
+.watchlist-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.wtag{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:12px;display:flex;align-items:center;gap:6px;}
+.wtag .rm{cursor:pointer;color:var(--muted);font-size:14px;line-height:1;}.wtag .rm:hover{color:var(--red);}
+.watchlist-add{display:flex;gap:6px;}
+.wl-input{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;text-transform:uppercase;width:110px;}
+.wl-input:focus{outline:none;border-color:var(--blue);}
+.btn-sm-oh{background:var(--border);border:none;color:var(--text);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;}
+.btn-sm-oh:hover{background:var(--blue);color:#fff;}
+
+/* ── STATE BOXES ── */
+.state-box{text-align:center;padding:50px 16px;color:var(--muted);}
+.state-box .icon{font-size:2.5rem;margin-bottom:10px;opacity:.4;}
+.state-box p{font-size:14px;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;}
+.toast-msg{background:#ff4d6a;color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+
+/* ── CONTAINER ── */
+.page-container{max-width:1100px;margin:0 auto;padding:14px 16px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .nav-tab{padding:12px 12px;font-size:12px;}
+  .metric-grid{grid-template-columns:repeat(2,1fr);}
+  .cipher-grid{grid-template-columns:repeat(5,1fr);}
+  .oh-table thead th:nth-child(n+8){display:none;}
+  .oh-table td:nth-child(n+8){display:none;}
+  .oh-input{width:100%;}
+  .oh-select{width:100%;}
+  .btn-primary-oh,.btn-outline-oh{width:100%;text-align:center;}
+}
+</style>
 </head>
 <body>
 
-<!-- ── HEADER ── -->
-<div class="app-header">
+<!-- ── NAV ── -->
+<nav class="app-nav">
   <div class="logo">🎯 Options <span>Hunter</span></div>
-  <div class="version-badge">v1.0</div>
-</div>
+  <div class="nav-tabs-oh">
+    <div class="nav-tab active" onclick="switchTab('briefing')"  id="tab-briefing"><span class="tab-icon">🌅</span>Morning Briefing</div>
+    <div class="nav-tab"       onclick="switchTab('technical')" id="tab-technical"><span class="tab-icon">📊</span>Technical</div>
+    <div class="nav-tab"       onclick="switchTab('options')"   id="tab-options"><span class="tab-icon">🎯</span>Options Hunter</div>
+  </div>
+</nav>
 
-<!-- ── SENTIMENT BAR ── -->
-<div class="sentiment-bar" id="sentimentBar">
-  <div class="sent-pill">
-    <span class="label">Market</span>
-    <span class="dot dot-yellow" id="mktDot"></span>
-    <span class="value" id="mktSent">—</span>
-  </div>
-  <div class="sent-pill">
-    <span class="label">Sector</span>
-    <span class="dot dot-yellow" id="secDot"></span>
-    <span class="value" id="secSent">—</span>
-  </div>
-  <div class="sent-pill">
-    <span class="label">VIX</span>
-    <span class="value mono" id="vixVal">—</span>
-  </div>
-  <div class="sent-pill" id="secNamePill" style="display:none">
-    <span class="label">Sector</span>
-    <span class="value" id="secName">—</span>
-  </div>
-  <small id="mktDesc" style="color:var(--muted);font-size:12px;flex-basis:100%"></small>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     TAB 1 — MORNING BRIEFING
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-oh active" id="content-briefing">
+  <div class="page-container">
 
-<!-- ── SEARCH PANEL ── -->
-<div class="search-panel">
-  <div class="search-row">
-    <div>
-      <div class="input-group-label">Ticker</div>
-      <input class="oh-input" id="tickerInput" type="text" placeholder="AAPL" maxlength="8"/>
+    <!-- Watchlist Editor -->
+    <div class="oh-card" style="margin-top:14px">
+      <div class="oh-card-title">⚙️ Crypto Watchlist <span style="color:var(--muted);font-size:10px;font-weight:400">(click × to remove, add your own)</span></div>
+      <div class="watchlist-editor">
+        <div class="watchlist-tags" id="watchlistTags"></div>
+        <div class="watchlist-add">
+          <input class="wl-input" id="wlInput" placeholder="e.g. DOGE" maxlength="10"/>
+          <button class="btn-sm-oh" onclick="addToWatchlist()">Add</button>
+          <button class="btn-sm-oh" onclick="resetWatchlist()" style="margin-left:auto">Reset</button>
+        </div>
+      </div>
+      <button class="btn-primary-oh" onclick="loadBriefing()" id="refreshBtn" style="font-size:13px;padding:8px 16px">
+        🔄 Refresh Briefing
+      </button>
+      <span style="font-size:11px;color:var(--muted);margin-left:12px" id="lastUpdated"></span>
     </div>
-    <div style="padding-bottom:1px">
-      <div class="input-group-label">&nbsp;</div>
-      <button class="btn-load" id="loadBtn" onclick="loadStock()">Load Stock</button>
-    </div>
-    <div id="expWrap" style="display:none">
-      <div class="input-group-label">Expiration Date</div>
-      <select class="oh-select" id="expSelect"></select>
-    </div>
-    <div id="analyzeWrap" style="display:none; padding-bottom:1px">
-      <div class="input-group-label">&nbsp;</div>
-      <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">Analyze Options</button>
+
+    <div id="briefingContent">
+      <div class="state-box"><div class="icon">🌅</div><p>Click Refresh Briefing to load today's data</p></div>
     </div>
   </div>
 </div>
 
-<!-- ── STOCK STRIP ── -->
-<div class="stock-strip" id="stockStrip">
-  <div class="stock-name" id="stockName">—</div>
-  <div class="stock-price mono" id="stockPrice">$—</div>
-  <div class="stock-meta" id="stockMeta">—</div>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     TAB 2 — TECHNICAL ANALYSIS
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-oh" id="content-technical">
+  <div class="search-panel">
+    <div class="search-row">
+      <div>
+        <div class="field-label">Ticker</div>
+        <input class="oh-input" id="techTicker" placeholder="AAPL" maxlength="8"/>
+      </div>
+      <div style="padding-bottom:1px">
+        <div class="field-label">&nbsp;</div>
+        <button class="btn-primary-oh" onclick="loadTechnical()">Analyze</button>
+      </div>
+    </div>
+  </div>
+  <div class="page-container" id="technicalContent">
+    <div class="state-box" style="margin-top:20px"><div class="icon">📊</div><p>Enter a ticker above to see technical analysis</p></div>
+  </div>
 </div>
 
-<!-- ── FILTER BAR ── -->
-<div class="filter-bar" id="filterBar" style="display:none">
-  <button class="filter-btn active" onclick="setFilter('all')"   id="f-all">All</button>
-  <button class="filter-btn"        onclick="setFilter('call')"  id="f-call">Calls</button>
-  <button class="filter-btn"        onclick="setFilter('put')"   id="f-put">Puts</button>
-  <button class="filter-btn"        onclick="setFilter('best')"  id="f-best">⭐ Best Only (B+ &amp; above)</button>
-  <span class="results-count" id="resultsCount"></span>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     TAB 3 — OPTIONS HUNTER
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-oh" id="content-options">
 
-<!-- ── RESULTS ── -->
-<div id="resultsArea">
-  <div class="state-box">
-    <div class="icon">🎯</div>
-    <p>Enter a ticker above to get started</p>
+  <!-- Sentiment -->
+  <div class="sentiment-bar" id="sentimentBar">
+    <div class="sent-pill"><span class="s-label">Market</span><span class="s-dot s-yellow" id="mktDot"></span><span class="pos" id="mktSent">—</span></div>
+    <div class="sent-pill"><span class="s-label">Sector</span><span class="s-dot s-yellow" id="secDot"></span><span id="secSent">—</span></div>
+    <div class="sent-pill"><span class="s-label">VIX</span><span class="mono" id="vixVal">—</span></div>
+    <div class="sent-pill" id="secNamePill" style="display:none"><span class="s-label">Sector</span><span id="secName">—</span></div>
+    <small id="mktDesc" class="s-desc"></small>
+  </div>
+
+  <!-- Search -->
+  <div class="search-panel">
+    <div class="search-row">
+      <div><div class="field-label">Ticker</div><input class="oh-input" id="tickerInput" placeholder="AAPL" maxlength="8"/></div>
+      <div style="padding-bottom:1px"><div class="field-label">&nbsp;</div><button class="btn-outline-oh" onclick="loadStock()">Load Stock</button></div>
+      <div id="expWrap" style="display:none"><div class="field-label">Expiration Date</div><select class="oh-select" id="expSelect"></select></div>
+      <div id="analyzeWrap" style="display:none;padding-bottom:1px"><div class="field-label">&nbsp;</div><button class="btn-primary-oh" id="analyzeBtn" onclick="analyze()">Analyze Options</button></div>
+    </div>
+  </div>
+
+  <!-- Stock Strip -->
+  <div class="stock-strip" id="stockStrip">
+    <div class="stock-name" id="stockName">—</div>
+    <div class="stock-price mono" id="stockPrice">$—</div>
+    <div class="stock-meta" id="stockMeta">—</div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar" id="filterBar" style="display:none">
+    <button class="filter-btn active" onclick="setFilter('all')"  id="f-all">All</button>
+    <button class="filter-btn"        onclick="setFilter('call')" id="f-call">Calls</button>
+    <button class="filter-btn"        onclick="setFilter('put')"  id="f-put">Puts</button>
+    <button class="filter-btn"        onclick="setFilter('best')" id="f-best">⭐ Best Only</button>
+    <span class="results-count" id="resultsCount"></span>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsArea">
+    <div class="state-box"><div class="icon">🎯</div><p>Enter a ticker above to get started</p></div>
   </div>
 </div>
 
 <!-- ── TOAST ── -->
-<div class="toast-wrap" id="toastWrap" style="display:none">
-  <div class="toast-msg" id="toastMsg"></div>
-</div>
+<div class="toast-wrap" id="toastWrap" style="display:none"><div class="toast-msg" id="toastMsg"></div></div>
 
 <script>
-  let allResults   = [];
-  let currentFilter = 'all';
-  let openRow       = null;
+// ═════════════════════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═════════════════════════════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-content-oh').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('content-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
 
-  // ── Load stock info & expiration dates ──────────────────────────────────────
-  async function loadStock() {
-    const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
-    if (!ticker) return showToast('Enter a ticker symbol first');
+// ═════════════════════════════════════════════════════════════════════════════
+//  MORNING BRIEFING
+// ═════════════════════════════════════════════════════════════════════════════
+const DEFAULT_WATCHLIST = ['BTC-USD','ETH-USD','XRP-USD','SOL-USD','SUI-USD','LINK-USD','ONDO-USD','UNI-USD'];
+const CRYPTO_NAMES = {
+  'BTC-USD':'Bitcoin','ETH-USD':'Ethereum','XRP-USD':'XRP','SOL-USD':'Solana',
+  'SUI-USD':'SUI','LINK-USD':'Chainlink','ONDO-USD':'Ondo','UNI-USD':'Uniswap',
+  'BNB-USD':'BNB','DOGE-USD':'Dogecoin','ADA-USD':'Cardano','AVAX-USD':'Avalanche',
+  'MATIC-USD':'Polygon','DOT-USD':'Polkadot','SHIB-USD':'Shiba Inu'
+};
 
-    setLoadingState();
+function getWatchlist() {
+  try { return JSON.parse(localStorage.getItem('oh_watchlist')) || DEFAULT_WATCHLIST; }
+  catch { return DEFAULT_WATCHLIST; }
+}
+function saveWatchlist(list) { localStorage.setItem('oh_watchlist', JSON.stringify(list)); }
 
-    try {
-      const res  = await fetch(`/api/stock/${ticker}`);
-      const data = await res.json();
-      if (data.error) return showToast(data.error);
+function renderWatchlistTags() {
+  const list = getWatchlist();
+  const wrap = document.getElementById('watchlistTags');
+  wrap.innerHTML = list.map(s => `
+    <span class="wtag">
+      ${s.replace('-USD','')}
+      <span class="rm" onclick="removeFromWatchlist('${s}')">×</span>
+    </span>`).join('');
+}
 
-      // Sentiment
-      updateSentiment(data);
+function addToWatchlist() {
+  let val = document.getElementById('wlInput').value.trim().toUpperCase();
+  if (!val) return;
+  if (!val.includes('-')) val += '-USD';
+  const list = getWatchlist();
+  if (!list.includes(val)) { list.push(val); saveWatchlist(list); renderWatchlistTags(); }
+  document.getElementById('wlInput').value = '';
+}
 
-      // Stock strip
-      document.getElementById('stockName').textContent  = data.stock.name;
-      document.getElementById('stockPrice').textContent = `$${data.stock.price}`;
-      document.getElementById('stockMeta').textContent  = `${data.sector.name} · ${data.sector.etf}`;
-      document.getElementById('stockStrip').classList.add('visible');
+function removeFromWatchlist(sym) {
+  const list = getWatchlist().filter(s => s !== sym);
+  saveWatchlist(list); renderWatchlistTags();
+}
 
-      // Expirations
-      const sel = document.getElementById('expSelect');
-      sel.innerHTML = '';
-      data.expirations.forEach(e => {
-        const opt = document.createElement('option');
-        opt.value = e; opt.textContent = formatDate(e);
-        sel.appendChild(opt);
+function resetWatchlist() { saveWatchlist(DEFAULT_WATCHLIST); renderWatchlistTags(); }
+
+async function loadBriefing() {
+  const btn = document.getElementById('refreshBtn');
+  btn.textContent = '⏳ Loading...'; btn.disabled = true;
+  document.getElementById('briefingContent').innerHTML = '<div class="state-box"><div class="spinner"></div><p>Fetching market data...</p></div>';
+
+  try {
+    const watchlist = getWatchlist().join(',');
+    const res  = await fetch(`/api/market?crypto=${encodeURIComponent(watchlist)}`);
+    const data = await res.json();
+    if (data.error) { showToast(data.error); return; }
+
+    document.getElementById('lastUpdated').textContent = `Updated ${data.updated}`;
+    renderBriefing(data);
+  } catch(e) {
+    showToast('Failed to load briefing. Check your connection.');
+  } finally {
+    btn.textContent = '🔄 Refresh Briefing'; btn.disabled = false;
+  }
+}
+
+function renderBriefing(data) {
+  const ci = data.crypto_indices || {};
+
+  // Crypto index pills
+  const ciHtml = Object.values(ci).map(idx => `
+    <div class="metric-pill">
+      <div class="mp-label">${idx.label}</div>
+      <div class="mp-value">${idx.value}</div>
+      ${idx.change_24h != null ? `<div class="mp-change ${idx.change_24h >= 0 ? 'pos' : 'neg'}">${idx.change_24h >= 0 ? '▲' : '▼'} ${Math.abs(idx.change_24h).toFixed(1)}% 24h</div>` : ''}
+    </div>`).join('');
+
+  // Market indices
+  const idxHtml = (data.indices || []).map(idx => `
+    <div class="metric-pill">
+      <div class="mp-label">${idx.name}</div>
+      <div class="mp-value">${idx.symbol === '^VIX' ? idx.price : '$' + idx.price.toLocaleString()}</div>
+      <div class="mp-change ${idx.positive ? 'pos' : 'neg'}">${idx.positive ? '▲' : '▼'} ${Math.abs(idx.change_pct).toFixed(2)}%</div>
+    </div>`).join('');
+
+  // Crypto prices
+  const cryptoHtml = (data.crypto || []).map(c => `
+    <div class="metric-pill">
+      <div class="mp-label">${c.name}</div>
+      <div class="mp-value">$${c.price.toLocaleString()}</div>
+      <div class="mp-change ${c.positive ? 'pos' : 'neg'}">${c.positive ? '▲' : '▼'} ${Math.abs(c.change_pct).toFixed(2)}%</div>
+    </div>`).join('');
+
+  // Top movers
+  const movers = data.movers || {gainers:[], losers:[]};
+  const gainersHtml = movers.gainers.map(g => `
+    <div class="mover-item gainer">
+      <span class="mover-ticker">${g.ticker}</span>
+      <span class="mover-chg pos">+${g.change}%</span>
+    </div>`).join('');
+  const losersHtml = movers.losers.map(l => `
+    <div class="mover-item loser">
+      <span class="mover-ticker">${l.ticker}</span>
+      <span class="mover-chg neg">${l.change}%</span>
+    </div>`).join('');
+
+  // News
+  const newsHtml = (data.news || []).map(n => `
+    <div class="news-item">
+      <a href="${n.link}" target="_blank">${n.title}</a>
+      <div class="news-meta">${n.publisher || 'Market News'}</div>
+    </div>`).join('') || '<p style="color:var(--muted);font-size:13px">No headlines available right now.</p>';
+
+  document.getElementById('briefingContent').innerHTML = `
+    <div class="oh-card"><div class="oh-card-title">📈 Market Indices</div><div class="metric-grid">${idxHtml}</div></div>
+    <div class="oh-card"><div class="oh-card-title">🌐 Crypto Market</div>
+      <div style="margin-bottom:10px"><div class="oh-card-title" style="margin-bottom:8px">Market Cap Indices</div><div class="metric-grid">${ciHtml}</div></div>
+      <div class="oh-card-title" style="margin-bottom:8px">Your Watchlist</div><div class="metric-grid">${cryptoHtml}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="oh-card"><div class="oh-card-title">🚀 Top Gainers</div><div class="mover-list">${gainersHtml || '<p style="color:var(--muted);font-size:12px">Loading...</p>'}</div></div>
+      <div class="oh-card"><div class="oh-card-title">📉 Top Losers</div><div class="mover-list">${losersHtml || '<p style="color:var(--muted);font-size:12px">Loading...</p>'}</div></div>
+    </div>
+    <div class="oh-card"><div class="oh-card-title">📰 Market Headlines</div><div class="news-list">${newsHtml}</div></div>`;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  TECHNICAL ANALYSIS
+// ═════════════════════════════════════════════════════════════════════════════
+let macdChart = null;
+
+async function loadTechnical() {
+  const ticker = document.getElementById('techTicker').value.trim().toUpperCase();
+  if (!ticker) return showToast('Enter a ticker symbol');
+
+  document.getElementById('technicalContent').innerHTML = '<div class="state-box" style="margin-top:20px"><div class="spinner"></div><p>Calculating indicators across all timeframes...</p></div>';
+
+  try {
+    const res  = await fetch(`/api/technical/${ticker}`);
+    const data = await res.json();
+    if (data.error) return showToast(data.error);
+    renderTechnical(data);
+  } catch(e) {
+    showToast('Technical analysis failed. Try again.');
+  }
+}
+
+function renderTechnical(data) {
+  const cb     = data.cipher_b || {};
+  const macd   = data.macd;
+  const vol    = data.volume;
+  const summ   = data.summary || {};
+
+  const overallColor = summ.overall === 'Bullish' ? 'var(--green)' : summ.overall === 'Bearish' ? 'var(--red)' : 'var(--yellow)';
+
+  // Cipher B grid
+  const TF_ORDER = ['5m','15m','30m','1H','2H','4H','6H','8H','12H','1D','2D','3D','5D','1W','1M'];
+  const cbHtml = TF_ORDER.map(tf => {
+    const sig = cb[tf];
+    let dotClass, label;
+    if      (sig === 2)  { dotClass='sig-gold';  label='G'; }
+    else if (sig === 1)  { dotClass='sig-green'; label='▲'; }
+    else if (sig === -1) { dotClass='sig-red';   label='▼'; }
+    else                 { dotClass='sig-none';  label='─'; }
+    return `<div class="cipher-cell"><div class="tf-label">${tf}</div><div class="sig-dot ${dotClass}">${label}</div></div>`;
+  }).join('');
+
+  // MACD status
+  let macdStatusHtml = '<p style="color:var(--muted);font-size:12px">No MACD data</p>';
+  if (macd) {
+    const hColor = macd.bullish ? 'var(--green)' : 'var(--red)';
+    const cross  = macd.crossing_up ? ' 🔺 CROSSING UP' : macd.crossing_down ? ' 🔻 CROSSING DOWN' : '';
+    macdStatusHtml = `
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
+        <span>MACD: <b class="mono" style="color:${hColor}">${macd.macd}</b></span>
+        <span>Signal: <b class="mono">${macd.signal}</b></span>
+        <span>Histogram: <b class="mono" style="color:${hColor}">${macd.histogram}</b></span>
+        <span style="color:${hColor};font-weight:600">${macd.bullish ? '● BULLISH' : '● BEARISH'}${cross}</span>
+      </div>
+      <div class="chart-wrap"><canvas id="macdCanvas"></canvas></div>`;
+  }
+
+  // Volume
+  let volHtml = '<p style="color:var(--muted);font-size:12px">No volume data</p>';
+  if (vol) {
+    const vColor = vol.color === 'green' ? 'var(--green)' : vol.color === 'yellow' ? 'var(--yellow)' : 'var(--red)';
+    const pct    = Math.min(vol.ratio * 50, 100);
+    volHtml = `
+      <div style="font-size:12px;margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap">
+        <span>Today: <b class="mono">${(vol.current/1e6).toFixed(1)}M</b></span>
+        <span>20-day avg: <b class="mono">${(vol.average_20/1e6).toFixed(1)}M</b></span>
+        <span style="color:${vColor};font-weight:600">${vol.above_average ? '▲ ABOVE AVERAGE' : '▼ BELOW AVERAGE'} (${vol.ratio}×)</span>
+      </div>
+      <div class="vol-bar-track"><div class="vol-bar-fill" style="width:${pct}%;background:${vColor}"></div></div>`;
+  }
+
+  document.getElementById('technicalContent').innerHTML = `
+    <!-- Summary -->
+    <div class="summary-box" style="margin-top:14px">
+      <div class="summary-overall" style="color:${overallColor}">
+        ${summ.overall === 'Bullish' ? '🟢' : summ.overall === 'Bearish' ? '🔴' : '🟡'} ${summ.overall || 'Mixed'} — ${data.ticker} @ $${data.price}
+      </div>
+      <div class="summary-stats">
+        <span>Cipher B: <b>${summ.bullish_count} Bullish</b> / <b>${summ.bearish_count} Bearish</b> / ${summ.neutral_count} Neutral</span>
+        <span>MACD: <b>${summ.macd_status}</b></span>
+        <span>Volume: <b>${summ.volume_status}</b></span>
+      </div>
+    </div>
+
+    <!-- Cipher B -->
+    <div class="oh-card">
+      <div class="oh-card-title">🔮 Cipher B — Last Signal by Timeframe
+        <span style="font-size:9px;color:var(--muted);margin-left:8px">🟢 BUY  🔴 SELL  🟡 GOLD (divergence)  ─ No signal</span>
+      </div>
+      <div class="cipher-grid">${cbHtml}</div>
+    </div>
+
+    <!-- MACD -->
+    <div class="oh-card">
+      <div class="oh-card-title">📈 MACD (12/26/9) — Daily</div>
+      ${macdStatusHtml}
+    </div>
+
+    <!-- Volume -->
+    <div class="oh-card">
+      <div class="oh-card-title">📊 Volume Analysis — Daily</div>
+      ${volHtml}
+    </div>`;
+
+  // Render MACD chart
+  if (macd && macd.hist_values) {
+    setTimeout(() => {
+      const ctx = document.getElementById('macdCanvas');
+      if (!ctx) return;
+      if (macdChart) macdChart.destroy();
+      macdChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: macd.hist_dates,
+          datasets: [{
+            label: 'MACD Histogram',
+            data:  macd.hist_values,
+            backgroundColor: macd.hist_values.map(v => v >= 0 ? 'rgba(0,208,132,0.7)' : 'rgba(255,77,106,0.7)'),
+            borderColor:     macd.hist_values.map(v => v >= 0 ? '#00d084' : '#ff4d6a'),
+            borderWidth: 1,
+            borderRadius: 2,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#5a6480', maxRotation: 45, font: { size: 9 } }, grid: { color: '#1e2535' } },
+            y: { ticks: { color: '#5a6480', font: { size: 9 } },                  grid: { color: '#1e2535' } }
+          }
+        }
       });
-
-      document.getElementById('expWrap').style.display     = 'block';
-      document.getElementById('analyzeWrap').style.display = 'block';
-      resetResults();
-    } catch(e) {
-      showToast('Could not load stock. Check ticker and try again.');
-    }
+    }, 100);
   }
+}
 
-  // ── Run analysis ─────────────────────────────────────────────────────────────
-  async function analyze() {
-    const ticker     = document.getElementById('tickerInput').value.trim().toUpperCase();
-    const expiration = document.getElementById('expSelect').value;
-    if (!ticker || !expiration) return;
+// ═════════════════════════════════════════════════════════════════════════════
+//  OPTIONS HUNTER
+// ═════════════════════════════════════════════════════════════════════════════
+let allResults = [], currentFilter = 'all', openRow = null;
 
-    document.getElementById('analyzeBtn').disabled = true;
-    showLoading();
-
-    try {
-      const res  = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ticker, expiration})
-      });
-      const data = await res.json();
-      if (data.error) { showToast(data.error); return; }
-
-      allResults = data.results;
-      document.getElementById('filterBar').style.display = 'flex';
-      renderTable(currentFilter);
-    } catch(e) {
-      showToast('Analysis failed. Please try again.');
-    } finally {
-      document.getElementById('analyzeBtn').disabled = false;
-    }
-  }
-
-  // ── Render table ─────────────────────────────────────────────────────────────
-  function renderTable(filter) {
-    let rows = allResults;
-    if (filter === 'call') rows = rows.filter(r => r.type === 'CALL');
-    if (filter === 'put')  rows = rows.filter(r => r.type === 'PUT');
-    if (filter === 'best') rows = rows.filter(r => ['A+','A','B+'].includes(r.grade));
-
-    document.getElementById('resultsCount').textContent = `${rows.length} contracts`;
-
-    if (rows.length === 0) {
-      document.getElementById('resultsArea').innerHTML = `
-        <div class="state-box">
-          <div class="icon">🔍</div>
-          <p>No contracts match this filter</p>
-        </div>`;
-      return;
-    }
-
-    let html = `
-      <div class="table-wrap">
-      <table class="oh-table">
-        <thead>
-          <tr>
-            <th>#</th><th>Type</th><th>Strike</th>
-            <th>Bid</th><th>Ask</th><th>Mid</th>
-            <th>Delta</th><th>Theta/day</th><th>IV%</th>
-            <th>Volume</th><th>OI</th><th>DTE</th>
-            <th>Score</th><th>Grade</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody">`;
-
-    rows.forEach((r, idx) => {
-      const gradeClass = 'grade-' + r.grade.replace('+','p');
-      const barColor   = r.score >= 75 ? '#00d084' : r.score >= 55 ? '#4d9fff' : r.score >= 45 ? '#ffc107' : '#ff4d6a';
-      const itmBadge   = r.inTheMoney ? '<span class="itm-badge">ITM</span>' : '';
-      const typeClass  = r.type === 'CALL' ? 'badge-call' : 'badge-put';
-      const thetaDisp  = r.theta !== 0 ? `$${Math.abs(r.theta).toFixed(3)}` : '—';
-
-      html += `
-        <tr onclick="toggleDetail(${idx})" id="row-${idx}">
-          <td class="mono" style="color:var(--muted)">${r.rank}</td>
-          <td><span class="${typeClass}">${r.type}</span>${itmBadge}</td>
-          <td class="mono" style="font-weight:600">$${r.strike}</td>
-          <td class="mono">$${r.bid}</td>
-          <td class="mono">$${r.ask}</td>
-          <td class="mono" style="color:#fff;font-weight:600">$${r.mid}</td>
-          <td class="mono">${r.delta}</td>
-          <td class="mono">${thetaDisp}</td>
-          <td class="mono">${r.iv}%</td>
-          <td class="mono">${r.volume.toLocaleString()}</td>
-          <td class="mono">${r.openInterest.toLocaleString()}</td>
-          <td class="mono">${r.dte}d</td>
-          <td>
-            <div class="score-cell">
-              <span class="mono" style="font-weight:600;min-width:28px">${r.score}</span>
-              <div class="score-bar-bg">
-                <div class="score-bar-fill" style="width:${r.score}%;background:${barColor}"></div>
-              </div>
-            </div>
-          </td>
-          <td><span class="grade ${gradeClass}">${r.grade}</span></td>
-        </tr>
-        <tr class="detail-row" id="detail-${idx}" style="display:none">
-          <td colspan="14">${buildDetail(r)}</td>
-        </tr>`;
+async function loadStock() {
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!ticker) return showToast('Enter a ticker symbol');
+  document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="spinner"></div><p>Loading stock data...</p></div>';
+  try {
+    const res  = await fetch(`/api/stock/${ticker}`);
+    const data = await res.json();
+    if (data.error) return showToast(data.error);
+    updateSentiment(data);
+    document.getElementById('stockName').textContent  = data.stock.name;
+    document.getElementById('stockPrice').textContent = `$${data.stock.price}`;
+    document.getElementById('stockMeta').textContent  = `${data.sector.name} · ${data.sector.etf}`;
+    document.getElementById('stockStrip').classList.add('visible');
+    const sel = document.getElementById('expSelect');
+    sel.innerHTML = '';
+    data.expirations.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e; o.textContent = fmtDate(e); sel.appendChild(o);
     });
-
-    html += '</tbody></table></div>';
-    document.getElementById('resultsArea').innerHTML = html;
-    openRow = null;
-  }
-
-  // ── Detail drawer ─────────────────────────────────────────────────────────────
-  function buildDetail(r) {
-    const reasonsHtml = r.reasons.map(([type, text]) =>
-      `<li class="r-${type}">${type==='good'?'✓':type==='ok'?'◎':'✗'} ${text}</li>`
-    ).join('');
-
-    return `
-      <div class="detail-inner">
-        <div class="detail-card">
-          <h6>Contract Details</h6>
-          <div class="detail-item"><span>Strike</span>     <span class="val">$${r.strike}</span></div>
-          <div class="detail-item"><span>Type</span>       <span class="val">${r.type}</span></div>
-          <div class="detail-item"><span>Bid / Ask</span>  <span class="val">$${r.bid} / $${r.ask}</span></div>
-          <div class="detail-item"><span>Mid Price</span>  <span class="val" style="color:var(--green)">$${r.mid}</span></div>
-          <div class="detail-item"><span>DTE</span>        <span class="val">${r.dte} days</span></div>
-          <div class="detail-item"><span>In The Money</span><span class="val">${r.inTheMoney ? 'Yes' : 'No'}</span></div>
-        </div>
-        <div class="detail-card">
-          <h6>Greeks</h6>
-          <div class="detail-item"><span>Delta</span>  <span class="val">${r.delta}</span></div>
-          <div class="detail-item"><span>Theta/day</span><span class="val" style="color:var(--red)">$${Math.abs(r.theta).toFixed(4)}</span></div>
-          <div class="detail-item"><span>Gamma</span>  <span class="val">${r.gamma}</span></div>
-          <div class="detail-item"><span>Vega</span>   <span class="val">${r.vega}</span></div>
-          <div class="detail-item"><span>IV</span>     <span class="val">${r.iv}%</span></div>
-        </div>
-        <div class="detail-card">
-          <h6>Liquidity</h6>
-          <div class="detail-item"><span>Volume</span>       <span class="val">${r.volume.toLocaleString()}</span></div>
-          <div class="detail-item"><span>Open Interest</span><span class="val">${r.openInterest.toLocaleString()}</span></div>
-        </div>
-        <div class="detail-card" style="grid-column: span 1">
-          <h6>Score Breakdown — ${r.score}/100 (${r.grade})</h6>
-          <ul class="reason-list">${reasonsHtml}</ul>
-        </div>
-      </div>`;
-  }
-
-  function toggleDetail(idx) {
-    if (openRow !== null && openRow !== idx) {
-      document.getElementById(`detail-${openRow}`).style.display = 'none';
-    }
-    const d = document.getElementById(`detail-${idx}`);
-    if (d.style.display === 'none') { d.style.display = 'table-row'; openRow = idx; }
-    else { d.style.display = 'none'; openRow = null; }
-  }
-
-  // ── Sentiment UI ─────────────────────────────────────────────────────────────
-  function updateSentiment(data) {
-    const mktColor = data.market.color;
-    const secColor = data.sector.color;
-
-    document.getElementById('mktDot').className   = `dot dot-${mktColor}`;
-    document.getElementById('mktSent').className  = `value color-${mktColor}`;
-    document.getElementById('mktSent').textContent = data.market.sentiment;
-
-    document.getElementById('secDot').className   = `dot dot-${secColor}`;
-    document.getElementById('secSent').className  = `value color-${secColor}`;
-    document.getElementById('secSent').textContent = data.sector.sentiment;
-
-    document.getElementById('vixVal').textContent  = data.market.vix;
-    document.getElementById('mktDesc').textContent = `${data.market.desc}  ·  ${data.sector.desc}`;
-
-    document.getElementById('secNamePill').style.display = 'flex';
-    document.getElementById('secName').textContent = `${data.sector.name} (${data.sector.etf})`;
-  }
-
-  // ── Filters ──────────────────────────────────────────────────────────────────
-  function setFilter(f) {
-    currentFilter = f;
-    ['all','call','put','best'].forEach(id => {
-      document.getElementById(`f-${id}`).classList.toggle('active', id === f);
-    });
-    renderTable(f);
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-  function formatDate(d) {
-    const [y,m,day] = d.split('-');
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[parseInt(m)-1]} ${parseInt(day)}, ${y}`;
-  }
-
-  function showLoading() {
-    document.getElementById('resultsArea').innerHTML = `
-      <div class="state-box">
-        <div class="spinner"></div>
-        <p>Fetching options chain & calculating Greeks...</p>
-      </div>`;
-  }
-
-  function setLoadingState() {
-    document.getElementById('resultsArea').innerHTML = `
-      <div class="state-box">
-        <div class="spinner"></div>
-        <p>Loading stock data...</p>
-      </div>`;
-  }
-
-  function resetResults() {
+    document.getElementById('expWrap').style.display     = 'block';
+    document.getElementById('analyzeWrap').style.display = 'block';
+    document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="icon">📅</div><p>Select an expiration date and click Analyze Options</p></div>';
     document.getElementById('filterBar').style.display = 'none';
-    document.getElementById('resultsArea').innerHTML = `
-      <div class="state-box">
-        <div class="icon">📅</div>
-        <p>Select an expiration date and click Analyze Options</p>
-      </div>`;
-  }
+  } catch(e) { showToast('Could not load stock. Check ticker and try again.'); }
+}
 
-  function showToast(msg) {
-    const w = document.getElementById('toastWrap');
-    document.getElementById('toastMsg').textContent = msg;
-    w.style.display = 'block';
-    setTimeout(() => w.style.display = 'none', 4000);
-  }
+async function analyze() {
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+  const expiration = document.getElementById('expSelect').value;
+  if (!ticker || !expiration) return;
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="spinner"></div><p>Fetching options chain & calculating Greeks...</p></div>';
+  try {
+    const res  = await fetch('/api/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ticker, expiration}) });
+    const data = await res.json();
+    if (data.error) { showToast(data.error); return; }
+    allResults = data.results;
+    document.getElementById('filterBar').style.display = 'flex';
+    renderTable(currentFilter);
+  } catch(e) { showToast('Analysis failed. Please try again.'); }
+  finally { document.getElementById('analyzeBtn').disabled = false; }
+}
 
-  // Enter key on ticker input
-  document.getElementById('tickerInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') loadStock();
+function renderTable(filter) {
+  let rows = allResults;
+  if (filter === 'call') rows = rows.filter(r => r.type === 'CALL');
+  if (filter === 'put')  rows = rows.filter(r => r.type === 'PUT');
+  if (filter === 'best') rows = rows.filter(r => ['A+','A','B+'].includes(r.grade));
+  document.getElementById('resultsCount').textContent = `${rows.length} contracts`;
+  if (!rows.length) { document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="icon">🔍</div><p>No contracts match this filter</p></div>'; return; }
+
+  let html = `<div class="table-wrap"><table class="oh-table"><thead><tr>
+    <th>#</th><th>Type</th><th>Strike</th><th>Bid</th><th>Ask</th><th>Cost</th>
+    <th>Breakeven</th><th>Delta</th><th>Theta/day</th><th>IV%</th>
+    <th>Volume</th><th>OI</th><th>DTE</th><th>Score</th><th>Grade</th>
+  </tr></thead><tbody>`;
+
+  rows.forEach((r,idx) => {
+    const gc = 'grade-' + r.grade.replace('+','p');
+    const bc = r.score >= 75 ? '#00d084' : r.score >= 55 ? '#4d9fff' : r.score >= 45 ? '#ffc107' : '#ff4d6a';
+    const tc = r.type === 'CALL' ? 'badge-call' : 'badge-put';
+    const itm = r.inTheMoney ? '<span class="itm-badge">ITM</span>' : '';
+    html += `
+      <tr onclick="toggleDetail(${idx})" id="row-${idx}">
+        <td class="mono" style="color:var(--muted)">${r.rank}</td>
+        <td><span class="${tc}">${r.type}</span>${itm}</td>
+        <td class="mono" style="font-weight:700">$${r.strike}</td>
+        <td class="mono">$${r.bid}</td>
+        <td class="mono">$${r.ask}</td>
+        <td class="mono" style="color:#fff;font-weight:600">$${r.cost}</td>
+        <td class="mono" style="color:var(--yellow)">$${r.breakeven}</td>
+        <td class="mono">${r.delta}</td>
+        <td class="mono" style="color:var(--red)">$${Math.abs(r.theta).toFixed(3)}</td>
+        <td class="mono">${r.iv}%</td>
+        <td class="mono">${r.volume.toLocaleString()}</td>
+        <td class="mono">${r.openInterest.toLocaleString()}</td>
+        <td class="mono">${r.dte}d</td>
+        <td><div class="score-cell"><span class="mono" style="font-weight:700;min-width:24px">${r.score}</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:${r.score}%;background:${bc}"></div></div></div></td>
+        <td><span class="grade ${gc}">${r.grade}</span></td>
+      </tr>
+      <tr class="detail-row" id="detail-${idx}" style="display:none">
+        <td colspan="15">${buildDetail(r)}</td>
+      </tr>`;
   });
-</script>
+  html += '</tbody></table></div>';
+  document.getElementById('resultsArea').innerHTML = html;
+  openRow = null;
+}
 
+function buildDetail(r) {
+  const rsns = r.reasons.map(([t,txt]) => `<li class="r-${t}">${t==='good'?'✓':t==='ok'?'◎':'✗'} ${txt}</li>`).join('');
+  return `<div class="detail-inner">
+    <div class="detail-card"><h6>Contract Details</h6>
+      <div class="detail-item"><span>Strike</span><span class="val">$${r.strike}</span></div>
+      <div class="detail-item"><span>Type</span><span class="val">${r.type}</span></div>
+      <div class="detail-item"><span>Bid / Ask</span><span class="val">$${r.bid} / $${r.ask}</span></div>
+      <div class="detail-item"><span>Cost per contract</span><span class="val" style="color:var(--blue)">$${r.cost}</span></div>
+      <div class="detail-item"><span>Breakeven</span><span class="val" style="color:var(--yellow)">$${r.breakeven}</span></div>
+      <div class="detail-item"><span>DTE</span><span class="val">${r.dte} days</span></div>
+      <div class="detail-item"><span>In The Money</span><span class="val">${r.inTheMoney?'Yes':'No'}</span></div>
+    </div>
+    <div class="detail-card"><h6>Greeks</h6>
+      <div class="detail-item"><span>Delta</span><span class="val">${r.delta}</span></div>
+      <div class="detail-item"><span>Theta/day</span><span class="val" style="color:var(--red)">-$${Math.abs(r.theta).toFixed(4)}</span></div>
+      <div class="detail-item"><span>Gamma</span><span class="val">${r.gamma}</span></div>
+      <div class="detail-item"><span>Vega</span><span class="val">${r.vega}</span></div>
+      <div class="detail-item"><span>IV</span><span class="val">${r.iv}%</span></div>
+    </div>
+    <div class="detail-card"><h6>Liquidity</h6>
+      <div class="detail-item"><span>Volume</span><span class="val">${r.volume.toLocaleString()}</span></div>
+      <div class="detail-item"><span>Open Interest</span><span class="val">${r.openInterest.toLocaleString()}</span></div>
+    </div>
+    <div class="detail-card"><h6>Score ${r.score}/100 (${r.grade})</h6>
+      <ul class="reason-list">${rsns}</ul>
+    </div>
+  </div>`;
+}
+
+function toggleDetail(idx) {
+  if (openRow !== null && openRow !== idx) document.getElementById(`detail-${openRow}`).style.display='none';
+  const d = document.getElementById(`detail-${idx}`);
+  d.style.display = d.style.display==='none' ? 'table-row' : 'none';
+  openRow = d.style.display==='none' ? null : idx;
+}
+
+function updateSentiment(data) {
+  document.getElementById('mktDot').className  = `s-dot s-${data.market.color}`;
+  document.getElementById('mktSent').className = `value color-${data.market.color}`;
+  document.getElementById('mktSent').textContent = data.market.sentiment;
+  document.getElementById('secDot').className  = `s-dot s-${data.sector.color}`;
+  document.getElementById('secSent').textContent = data.sector.sentiment;
+  document.getElementById('vixVal').textContent  = data.market.vix;
+  document.getElementById('mktDesc').textContent = `${data.market.desc}  ·  ${data.sector.desc}`;
+  document.getElementById('secNamePill').style.display = 'flex';
+  document.getElementById('secName').textContent = `${data.sector.name} (${data.sector.etf})`;
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  ['all','call','put','best'].forEach(id => document.getElementById(`f-${id}`).classList.toggle('active', id===f));
+  renderTable(f);
+}
+
+function fmtDate(d) {
+  const [y,m,day] = d.split('-');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1] + ` ${parseInt(day)}, ${y}`;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const w = document.getElementById('toastWrap');
+  document.getElementById('toastMsg').textContent = msg;
+  w.style.display = 'block';
+  setTimeout(() => w.style.display='none', 4000);
+}
+
+// ── Enter key support ────────────────────────────────────────────────────────
+document.getElementById('tickerInput').addEventListener('keydown', e => { if(e.key==='Enter') loadStock(); });
+document.getElementById('techTicker').addEventListener('keydown', e => { if(e.key==='Enter') loadTechnical(); });
+document.getElementById('wlInput').addEventListener('keydown',    e => { if(e.key==='Enter') addToWatchlist(); });
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+renderWatchlistTags();
+</script>
 </body>
 </html>
