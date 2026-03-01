@@ -3,5 +3,5 @@ services:
     name: options-hunter
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     plan: free
