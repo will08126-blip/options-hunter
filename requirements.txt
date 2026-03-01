@@ -5,3 +5,4 @@ scipy
 pandas
 gunicorn
 pyngrok
+requests
