@@ -141,54 +141,74 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
         return 0
 
 
-def calc_macd(df, fast=12, slow=26, signal=9):
-    """Calculate MACD and return values + last 40 bars of histogram."""
+def calc_macd(df, fast=12, slow=26, signal=9, bars=60):
+    """Calculate MACD — returns histogram, MACD line, and Signal line for charting."""
     if df is None or len(df) < slow + signal + 5:
         return None
     try:
-        close      = df['Close'].dropna()
-        ema_fast   = close.ewm(span=fast,   adjust=False).mean()
-        ema_slow   = close.ewm(span=slow,   adjust=False).mean()
-        macd_line  = ema_fast - ema_slow
-        signal_line= macd_line.ewm(span=signal, adjust=False).mean()
-        histogram  = macd_line - signal_line
+        close       = df['Close'].dropna()
+        ema_fast    = close.ewm(span=fast,   adjust=False).mean()
+        ema_slow    = close.ewm(span=slow,   adjust=False).mean()
+        macd_line   = ema_fast - ema_slow
+        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+        histogram   = macd_line - signal_line
 
-        hist_tail  = histogram.tail(40)
-        dates_tail = [str(d)[:10] for d in hist_tail.index]
+        hist_t   = histogram.tail(bars)
+        macd_t   = macd_line.tail(bars)
+        sig_t    = signal_line.tail(bars)
+        dates    = [str(d)[:10] for d in hist_t.index]
 
         return {
-            'macd':         round(float(macd_line.iloc[-1]),  4),
-            'signal':       round(float(signal_line.iloc[-1]),4),
-            'histogram':    round(float(histogram.iloc[-1]),  4),
-            'bullish':      bool(histogram.iloc[-1] > 0),
-            'crossing_up':  bool(histogram.iloc[-1] > 0 and histogram.iloc[-2] <= 0),
-            'crossing_down':bool(histogram.iloc[-1] < 0 and histogram.iloc[-2] >= 0),
-            'hist_values':  [round(float(v), 4) for v in hist_tail],
-            'hist_dates':   dates_tail,
+            'macd':          round(float(macd_line.iloc[-1]),   4),
+            'signal':        round(float(signal_line.iloc[-1]), 4),
+            'histogram':     round(float(histogram.iloc[-1]),   4),
+            'bullish':       bool(histogram.iloc[-1] > 0),
+            'crossing_up':   bool(histogram.iloc[-1] > 0 and histogram.iloc[-2] <= 0),
+            'crossing_down': bool(histogram.iloc[-1] < 0 and histogram.iloc[-2] >= 0),
+            'hist_values':   [round(float(v), 4) for v in hist_t],
+            'macd_values':   [round(float(v), 4) for v in macd_t],
+            'signal_values': [round(float(v), 4) for v in sig_t],
+            'hist_dates':    dates,
         }
     except Exception:
         return None
 
 
 def calc_volume_analysis(df):
-    """Analyze current volume vs 20-day average."""
+    """Analyze current volume vs 20-day average with plain-English interpretation."""
     if df is None or len(df) < 21:
         return None
     try:
-        vol      = df['Volume'].dropna()
-        current  = float(vol.iloc[-1])
-        avg20    = float(vol.rolling(20).mean().iloc[-1])
-        ratio    = current / avg20 if avg20 > 0 else 1.0
+        vol     = df['Volume'].dropna()
+        current = float(vol.iloc[-1])
+        avg20   = float(vol.rolling(20).mean().iloc[-1])
+        ratio   = current / avg20 if avg20 > 0 else 1.0
 
-        hist = vol.tail(30)
+        if ratio >= 2.0:
+            color = 'green'
+            label = 'Very High Volume'
+            interp = f'Volume is {ratio:.1f}x the 20-day average — unusually high activity. Strong conviction behind today\'s move. Pay attention.'
+        elif ratio >= 1.5:
+            color = 'green'
+            label = 'Above Average'
+            interp = f'Volume is {ratio:.1f}x the 20-day average — solid participation. The current price move has backing.'
+        elif ratio >= 0.8:
+            color = 'yellow'
+            label = 'Average Volume'
+            interp = f'Volume is near average ({ratio:.1f}x). Normal trading conditions — no strong conviction signal either way.'
+        else:
+            color = 'red'
+            label = 'Low Volume'
+            interp = f'Volume is only {ratio:.1f}x the average — weak participation. Price moves on low volume are less reliable. Be cautious.'
+
         return {
             'current':       int(current),
             'average_20':    int(avg20),
             'ratio':         round(ratio, 2),
             'above_average': ratio > 1.0,
-            'color':         'green' if ratio > 1.5 else 'yellow' if ratio > 0.8 else 'red',
-            'vol_history':   [int(v) for v in hist],
-            'vol_dates':     [str(d)[:10] for d in hist.index],
+            'color':         color,
+            'label':         label,
+            'interpretation': interp,
         }
     except Exception:
         return None
@@ -632,16 +652,18 @@ def technical_analysis(ticker):
         # Fetch cipher B signals for all timeframes
         cipher_b = get_all_cipher_b(ticker)
 
-        # Fetch daily data for MACD and volume
-        stock  = yf.Ticker(ticker)
-        df_1d  = stock.history(interval='1d', period='1y')
-        info   = stock.info
-        price  = info.get('currentPrice') or info.get('regularMarketPrice') or 0
+        # Fetch daily + weekly data for MACD and volume
+        stock   = yf.Ticker(ticker)
+        df_1d   = stock.history(interval='1d', period='2y')
+        df_1wk  = stock.history(interval='1wk', period='5y')
+        info    = stock.info
+        price   = info.get('currentPrice') or info.get('regularMarketPrice') or 0
         if not price and not df_1d.empty:
             price = float(df_1d['Close'].iloc[-1])
 
-        macd   = calc_macd(df_1d)
-        volume = calc_volume_analysis(df_1d)
+        macd        = calc_macd(df_1d,  bars=60)
+        macd_weekly = calc_macd(df_1wk, bars=52)
+        volume      = calc_volume_analysis(df_1d)
 
         # Build summary
         sig_vals = list(cipher_b.values())
@@ -660,11 +682,12 @@ def technical_analysis(ticker):
         vol_status  = 'Above Average' if volume and volume['above_average'] else 'Below Average'
 
         result = {
-            'ticker':     ticker,
-            'price':      round(float(price), 2),
-            'cipher_b':   cipher_b,
-            'macd':       macd,
-            'volume':     volume,
+            'ticker':      ticker,
+            'price':       round(float(price), 2),
+            'cipher_b':    cipher_b,
+            'macd':        macd,
+            'macd_weekly': macd_weekly,
+            'volume':      volume,
             'summary': {
                 'bullish_count': bull_count,
                 'bearish_count': bear_count,

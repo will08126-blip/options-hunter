@@ -672,7 +672,8 @@ function renderBriefing(data) {
 // ═════════════════════════════════════════════════════════════════════════════
 //  TECHNICAL ANALYSIS
 // ═════════════════════════════════════════════════════════════════════════════
-let macdChart = null;
+let macdChartDaily = null;
+let macdChartWeekly = null;
 
 async function loadTechnical() {
   const ticker = document.getElementById('techTicker').value.trim().toUpperCase();
@@ -690,14 +691,90 @@ async function loadTechnical() {
   }
 }
 
+function buildMacdChart(canvasId, macd, chartRef) {
+  setTimeout(() => {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx || !macd) return;
+    if (chartRef && chartRef.destroy) chartRef.destroy();
+    return new Chart(ctx, {
+      data: {
+        labels: macd.hist_dates,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Histogram',
+            data: macd.hist_values,
+            backgroundColor: macd.hist_values.map(v => v >= 0 ? 'rgba(0,208,132,0.45)' : 'rgba(255,77,106,0.45)'),
+            borderColor:     macd.hist_values.map(v => v >= 0 ? '#00d084' : '#ff4d6a'),
+            borderWidth: 1,
+            borderRadius: 2,
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'MACD',
+            data: macd.macd_values,
+            borderColor: '#4d9fff',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            order: 1,
+          },
+          {
+            type: 'line',
+            label: 'Signal',
+            data: macd.signal_values,
+            borderColor: '#ffc107',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            borderDash: [5, 3],
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: '#8a93a8', font: { size: 10 }, boxWidth: 12, padding: 12 }
+          },
+          tooltip: {
+            backgroundColor: '#1a2035',
+            borderColor: '#2a3050',
+            borderWidth: 1,
+            titleColor: '#c9d1e0',
+            bodyColor: '#8a93a8',
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#5a6480', maxTicksLimit: 8, font: { size: 9 } },
+            grid: { color: 'rgba(30,37,53,0.8)' }
+          },
+          y: {
+            ticks: { color: '#5a6480', font: { size: 9 } },
+            grid: { color: 'rgba(30,37,53,0.8)' }
+          }
+        }
+      }
+    });
+  }, 100);
+}
+
 function renderTechnical(data) {
-  const cb   = data.cipher_b || {};
-  const macd = data.macd;
-  const vol  = data.volume;
-  const summ = data.summary || {};
+  const cb      = data.cipher_b || {};
+  const macd    = data.macd;
+  const macdWk  = data.macd_weekly;
+  const vol     = data.volume;
+  const summ    = data.summary || {};
 
   const overallColor = summ.overall === 'Bullish' ? 'var(--green)' : summ.overall === 'Bearish' ? 'var(--red)' : 'var(--yellow)';
 
+  // Cipher B grid
   const TF_ORDER = ['5m','15m','30m','1H','2H','4H','6H','8H','12H','1D','2D','3D','5D','1W','1M'];
   const cbHtml = TF_ORDER.map(tf => {
     const sig = cb[tf];
@@ -709,31 +786,42 @@ function renderTechnical(data) {
     return `<div class="cipher-cell"><div class="tf-label">${tf}</div><div class="sig-dot ${dotClass}">${label}</div></div>`;
   }).join('');
 
-  let macdStatusHtml = '<p style="color:var(--muted);font-size:12px">No MACD data</p>';
-  if (macd) {
-    const hColor = macd.bullish ? 'var(--green)' : 'var(--red)';
-    const cross  = macd.crossing_up ? ' 🔺 CROSSING UP' : macd.crossing_down ? ' 🔻 CROSSING DOWN' : '';
-    macdStatusHtml = `
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
-        <span>MACD: <b class="mono" style="color:${hColor}">${macd.macd}</b></span>
-        <span>Signal: <b class="mono">${macd.signal}</b></span>
-        <span>Histogram: <b class="mono" style="color:${hColor}">${macd.histogram}</b></span>
-        <span style="color:${hColor};font-weight:600">${macd.bullish ? '● BULLISH' : '● BEARISH'}${cross}</span>
-      </div>
-      <div class="chart-wrap"><canvas id="macdCanvas"></canvas></div>`;
+  // Daily MACD status strip
+  function macdStrip(m, label) {
+    if (!m) return `<p style="color:var(--muted);font-size:12px">No ${label} MACD data</p>`;
+    const hc    = m.bullish ? 'var(--green)' : 'var(--red)';
+    const state = m.bullish ? '● BULLISH' : '● BEARISH';
+    const cross = m.crossing_up ? ' — 🔺 CROSSING UP NOW' : m.crossing_down ? ' — 🔻 CROSSING DOWN NOW' : '';
+    return `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:12px">
+      <span style="color:${hc};font-weight:700;font-size:13px">${state}${cross}</span>
+      <span>MACD: <b class="mono" style="color:${hc}">${m.macd}</b></span>
+      <span>Signal: <b class="mono" style="color:#ffc107">${m.signal}</b></span>
+      <span>Hist: <b class="mono" style="color:${hc}">${m.histogram}</b></span>
+    </div>`;
   }
 
+  // Volume
   let volHtml = '<p style="color:var(--muted);font-size:12px">No volume data</p>';
   if (vol) {
     const vColor = vol.color === 'green' ? 'var(--green)' : vol.color === 'yellow' ? 'var(--yellow)' : 'var(--red)';
     const pct    = Math.min(vol.ratio * 50, 100);
     volHtml = `
-      <div style="font-size:12px;margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap">
-        <span>Today: <b class="mono">${(vol.current/1e6).toFixed(1)}M</b></span>
-        <span>20-day avg: <b class="mono">${(vol.average_20/1e6).toFixed(1)}M</b></span>
-        <span style="color:${vColor};font-weight:600">${vol.above_average ? '▲ ABOVE AVERAGE' : '▼ BELOW AVERAGE'} (${vol.ratio}×)</span>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:16px;font-weight:700;color:${vColor}">${vol.label}</span>
+        <span class="mono" style="font-size:13px;color:#fff">${vol.ratio}×</span>
+        <span style="font-size:11px;color:var(--muted)">avg</span>
       </div>
-      <div class="vol-bar-track"><div class="vol-bar-fill" style="width:${pct}%;background:${vColor}"></div></div>`;
+      <div class="narrative-box" style="margin-bottom:12px;padding:12px 14px">
+        <div class="narrative-text" style="font-size:12px">${vol.interpretation}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between">
+        <span>Today: <b style="color:var(--text)">${(vol.current/1e6).toFixed(1)}M shares</b></span>
+        <span>20-day avg: <b style="color:var(--text)">${(vol.average_20/1e6).toFixed(1)}M shares</b></span>
+      </div>
+      <div class="vol-bar-track">
+        <div class="vol-bar-fill" style="width:${pct}%;background:${vColor}"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">bar = relative to 2× average</div>`;
   }
 
   document.getElementById('technicalContent').innerHTML = `
@@ -743,21 +831,32 @@ function renderTechnical(data) {
       </div>
       <div class="summary-stats">
         <span>Cipher B: <b>${summ.bullish_count} Bullish</b> / <b>${summ.bearish_count} Bearish</b> / ${summ.neutral_count} Neutral</span>
-        <span>MACD: <b>${summ.macd_status}</b></span>
+        <span>Daily MACD: <b>${summ.macd_status}</b></span>
         <span>Volume: <b>${summ.volume_status}</b></span>
       </div>
     </div>
 
     <div class="oh-card">
       <div class="oh-card-title">🔮 Cipher B — Last Signal by Timeframe
-        <span style="font-size:9px;color:var(--muted);margin-left:8px">🟢 BUY  🔴 SELL  🟡 GOLD (divergence)  ─ No signal</span>
+        <span style="font-size:9px;color:var(--muted);margin-left:8px">🟢 BUY &nbsp; 🔴 SELL &nbsp; 🟡 GOLD (divergence) &nbsp; ─ No signal</span>
       </div>
       <div class="cipher-grid">${cbHtml}</div>
     </div>
 
     <div class="oh-card">
-      <div class="oh-card-title">📈 MACD (12/26/9) — Daily</div>
-      ${macdStatusHtml}
+      <div class="oh-card-title">📈 MACD (12 / 26 / 9) — Daily
+        <span style="font-size:9px;color:var(--muted);margin-left:8px">Blue = MACD line &nbsp; Yellow dashed = Signal &nbsp; Bars = Histogram</span>
+      </div>
+      ${macdStrip(macd, 'Daily')}
+      <div class="chart-wrap" style="height:180px"><canvas id="macdDailyCanvas"></canvas></div>
+    </div>
+
+    <div class="oh-card">
+      <div class="oh-card-title">📈 MACD (12 / 26 / 9) — Weekly
+        <span style="font-size:9px;color:var(--muted);margin-left:8px">Longer-term trend view (52 weeks)</span>
+      </div>
+      ${macdStrip(macdWk, 'Weekly')}
+      <div class="chart-wrap" style="height:180px"><canvas id="macdWeeklyCanvas"></canvas></div>
     </div>
 
     <div class="oh-card">
@@ -765,34 +864,8 @@ function renderTechnical(data) {
       ${volHtml}
     </div>`;
 
-  if (macd && macd.hist_values) {
-    setTimeout(() => {
-      const ctx = document.getElementById('macdCanvas');
-      if (!ctx) return;
-      if (macdChart) macdChart.destroy();
-      macdChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: macd.hist_dates,
-          datasets: [{
-            label: 'MACD Histogram',
-            data:  macd.hist_values,
-            backgroundColor: macd.hist_values.map(v => v >= 0 ? 'rgba(0,208,132,0.7)' : 'rgba(255,77,106,0.7)'),
-            borderColor:     macd.hist_values.map(v => v >= 0 ? '#00d084' : '#ff4d6a'),
-            borderWidth: 1, borderRadius: 2,
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#5a6480', maxRotation: 45, font: { size: 9 } }, grid: { color: '#1e2535' } },
-            y: { ticks: { color: '#5a6480', font: { size: 9 } }, grid: { color: '#1e2535' } }
-          }
-        }
-      });
-    }, 100);
-  }
+  macdChartDaily  = buildMacdChart('macdDailyCanvas',  macd,   macdChartDaily);
+  macdChartWeekly = buildMacdChart('macdWeeklyCanvas', macdWk, macdChartWeekly);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
