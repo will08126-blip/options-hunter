@@ -6,5 +6,5 @@ pandas
 gunicorn
 pyngrok
 requests
-tvdatafeed
+tradingview-datafeed
 websocket-client
