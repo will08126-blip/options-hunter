@@ -6,3 +6,5 @@ pandas
 gunicorn
 pyngrok
 requests
+tvdatafeed
+websocket-client

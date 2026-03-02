@@ -23,6 +23,7 @@ from datetime import datetime, date
 
 import yfinance as yf
 from flask import Flask, render_template, jsonify, request
+from tvDatafeed import TvDatafeed, Interval as TvInterval
 
 app = Flask(__name__)
 
@@ -70,6 +71,81 @@ POPULAR_STOCKS = [
     'AAPL','MSFT','NVDA','TSLA','META','GOOGL','AMZN','AMD','NFLX','PLTR',
     'COIN','JPM','XOM','HOOD','SOFI'
 ]
+
+# ─── TRADINGVIEW SYMBOL / EXCHANGE MAP ───────────────────────────────────────
+# Crypto → Binance USDT pairs (most liquid, matches TV default)
+TV_SYMBOL_MAP = {
+    'BTC-USD':   ('BTCUSDT',   'BINANCE'),
+    'ETH-USD':   ('ETHUSDT',   'BINANCE'),
+    'XRP-USD':   ('XRPUSDT',   'BINANCE'),
+    'SOL-USD':   ('SOLUSDT',   'BINANCE'),
+    'SUI-USD':   ('SUIUSDT',   'BINANCE'),
+    'LINK-USD':  ('LINKUSDT',  'BINANCE'),
+    'ONDO-USD':  ('ONDOUSDT',  'BINANCE'),
+    'UNI-USD':   ('UNIUSDT',   'BINANCE'),
+    'BNB-USD':   ('BNBUSDT',   'BINANCE'),
+    'DOGE-USD':  ('DOGEUSDT',  'BINANCE'),
+    'ADA-USD':   ('ADAUSDT',   'BINANCE'),
+    'AVAX-USD':  ('AVAXUSDT',  'BINANCE'),
+    'DOT-USD':   ('DOTUSDT',   'BINANCE'),
+    'MATIC-USD': ('MATICUSDT', 'BINANCE'),
+    # Indices
+    '^GSPC': ('SPX',  'SP'),
+    '^IXIC': ('COMP', 'NASDAQ'),
+    '^DJI':  ('DJI',  'DJ'),
+    '^RUT':  ('RUT',  'TVC'),
+    '^VIX':  ('VIX',  'CBOE'),
+}
+
+# Stocks primarily listed on NYSE (everything else defaults to NASDAQ)
+NYSE_STOCKS = {
+    'JPM','GS','BAC','WFC','C','MS','BRK.B','XOM','CVX',
+    'JNJ','PG','KO','DIS','WMT','MA','V','UNH','HD','T',
+    'VZ','MRK','HOOD','SOFI',
+}
+
+def get_tv_symbol_exchange(ticker):
+    """Convert a ticker (yfinance-style) to a (TV_symbol, TV_exchange) tuple."""
+    t = ticker.upper().strip()
+    if t in TV_SYMBOL_MAP:
+        return TV_SYMBOL_MAP[t]
+    # Generic -USD crypto → BINANCE USDT pair
+    if t.endswith('-USD'):
+        return (t.replace('-USD', '') + 'USDT', 'BINANCE')
+    if t in NYSE_STOCKS:
+        return (t, 'NYSE')
+    return (t, 'NASDAQ')  # default for stocks
+
+def tv_get_hist(tv, symbol, exchange, interval, n_bars=500):
+    """
+    Fetch OHLCV from TradingView via tvDatafeed.
+    Standardises column names and converts index to EST.
+    Returns None on failure.
+    """
+    try:
+        df = tv.get_hist(symbol, exchange, interval=interval, n_bars=n_bars)
+        # Exchange fallback
+        if (df is None or df.empty) and exchange == 'NASDAQ':
+            df = tv.get_hist(symbol, 'NYSE', interval=interval, n_bars=n_bars)
+        elif (df is None or df.empty) and exchange == 'NYSE':
+            df = tv.get_hist(symbol, 'NASDAQ', interval=interval, n_bars=n_bars)
+        if df is None or df.empty:
+            return None
+        # tvDatafeed returns lowercase columns; standardise to Title case
+        df = df.rename(columns={
+            'open': 'Open', 'high': 'High',
+            'low':  'Low',  'close': 'Close', 'volume': 'Volume',
+        })
+        if 'symbol' in df.columns:
+            df = df.drop(columns=['symbol'])
+        # Ensure EST timezone (matches TradingView US session display)
+        if df.index.tz is None:
+            df.index = df.index.tz_localize('UTC')
+        df.index = df.index.tz_convert('America/New_York')
+        return df
+    except Exception as e:
+        print(f"TV fetch error ({symbol}/{exchange}): {e}")
+        return None
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  TECHNICAL INDICATOR CALCULATIONS
@@ -240,63 +316,67 @@ def calc_volume_analysis(df):
 
 def get_all_cipher_b(ticker):
     """
-    Fetch OHLCV data and compute Cipher B signal for all 15 timeframes.
-    Fetches 15m and 30m natively (not resampled) for accuracy.
-    Returns dict: {timeframe_label: signal_dict}
+    Fetch OHLCV from TradingView (tvDatafeed) and compute Cipher B for all 15 TFs.
+    Uses native TV intervals where available; resamples 6H/8H/12H/2D/3D/5D from source.
+    Returns (signal_dict, df_daily, df_weekly) — daily/weekly reused for MACD & Volume.
     """
-    results = {}
+    results  = {}
+    df_daily = None
+    df_week  = None
+
     try:
-        def fetch(interval, period):
+        symbol, exchange = get_tv_symbol_exchange(ticker)
+
+        # Each thread gets its own TvDatafeed connection (not thread-safe to share one)
+        def fetch(interval, n_bars):
             try:
-                # prepost=False ensures only regular session bars (no extended hours noise)
-                df = yf.Ticker(ticker).history(interval=interval, period=period, prepost=False)
-                if df.empty:
-                    return None
-                # Normalize to EST/EDT — matches TradingView's US market bar alignment
-                if df.index.tz is not None:
-                    df = df.copy()
-                    df.index = df.index.tz_convert('America/New_York')
-                return df
+                tv = TvDatafeed()
+                return tv_get_hist(tv, symbol, exchange, interval, n_bars)
             except Exception as e:
-                print(f"Fetch {interval}/{period}: {e}")
+                print(f"TV thread fetch error: {e}")
                 return None
 
-        # Fetch all needed intervals in parallel
-        # 15m and 30m fetched natively — NOT resampled from 5m
-        with concurrent.futures.ThreadPoolExecutor(max_workers=7) as ex:
-            f5m  = ex.submit(fetch, '5m',   '5d')
-            f15m = ex.submit(fetch, '15m',  '60d')
-            f30m = ex.submit(fetch, '30m',  '60d')
-            f1h  = ex.submit(fetch, '1h',   '730d')
-            f1d  = ex.submit(fetch, '1d',   '5y')
-            f1wk = ex.submit(fetch, '1wk',  '10y')
-            f1mo = ex.submit(fetch, '1mo',  'max')
+        # Parallel fetches — 3 workers keeps us from hammering TV simultaneously
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+            f5m  = ex.submit(fetch, TvInterval.in_5_minute,  500)
+            f15m = ex.submit(fetch, TvInterval.in_15_minute, 500)
+            f30m = ex.submit(fetch, TvInterval.in_30_minute, 300)
+            f1h  = ex.submit(fetch, TvInterval.in_1_hour,    500)
+            f2h  = ex.submit(fetch, TvInterval.in_2_hour,    300)  # native TV 2H
+            f4h  = ex.submit(fetch, TvInterval.in_4_hour,    300)  # native TV 4H
+            f1d  = ex.submit(fetch, TvInterval.in_daily,     500)
+            f1wk = ex.submit(fetch, TvInterval.in_weekly,    200)
+            f1mo = ex.submit(fetch, TvInterval.in_monthly,   100)
 
         df5m  = f5m.result()
         df15m = f15m.result()
         df30m = f30m.result()
         df1h  = f1h.result()
-        df1d  = f1d.result()
-        df1wk = f1wk.result()
+        df2h  = f2h.result()
+        df4h  = f4h.result()
+        df_daily = f1d.result()
+        df_week  = f1wk.result()
         df1mo = f1mo.result()
 
-        # Each entry: (label, source_df, resample_rule or None)
+        # (label, source_df, resample_rule or None)
+        # 2H and 4H are native TV intervals — no resampling needed
+        # 6H / 8H / 12H resampled from 1H; 2D/3D/5D resampled from daily
         tfs = [
-            ('5m',  df5m,  None),
-            ('15m', df15m, None),   # native 15m data
-            ('30m', df30m, None),   # native 30m data
-            ('1H',  df1h,  None),
-            ('2H',  df1h,  '2h'),
-            ('4H',  df1h,  '4h'),
-            ('6H',  df1h,  '6h'),
-            ('8H',  df1h,  '8h'),
-            ('12H', df1h,  '12h'),
-            ('1D',  df1d,  None),
-            ('2D',  df1d,  '2D'),
-            ('3D',  df1d,  '3D'),
-            ('5D',  df1d,  '5D'),
-            ('1W',  df1wk, None),
-            ('1M',  df1mo, None),
+            ('5m',  df5m,    None),
+            ('15m', df15m,   None),
+            ('30m', df30m,   None),
+            ('1H',  df1h,    None),
+            ('2H',  df2h,    None),
+            ('4H',  df4h,    None),
+            ('6H',  df1h,    '6h'),
+            ('8H',  df1h,    '8h'),
+            ('12H', df1h,    '12h'),
+            ('1D',  df_daily, None),
+            ('2D',  df_daily, '2D'),
+            ('3D',  df_daily, '3D'),
+            ('5D',  df_daily, '5D'),
+            ('1W',  df_week,  None),
+            ('1M',  df1mo,   None),
         ]
 
         for label, base_df, rule in tfs:
@@ -309,7 +389,7 @@ def get_all_cipher_b(ticker):
     except Exception as e:
         print(f"Cipher B error: {e}")
 
-    return results
+    return results, df_daily, df_week
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -680,17 +760,16 @@ def technical_analysis(ticker):
     ticker = ticker.upper().strip()
     # No cache — always fetch live data so signals are current
     try:
-        # Fetch cipher B signals for all timeframes
-        cipher_b = get_all_cipher_b(ticker)
+        # All OHLCV via TradingView; daily + weekly returned for MACD/Volume reuse
+        cipher_b, df_1d, df_1wk = get_all_cipher_b(ticker)
 
-        # Fetch daily + weekly data for MACD and volume
-        stock   = yf.Ticker(ticker)
-        df_1d   = stock.history(interval='1d', period='2y')
-        df_1wk  = stock.history(interval='1wk', period='5y')
-        info    = stock.info
-        price   = info.get('currentPrice') or info.get('regularMarketPrice') or 0
-        if not price and not df_1d.empty:
-            price = float(df_1d['Close'].iloc[-1])
+        # Current price from yfinance fast_info (real-time; tvDatafeed is bar-close only)
+        price = 0
+        try:
+            price = float(yf.Ticker(ticker).fast_info.last_price)
+        except Exception:
+            if df_1d is not None and not df_1d.empty:
+                price = float(df_1d['Close'].iloc[-1])
 
         macd        = calc_macd(df_1d,  bars=60)
         macd_weekly = calc_macd(df_1wk, bars=52)
