@@ -79,9 +79,9 @@ def resample_ohlcv(df, rule):
     """Resample OHLCV data to a different timeframe."""
     try:
         df = df.copy()
-        # Ensure UTC timezone for consistent bar alignment
+        # Use EST/EDT for bar alignment (matches US market sessions)
         if df.index.tz is not None:
-            df.index = df.index.tz_convert('UTC')
+            df.index = df.index.tz_convert('America/New_York')
         resampled = df.resample(rule).agg({
             'Open':   'first',
             'High':   'max',
@@ -248,13 +248,14 @@ def get_all_cipher_b(ticker):
     try:
         def fetch(interval, period):
             try:
-                df = yf.Ticker(ticker).history(interval=interval, period=period)
+                # prepost=False ensures only regular session bars (no extended hours noise)
+                df = yf.Ticker(ticker).history(interval=interval, period=period, prepost=False)
                 if df.empty:
                     return None
-                # Normalize timezone to UTC for consistent resampling
+                # Normalize to EST/EDT — matches TradingView's US market bar alignment
                 if df.index.tz is not None:
                     df = df.copy()
-                    df.index = df.index.tz_convert('UTC')
+                    df.index = df.index.tz_convert('America/New_York')
                 return df
             except Exception as e:
                 print(f"Fetch {interval}/{period}: {e}")
