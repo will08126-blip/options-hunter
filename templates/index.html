@@ -774,15 +774,11 @@ function renderTechnical(data) {
 
   const overallColor = summ.overall === 'Bullish' ? 'var(--green)' : summ.overall === 'Bearish' ? 'var(--red)' : 'var(--yellow)';
 
-  // Cipher B grid — stale thresholds per timeframe
-  const TF_ORDER  = ['5m','15m','30m','1H','2H','4H','6H','8H','12H','1D','2D','3D','5D','1W','1M'];
-  const TF_STALE  = {'5m':10,'15m':8,'30m':6,'1H':5,'2H':4,'4H':4,'6H':4,'8H':3,'12H':3,'1D':5,'2D':4,'3D':3,'5D':3,'1W':4,'1M':3};
+  // Cipher B grid — always show last confirmed signal, no dimming
+  const TF_ORDER = ['5m','15m','30m','1H','2H','4H','6H','8H','12H','1D','2D','3D','5D','1W','1M'];
   const cbHtml = TF_ORDER.map(tf => {
-    const d = cb[tf] || {signal:0, bars_ago:99, wt1:0, wt2:0};
-    const sig      = d.signal || 0;
-    const barsAgo  = d.bars_ago != null ? d.bars_ago : 99;
-    const stale    = barsAgo > (TF_STALE[tf] || 5);
-    const opacity  = stale ? '0.3' : '1';
+    const d   = cb[tf] || {signal:0, bars_ago:99, wt1:0, wt2:0};
+    const sig = d.signal || 0;
 
     let dotClass, label;
     if      (sig === 2)  { dotClass='sig-gold';  label='G'; }
@@ -790,14 +786,14 @@ function renderTechnical(data) {
     else if (sig === -1) { dotClass='sig-red';   label='▼'; }
     else                 { dotClass='sig-none';  label='─'; }
 
-    const barsLabel = sig !== 0 && barsAgo < 99
-      ? `<div style="font-size:8px;color:var(--muted);margin-top:3px">${barsAgo}b ago</div>`
+    const barsAgo = (d.bars_ago != null && d.bars_ago < 99)
+      ? `<div style="font-size:8px;color:var(--muted);margin-top:3px">${d.bars_ago}b</div>`
       : '';
 
-    return `<div class="cipher-cell" style="opacity:${opacity}" title="WT1:${d.wt1} WT2:${d.wt2} | ${barsAgo === 99 ? 'No signal' : barsAgo + ' bars ago'}">
+    return `<div class="cipher-cell" title="WT1: ${d.wt1} | WT2: ${d.wt2}">
       <div class="tf-label">${tf}</div>
       <div class="sig-dot ${dotClass}">${label}</div>
-      ${barsLabel}
+      ${barsAgo}
     </div>`;
   }).join('');
 

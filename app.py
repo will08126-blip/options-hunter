@@ -78,15 +78,20 @@ POPULAR_STOCKS = [
 def resample_ohlcv(df, rule):
     """Resample OHLCV data to a different timeframe."""
     try:
+        df = df.copy()
+        # Ensure UTC timezone for consistent bar alignment
+        if df.index.tz is not None:
+            df.index = df.index.tz_convert('UTC')
         resampled = df.resample(rule).agg({
             'Open':   'first',
             'High':   'max',
             'Low':    'min',
             'Close':  'last',
             'Volume': 'sum'
-        }).dropna()
+        }).dropna(subset=['Close'])
         return resampled
-    except Exception:
+    except Exception as e:
+        print(f"Resample error ({rule}): {e}")
         return df
 
 
@@ -236,56 +241,66 @@ def calc_volume_analysis(df):
 def get_all_cipher_b(ticker):
     """
     Fetch OHLCV data and compute Cipher B signal for all 15 timeframes.
-    Returns dict: {timeframe_label: signal_int}
+    Fetches 15m and 30m natively (not resampled) for accuracy.
+    Returns dict: {timeframe_label: signal_dict}
     """
     results = {}
     try:
-        # Fetch base datasets in parallel
         def fetch(interval, period):
             try:
-                t = yf.Ticker(ticker)
-                df = t.history(interval=interval, period=period)
+                df = yf.Ticker(ticker).history(interval=interval, period=period)
                 if df.empty:
                     return None
+                # Normalize timezone to UTC for consistent resampling
+                if df.index.tz is not None:
+                    df = df.copy()
+                    df.index = df.index.tz_convert('UTC')
                 return df
-            except Exception:
+            except Exception as e:
+                print(f"Fetch {interval}/{period}: {e}")
                 return None
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-            f5m  = ex.submit(fetch, '5m',  '7d')
-            f1h  = ex.submit(fetch, '1h',  '60d')
-            f1d  = ex.submit(fetch, '1d',  '2y')
-            f1wk = ex.submit(fetch, '1wk', '5y')
-            f1mo = ex.submit(fetch, '1mo', 'max')
+        # Fetch all needed intervals in parallel
+        # 15m and 30m fetched natively — NOT resampled from 5m
+        with concurrent.futures.ThreadPoolExecutor(max_workers=7) as ex:
+            f5m  = ex.submit(fetch, '5m',   '5d')
+            f15m = ex.submit(fetch, '15m',  '60d')
+            f30m = ex.submit(fetch, '30m',  '60d')
+            f1h  = ex.submit(fetch, '1h',   '730d')
+            f1d  = ex.submit(fetch, '1d',   '5y')
+            f1wk = ex.submit(fetch, '1wk',  '10y')
+            f1mo = ex.submit(fetch, '1mo',  'max')
 
         df5m  = f5m.result()
+        df15m = f15m.result()
+        df30m = f30m.result()
         df1h  = f1h.result()
         df1d  = f1d.result()
         df1wk = f1wk.result()
         df1mo = f1mo.result()
 
-        # Define timeframes and their source + optional resample rule
+        # Each entry: (label, source_df, resample_rule or None)
         tfs = [
-            ('5m',   df5m,  None),
-            ('15m',  df5m,  '15min'),
-            ('30m',  df5m,  '30min'),
-            ('1H',   df1h,  None),
-            ('2H',   df1h,  '2h'),
-            ('4H',   df1h,  '4h'),
-            ('6H',   df1h,  '6h'),
-            ('8H',   df1h,  '8h'),
-            ('12H',  df1h,  '12h'),
-            ('1D',   df1d,  None),
-            ('2D',   df1d,  '2D'),
-            ('3D',   df1d,  '3D'),
-            ('5D',   df1d,  '5D'),
-            ('1W',   df1wk, None),
-            ('1M',   df1mo, None),
+            ('5m',  df5m,  None),
+            ('15m', df15m, None),   # native 15m data
+            ('30m', df30m, None),   # native 30m data
+            ('1H',  df1h,  None),
+            ('2H',  df1h,  '2h'),
+            ('4H',  df1h,  '4h'),
+            ('6H',  df1h,  '6h'),
+            ('8H',  df1h,  '8h'),
+            ('12H', df1h,  '12h'),
+            ('1D',  df1d,  None),
+            ('2D',  df1d,  '2D'),
+            ('3D',  df1d,  '3D'),
+            ('5D',  df1d,  '5D'),
+            ('1W',  df1wk, None),
+            ('1M',  df1mo, None),
         ]
 
         for label, base_df, rule in tfs:
             if base_df is None or base_df.empty:
-                results[label] = 0
+                results[label] = {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0}
                 continue
             df = resample_ohlcv(base_df, rule) if rule else base_df
             results[label] = get_cipher_b_signal(df)
