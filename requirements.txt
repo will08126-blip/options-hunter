@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 python-multipart
 slowapi
+jinja2
 gunicorn
 yfinance
 numpy
