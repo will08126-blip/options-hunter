@@ -20,20 +20,43 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 from datetime import datetime, date
+from pydantic import BaseModel
 
 import yfinance as yf
-from flask import Flask, render_template, jsonify, request
+import uvicorn
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from tvDatafeed import TvDatafeed, Interval as TvInterval
 
-app = Flask(__name__)
+# ─── RATE LIMITER ─────────────────────────────────────────────────────────────
+# Protects free APIs (tvDatafeed/yfinance) from abuse and future paid APIs.
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/hour"])
+
+app       = FastAPI(title="Options Hunter v2.0", docs_url="/docs")
+templates = Jinja2Templates(directory="templates")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+try:
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+except Exception:
+    pass   # empty static dir is fine
 
 # ─── SIMPLE IN-MEMORY CACHE ───────────────────────────────────────────────────
 _cache = {}
-CACHE_TTL = 600  # 10 minutes
+CACHE_TTL           = 600   # 10 min — market briefing, movers, news
+CACHE_TTL_TECHNICAL = 300   # 5 min  — Cipher B + MACD per ticker
+CACHE_TTL_STOCK     = 300   # 5 min  — sentiment + options expirations
 
-def cache_get(key):
-    if key in _cache and time.time() - _cache[key]['ts'] < CACHE_TTL:
-        return _cache[key]['data']
+def cache_get(key, ttl=None):
+    if key in _cache:
+        age = time.time() - _cache[key]['ts']
+        if age < (ttl if ttl is not None else CACHE_TTL):
+            return _cache[key]['data']
     return None
 
 def cache_set(key, data):
@@ -171,10 +194,10 @@ def resample_ohlcv(df, rule):
         return df
 
 
-def calc_wavetrend(df, n1=9, n2=12, ma_len=3):
+def calc_wavetrend(df, n1=10, n2=21, ma_len=4):
     """
     Calculate VMC Cipher B / WaveTrend Oscillator.
-    Default parameters match user's indicator: Channel=9, Average=12, MA=3.
+    Parameters match Pine Script indicator: Channel=10, Average=21, MA=4 (SMA).
     """
     if df is None or len(df) < n1 + n2 + 5:
         return None, None
@@ -193,7 +216,7 @@ def calc_wavetrend(df, n1=9, n2=12, ma_len=3):
 def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
     """
     Returns Cipher B signal info for a dataframe.
-    Matches TradingView crossover() behavior (strict inequality).
+    Matches Pine Script crossover() + divergence logic exactly.
     Returns dict: {signal, bars_ago, wt1, wt2}
       signal: 2=gold, 1=green, -1=red, 0=none
       bars_ago: how many bars since last signal fired
@@ -204,23 +227,30 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
         return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0}
 
     try:
-        # Strict crossover — matches Pine Script crossover(wt1, wt2)
-        cross_up   = (wt1 > wt2) & (wt1.shift(1) < wt2.shift(1))
-        cross_down = (wt1 < wt2) & (wt1.shift(1) > wt2.shift(1))
+        # Pine Script: crossover(a,b) = a > b AND a[1] <= b[1]
+        cross_up   = (wt1 > wt2) & (wt1.shift(1) <= wt2.shift(1))
+        cross_down = (wt1 < wt2) & (wt1.shift(1) >= wt2.shift(1))
 
-        green = cross_up   & (wt2 < os_level)   # buy: cross up from oversold
-        red   = cross_down & (wt2 > ob)          # sell: cross down from overbought
-        gold  = cross_up   & (wt2 < os2)         # strong buy: cross up from deeply oversold
+        green = cross_up   & (wt2 <= os_level)   # buy: cross up from oversold
+        red   = cross_down & (wt2 >= ob)          # sell: cross down from overbought
+
+        # Gold: cross up from deeply oversold WITH bullish divergence
+        # Matches Pine Script: priceLL = ta.lowest(low,5) < ta.lowest(low,5)[5]
+        #                      wtHL   = ta.lowest(wt2,5) > ta.lowest(wt2,5)[5]
+        lb = 5
+        price_ll = df['Low'].rolling(lb).min() < df['Low'].rolling(lb).min().shift(lb)
+        wt_hl    = wt2.rolling(lb).min() > wt2.rolling(lb).min().shift(lb)
+        gold     = cross_up & (wt2 <= os2) & price_ll & wt_hl
 
         signals = pd.Series(0, index=wt1.index)
         signals[red]   = -1
         signals[green] =  1
-        signals[gold]  =  2
+        signals[gold]  =  2   # gold overwrites green if both true
 
         cur_wt1 = round(float(wt1.iloc[-1]), 2)
         cur_wt2 = round(float(wt2.iloc[-1]), 2)
 
-        # Walk backwards through signal array — robust, no index lookups
+        # Walk backwards — find most recent non-zero signal
         sig_arr  = signals.values
         bars_ago = 99
         last_sig = 0
@@ -311,6 +341,141 @@ def calc_volume_analysis(df):
             'interpretation': interp,
         }
     except Exception:
+        return None
+
+
+# ─── TIMEFRAME WEIGHTS ────────────────────────────────────────────────────────
+# Tuned for swing trading (hours to weeks).
+# Monthly & Weekly anchor the macro direction; Daily is the primary setup frame;
+# 4H confirms entries; 1H/30m/15m provide precise timing with minimal influence.
+TF_WEIGHTS = {
+    '1M':  15.0,   # macro anchor — must align
+    '1W':  12.0,   # intermediate trend
+    '5D':   9.0,   # multi-day swing context
+    '3D':   8.0,   # sub-weekly
+    '2D':   7.0,
+    '1D':  10.0,   # primary swing frame
+    '12H':  5.0,   # intraday bridge
+    '8H':   4.0,
+    '6H':   3.5,
+    '4H':   6.0,   # entry confirmation
+    '2H':   3.0,
+    '1H':   2.0,
+    '30m':  1.5,
+    '15m':  1.0,
+    '5m':   0.5,
+}
+_MAX_WEIGHTED_SCORE = sum(TF_WEIGHTS.values())   # ~92.0
+
+
+def calc_cipher_b_score(cipher_b):
+    """
+    Returns a normalized score in [-100, +100].
+    Gold dots count as 1.5× bullish weight (divergence = higher confidence).
+    Neutral (no signal) contributes 0.
+    Also returns zone label and breakdowns for display.
+    """
+    bull_w = bear_w = 0.0
+    tf_detail = {}
+    for tf, data in cipher_b.items():
+        w   = TF_WEIGHTS.get(tf, 1.0)
+        sig = data.get('signal', 0)
+        if sig == 2:      # gold — strong bull
+            contribution = w * 1.5
+            bull_w += contribution
+        elif sig == 1:    # green
+            contribution = w
+            bull_w += contribution
+        elif sig == -1:   # red
+            contribution = -w
+            bear_w += w
+        else:
+            contribution = 0
+        tf_detail[tf] = {'weight': w, 'signal': sig, 'contribution': round(contribution, 2)}
+
+    raw   = bull_w - bear_w
+    score = round((raw / (_MAX_WEIGHTED_SCORE * 1.5)) * 100, 1)
+    score = max(-100, min(100, score))
+
+    if   score >= 65:  zone = 'Strong Bull'
+    elif score >= 35:  zone = 'Bullish'
+    elif score >= 12:  zone = 'Slight Bull'
+    elif score >= -12: zone = 'Neutral'
+    elif score >= -35: zone = 'Slight Bear'
+    elif score >= -65: zone = 'Bearish'
+    else:              zone = 'Strong Bear'
+
+    return {
+        'score':     score,
+        'zone':      zone,
+        'bull_w':    round(bull_w, 1),
+        'bear_w':    round(bear_w, 1),
+        'detail':    tf_detail,
+    }
+
+
+def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
+    """
+    Returns the full WT1/WT2 series for the oscillator chart on a given timeframe,
+    plus signal marker positions so the frontend can plot buy/sell/gold dots on the wave.
+    """
+    TF_MAP = {
+        '5m':  (TvInterval.in_5_minute,  300),
+        '15m': (TvInterval.in_15_minute, 200),
+        '30m': (TvInterval.in_30_minute, 150),
+        '1H':  (TvInterval.in_1_hour,    150),
+        '2H':  (TvInterval.in_2_hour,    120),
+        '4H':  (TvInterval.in_4_hour,    120),
+        '1D':  (TvInterval.in_daily,     120),
+        '1W':  (TvInterval.in_weekly,     80),
+        '1M':  (TvInterval.in_monthly,    60),
+    }
+    if tf not in TF_MAP:
+        return None
+    interval, n_bars = TF_MAP[tf]
+    try:
+        symbol, exchange = get_tv_symbol_exchange(ticker)
+        tv = TvDatafeed()
+        df = tv_get_hist(tv, symbol, exchange, interval, n_bars)
+        if df is None or df.empty:
+            return None
+
+        wt1, wt2 = calc_wavetrend(df)
+        if wt1 is None:
+            return None
+
+        # Detect signal bars (same logic as get_cipher_b_signal)
+        lb         = 5
+        cross_up   = (wt1 > wt2) & (wt1.shift(1) <= wt2.shift(1))
+        cross_down = (wt1 < wt2) & (wt1.shift(1) >= wt2.shift(1))
+        price_ll   = df['Low'].rolling(lb).min() < df['Low'].rolling(lb).min().shift(lb)
+        wt_hl      = wt2.rolling(lb).min() > wt2.rolling(lb).min().shift(lb)
+
+        green_mask = cross_up   & (wt2 <= os_level)
+        red_mask   = cross_down & (wt2 >= ob)
+        gold_mask  = cross_up   & (wt2 <= os2) & price_ll & wt_hl
+
+        # Build signal marker list — index + WT2 value at that bar
+        signals = []
+        for i in range(len(wt2)):
+            if gold_mask.iloc[i]:
+                signals.append({'i': i, 'y': round(float(wt2.iloc[i]), 2), 't': 'gold'})
+            elif green_mask.iloc[i]:
+                signals.append({'i': i, 'y': round(float(wt2.iloc[i]), 2), 't': 'green'})
+            elif red_mask.iloc[i]:
+                signals.append({'i': i, 'y': round(float(wt2.iloc[i]), 2), 't': 'red'})
+
+        dates = [str(d)[:10] for d in wt1.index]
+        return {
+            'dates':       dates,
+            'wt1':         [round(float(v), 2) for v in wt1.values],
+            'wt2':         [round(float(v), 2) for v in wt2.values],
+            'signals':     signals,
+            'current_wt1': round(float(wt1.iloc[-1]), 2),
+            'current_wt2': round(float(wt2.iloc[-1]), 2),
+        }
+    except Exception as e:
+        print(f"Wavetrend chart error ({ticker}/{tf}): {e}")
         return None
 
 
@@ -717,53 +882,58 @@ def get_sentiment(ticker_symbol):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  FLASK ROUTES
+#  FASTAPI ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+class AnalyzeBody(BaseModel):
+    ticker:     str
+    expiration: str
+
+
+@app.get('/')
+def index(request: Request):
+    return templates.TemplateResponse('index.html', {'request': request})
 
 
 # ── Morning Briefing ──────────────────────────────────────────────────────────
-@app.route('/api/market')
-def market_briefing():
-    crypto_symbols = request.args.get('crypto', ','.join(DEFAULT_CRYPTO)).split(',')
-    crypto_symbols = [s.strip() for s in crypto_symbols if s.strip()]
-
-    def fetch_indices():    return get_market_indices()
-    def fetch_crypto():     return get_crypto_prices(crypto_symbols)
-    def fetch_ci():         return get_crypto_indices()
-    def fetch_movers():     return get_top_movers()
-    def fetch_news():       return get_market_news()
+@app.get('/api/market')
+@limiter.limit("15/minute")
+def market_briefing(request: Request, crypto: str = ','.join(DEFAULT_CRYPTO)):
+    crypto_symbols = [s.strip() for s in crypto.split(',') if s.strip()]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-        fi = ex.submit(fetch_indices)
-        fc = ex.submit(fetch_crypto)
-        fci= ex.submit(fetch_ci)
-        fm = ex.submit(fetch_movers)
-        fn = ex.submit(fetch_news)
+        fi  = ex.submit(get_market_indices)
+        fc  = ex.submit(get_crypto_prices, crypto_symbols)
+        fci = ex.submit(get_crypto_indices)
+        fm  = ex.submit(get_top_movers)
+        fn  = ex.submit(get_market_news)
 
-    return jsonify({
+    return {
         'indices':        fi.result(),
         'crypto':         fc.result(),
         'crypto_indices': fci.result(),
         'movers':         fm.result(),
         'news':           fn.result(),
         'updated':        datetime.now().strftime('%I:%M %p'),
-    })
+    }
 
 
 # ── Technical Analysis ────────────────────────────────────────────────────────
-@app.route('/api/technical/<ticker>')
-def technical_analysis(ticker):
+# Tight limit — each cache miss hits TradingView 9 times concurrently
+@app.get('/api/technical/{ticker}')
+@limiter.limit("8/minute; 40/hour")
+def technical_analysis(request: Request, ticker: str):
     ticker = ticker.upper().strip()
-    # No cache — always fetch live data so signals are current
+
+    # 5-minute cache per ticker — signals don't change faster than that
+    cache_key = f'technical_{ticker}'
+    cached = cache_get(cache_key, ttl=CACHE_TTL_TECHNICAL)
+    if cached:
+        return cached
+
     try:
-        # All OHLCV via TradingView; daily + weekly returned for MACD/Volume reuse
         cipher_b, df_1d, df_1wk = get_all_cipher_b(ticker)
 
-        # Current price from yfinance fast_info (real-time; tvDatafeed is bar-close only)
         price = 0
         try:
             price = float(yf.Ticker(ticker).fast_info.last_price)
@@ -774,27 +944,18 @@ def technical_analysis(ticker):
         macd        = calc_macd(df_1d,  bars=60)
         macd_weekly = calc_macd(df_1wk, bars=52)
         volume      = calc_volume_analysis(df_1d)
+        cb_score    = calc_cipher_b_score(cipher_b)
 
-        # Build summary (cipher_b values are now dicts)
-        sig_vals    = list(cipher_b.values())
-        bull_count  = sum(1 for v in sig_vals if v['signal'] > 0)
-        bear_count  = sum(1 for v in sig_vals if v['signal'] < 0)
-        neut_count  = sum(1 for v in sig_vals if v['signal'] == 0)
-
-        if bull_count > bear_count * 1.5:
-            overall = 'Bullish'
-        elif bear_count > bull_count * 1.5:
-            overall = 'Bearish'
-        else:
-            overall = 'Mixed'
-
-        macd_status = 'Bullish' if macd and macd['bullish'] else 'Bearish' if macd else 'Unknown'
-        vol_status  = 'Above Average' if volume and volume['above_average'] else 'Below Average'
+        sig_vals   = list(cipher_b.values())
+        bull_count = sum(1 for v in sig_vals if v['signal'] > 0)
+        bear_count = sum(1 for v in sig_vals if v['signal'] < 0)
+        neut_count = sum(1 for v in sig_vals if v['signal'] == 0)
 
         result = {
             'ticker':      ticker,
             'price':       round(float(price), 2),
             'cipher_b':    cipher_b,
+            'cb_score':    cb_score,
             'macd':        macd,
             'macd_weekly': macd_weekly,
             'volume':      volume,
@@ -802,35 +963,57 @@ def technical_analysis(ticker):
                 'bullish_count': bull_count,
                 'bearish_count': bear_count,
                 'neutral_count': neut_count,
-                'macd_status':   macd_status,
-                'volume_status': vol_status,
-                'overall':       overall,
+                'macd_status':   'Bullish' if macd and macd['bullish'] else 'Bearish' if macd else 'Unknown',
+                'volume_status': 'Above Average' if volume and volume['above_average'] else 'Below Average',
+                'overall':       cb_score['zone'],
             }
         }
-        return jsonify(result)
+        cache_set(cache_key, result)
+        return result
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+# ── Wavetrend Oscillator Chart ────────────────────────────────────────────────
+@app.get('/api/wavetrend/{ticker}/{timeframe}')
+@limiter.limit("12/minute")
+def wavetrend_chart(request: Request, ticker: str, timeframe: str):
+    ticker = ticker.upper().strip()
+    cache_key = f'wt_{ticker}_{timeframe}'
+    cached = cache_get(cache_key, ttl=CACHE_TTL_TECHNICAL)
+    if cached:
+        return cached
+    data = get_wavetrend_chart_data(ticker, timeframe)
+    if not data:
+        return JSONResponse({'error': 'Could not fetch wavetrend data'}, status_code=400)
+    cache_set(cache_key, data)
+    return data
 
 
 # ── Options Hunter ────────────────────────────────────────────────────────────
-@app.route('/api/stock/<ticker>')
-def stock_info(ticker):
+@app.get('/api/stock/{ticker}')
+@limiter.limit("10/minute")
+def stock_info(request: Request, ticker: str):
+    ticker = ticker.upper().strip()
+    cache_key = f'stock_{ticker}'
+    cached = cache_get(cache_key, ttl=CACHE_TTL_STOCK)
+    if cached:
+        return cached
     try:
-        ticker = ticker.upper().strip()
-        data   = get_sentiment(ticker)
-        exps   = list(yf.Ticker(ticker).options)
-        data['expirations'] = exps
-        return jsonify(data)
+        data = get_sentiment(ticker)
+        data['expirations'] = list(yf.Ticker(ticker).options)
+        cache_set(cache_key, data)
+        return data
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return JSONResponse({'error': str(e)}, status_code=400)
 
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze():
-    body       = request.json
-    ticker     = body.get('ticker', '').upper().strip()
-    expiration = body.get('expiration', '')
+@app.post('/api/analyze')
+@limiter.limit("6/minute; 30/hour")
+def analyze(request: Request, body: AnalyzeBody):
+    ticker     = body.ticker.upper().strip()
+    expiration = body.expiration
     try:
         stock = yf.Ticker(ticker)
         info  = stock.info
@@ -886,10 +1069,10 @@ def analyze():
         for i, r in enumerate(results):
             r['rank'] = i + 1
 
-        return jsonify({'results': results, 'ticker': ticker,
-                        'currentPrice': round(price, 2), 'expiration': expiration, 'dte': dte})
+        return {'results': results, 'ticker': ticker,
+                'currentPrice': round(price, 2), 'expiration': expiration, 'dte': dte}
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return JSONResponse({'error': str(e)}, status_code=400)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -909,16 +1092,18 @@ def open_browser():
     webbrowser.open('http://localhost:5000')
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port      = int(os.environ.get('PORT', 5000))
     is_render = os.environ.get('RENDER') is not None
 
     if not is_render:
         ip = get_local_ip()
         print("\n" + "="*55)
         print("  OPTIONS HUNTER v2.0 is starting...")
+        print("  Powered by FastAPI + Uvicorn")
         print("="*55)
         print(f"  Local:     http://localhost:{port}")
         print(f"  WiFi:      http://{ip}:{port}")
+        print(f"  API docs:  http://localhost:{port}/docs")
         try:
             from pyngrok import ngrok
             public_url = ngrok.connect(port, bind_tls=True).public_url
@@ -928,4 +1113,4 @@ if __name__ == '__main__':
         print("="*55 + "\n")
         threading.Thread(target=open_browser, daemon=True).start()
 
-    app.run(host='0.0.0.0', port=port, debug=False)
+    uvicorn.run(app, host='0.0.0.0', port=port, log_level='warning')

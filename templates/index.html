@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0b0e14"/>
 <title>Options Hunter</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
@@ -46,15 +49,52 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .mover-ticker{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;}
 .mover-chg{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
 
-/* ── CIPHER B TABLE ── */
-.cipher-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;}
-.cipher-cell{background:#0b0e14;border-radius:8px;padding:8px 4px;text-align:center;border:1px solid var(--border);}
-.cipher-cell .tf-label{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:600;}
-.cipher-cell .sig-dot{width:20px;height:20px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
-.sig-green{background:rgba(0,208,132,.25);border:2px solid var(--green);box-shadow:0 0 8px rgba(0,208,132,.4);}
-.sig-red{background:rgba(255,77,106,.2);border:2px solid var(--red);box-shadow:0 0 8px rgba(255,77,106,.3);}
-.sig-gold{background:rgba(255,215,0,.2);border:2px solid var(--gold);box-shadow:0 0 8px rgba(255,215,0,.3);}
-.sig-none{background:#1a1f2e;border:2px solid #2a2f3e;}
+/* ── CIPHER B DOTS (used in MTF table) ── */
+.sig-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.sig-green{background:#00d084;box-shadow:0 0 6px rgba(0,208,132,.7);}
+.sig-red  {background:#ff4d6a;box-shadow:0 0 6px rgba(255,77,106,.6);}
+.sig-gold {background:#ffd700;box-shadow:0 0 8px rgba(255,215,0,.8);}
+.sig-none {background:#252b3d;}
+
+/* ── MTF TABLE ── */
+.mtf-group-label{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;padding:10px 0 5px;opacity:.6;}
+.mtf-row{display:grid;grid-template-columns:48px 90px 54px 54px 1fr;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;border:1px solid transparent;transition:border-color .15s;cursor:default;}
+.mtf-row:hover{border-color:var(--border);background:#0d1018;}
+.mtf-tf{font-size:11px;font-weight:700;color:var(--text);}
+.mtf-sig{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;}
+.mtf-wt{font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;}
+/* position bar — shows where WT2 sits in -100/+100 range */
+.mtf-pos-wrap{position:relative;height:6px;background:#1a1f2e;border-radius:3px;}
+.mtf-pos-ob  {position:absolute;top:0;bottom:0;right:0;width:23.5%;background:rgba(255,77,106,.15);border-radius:0 3px 3px 0;}
+.mtf-pos-os  {position:absolute;top:0;bottom:0;left:0; width:23.5%;background:rgba(0,208,132,.12);border-radius:3px 0 0 3px;}
+.mtf-pos-dos {position:absolute;top:0;bottom:0;left:0; width:20%;  background:rgba(255,215,0,.1); border-radius:3px 0 0 3px;}
+.mtf-pos-needle{position:absolute;top:-2px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%);border:2px solid #0b0e14;}
+
+/* ── OSCILLATOR CHART TF TABS ── */
+.osc-tf-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.osc-tf-btn{background:#0b0e14;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;min-height:32px;}
+.osc-tf-btn:hover{border-color:var(--blue);color:var(--blue);}
+.osc-tf-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.osc-loading{text-align:center;padding:30px;color:var(--muted);font-size:12px;}
+
+/* ── CIPHER B SCORE METER ── */
+.cb-score-wrap{background:linear-gradient(135deg,#0d1220,#0f1525);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px;}
+.cb-score-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.cb-score-title{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:600;}
+.cb-score-zone{font-size:1.2rem;font-weight:800;letter-spacing:-.3px;}
+.cb-score-num{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;opacity:.7;}
+/* gradient track */
+.cb-meter-track{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,#c0392b 0%,#e74c3c 14%,#e67e22 28%,#f39c12 42%,#aaa 49%,#aaa 51%,#2ecc71 58%,#27ae60 72%,#16a085 86%,#1abc9c 100%);margin-bottom:10px;box-shadow:inset 0 1px 3px rgba(0,0,0,.4);}
+.cb-meter-center{position:absolute;left:50%;top:-3px;width:2px;height:18px;background:rgba(255,255,255,.25);transform:translateX(-50%);}
+.cb-meter-needle{position:absolute;top:-4px;width:20px;height:20px;border-radius:50%;border:3px solid #fff;transform:translateX(-50%);transition:left .6s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 8px rgba(0,0,0,.5);}
+.cb-meter-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px;font-weight:500;}
+/* weight breakdown bar */
+.cb-weight-row{display:flex;align-items:center;gap:10px;margin-top:12px;}
+.cb-weight-bar-wrap{flex:1;height:6px;background:#1a1f2e;border-radius:3px;overflow:hidden;display:flex;}
+.cb-weight-bull{height:100%;background:linear-gradient(90deg,#00d084,#00b870);border-radius:3px 0 0 3px;transition:width .5s;}
+.cb-weight-bear{height:100%;background:linear-gradient(90deg,#ff4d6a,#c0392b);border-radius:0 3px 3px 0;transition:width .5s;}
+.cb-weight-meta{font-size:11px;color:var(--muted);}
+.cb-weight-meta b{color:var(--text);}
 
 /* ── SUMMARY BOX ── */
 .summary-box{background:#0b0e14;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;}
@@ -64,6 +104,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 
 /* ── MACD CHART ── */
 .chart-wrap{position:relative;height:160px;margin-top:8px;}
+
+/* ── MACD EDUCATIONAL ── */
+.macd-edu{background:#0d1220;border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:10px;}
+.macd-edu-title{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:600;margin-bottom:10px;}
+.macd-legend-row{display:flex;flex-direction:column;gap:6px;}
+.macd-legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);}
+.macd-legend-swatch{width:14px;height:10px;border-radius:2px;flex-shrink:0;}
+.macd-crossover-tip{margin-top:10px;font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:9px;}
 
 /* ── VOLUME BAR ── */
 .vol-bar-wrap{margin-top:8px;}
@@ -87,7 +135,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .field-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
 .oh-input{background:#0b0e14;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;text-transform:uppercase;width:130px;transition:border-color .2s;}
 .oh-input:focus{outline:none;border-color:var(--blue);}
-.oh-select{background:#0b0e14;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;min-width:170px;}
+.oh-select{background:#0b0e14;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;min-width:170px;max-width:100%;}
 .oh-select:focus{outline:none;border-color:var(--blue);}
 .btn-primary-oh{background:var(--blue);border:none;color:#fff;border-radius:8px;padding:8px 20px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
 .btn-primary-oh:hover{background:#3a8fff;}
@@ -226,20 +274,71 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .news-card a:hover{color:var(--blue);}
 .news-pub{font-size:11px;color:var(--muted);}
 
-/* ── RESPONSIVE ── */
+/* ── RESPONSIVE / iOS ── */
+
+/* Prevent iOS font-size bump on landscape */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: hidden; }
+body { overflow-x: hidden; }
+
+/* Remove iOS tap highlight flash */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Smooth momentum scrolling on iOS */
+body, .table-wrap { -webkit-overflow-scrolling: touch; }
+
+/* Safe-area insets for iPhone notch / home bar */
+.app-nav  { padding-left:  max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right)); }
+.page-container { padding-left:  max(16px, env(safe-area-inset-left));
+                  padding-right: max(16px, env(safe-area-inset-right)); }
+.table-wrap { padding-bottom: max(80px, calc(env(safe-area-inset-bottom) + 60px)); }
+
+/* Minimum touch target 44×44 pt (Apple HIG) */
+.nav-tab, .btn-primary-oh, .btn-outline-oh, .btn-sm-oh,
+.filter-btn, .bh-refresh { min-height: 44px; display: inline-flex;
+  align-items: center; justify-content: center; }
+
+/* Inputs — prevent iOS zoom on focus (font-size ≥ 16px stops zoom) */
+.oh-input, .oh-select, .wl-input {
+  font-size: 16px !important;
+  border-radius: 10px;     /* iOS likes rounded inputs */
+}
+
 @media(max-width:600px){
-  .nav-tab{padding:12px 10px;font-size:11px;}
-  .metric-grid{grid-template-columns:repeat(2,1fr);}
-  .index-cards{grid-template-columns:repeat(2,1fr);}
-  .ci-strip{grid-template-columns:repeat(3,1fr);}
-  .cipher-grid{grid-template-columns:repeat(5,1fr);}
-  .oh-table thead th:nth-child(n+8){display:none;}
-  .oh-table td:nth-child(n+8){display:none;}
-  .oh-input{width:100%;}
-  .oh-select{width:100%;}
-  .btn-primary-oh,.btn-outline-oh{width:100%;text-align:center;}
-  .ic-price{font-size:16px;}
-  .bh-greeting{font-size:1.2rem;}
+  /* Nav */
+  .nav-tab { padding: 0 10px; font-size: 11px; }
+  .logo    { font-size: 1rem; padding: 0 12px 0 0; }
+
+  /* Grids */
+  .metric-grid  { grid-template-columns: repeat(2,1fr); }
+  .index-cards  { grid-template-columns: repeat(2,1fr); }
+  .ci-strip     { grid-template-columns: repeat(3,1fr); }
+  .cipher-grid  { grid-template-columns: repeat(5,1fr); }
+
+  /* Score meter */
+  .cb-score-header { flex-direction: column; gap: 6px; }
+  .cb-score-header > div:last-child { text-align: left; }
+
+  /* MACD edu grid — stack on small screens */
+  .macd-edu > div[style*="grid"] { grid-template-columns: 1fr !important; }
+
+  /* Options table — hide less critical columns on small screen */
+  .oh-table thead th:nth-child(n+8) { display: none; }
+  .oh-table td:nth-child(n+8)       { display: none; }
+
+  /* Forms */
+  .oh-input, .oh-select             { width: 100%; }
+  .btn-primary-oh, .btn-outline-oh  { width: 100%; justify-content: center; }
+  .search-row                       { flex-direction: column; }
+
+  /* Typography */
+  .ic-price     { font-size: 16px; }
+  .bh-greeting  { font-size: 1.2rem; }
+  .cb-score-zone { font-size: 1rem; }
+
+  /* Movers side-by-side stays but shrinks */
+  .mover-ticker { font-size: 12px; }
+  .mover-chg    { font-size: 12px; }
 }
 </style>
 </head>
@@ -691,11 +790,168 @@ async function loadTechnical() {
   }
 }
 
+// ── Wavetrend Oscillator Chart ────────────────────────────────────────────────
+let wtChart = null;
+let _currentWtTicker = '';
+let _currentWtTf = '1D';
+
+async function loadWavetrend(tf) {
+  if (!_currentWtTicker) return;
+  _currentWtTf = tf;
+
+  // Update active tab
+  document.querySelectorAll('.osc-tf-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tf === tf));
+
+  const wrap = document.getElementById('wtChartWrap');
+  wrap.innerHTML = '<div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading oscillator...</div>';
+
+  try {
+    const res  = await fetch(`/api/wavetrend/${_currentWtTicker}/${tf}`);
+    const data = await res.json();
+    if (data.error) { wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px">${data.error}</p>`; return; }
+    wrap.innerHTML = '<canvas id="wtCanvas"></canvas>';
+    buildWtChart(data);
+  } catch(e) {
+    wrap.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:20px">Failed to load oscillator.</p>';
+  }
+}
+
+function buildWtChart(data) {
+  setTimeout(() => {
+    const ctx = document.getElementById('wtCanvas');
+    if (!ctx) return;
+    if (wtChart) { wtChart.destroy(); wtChart = null; }
+
+    const n = data.dates.length;
+    const ob = 53, os = -53, os2 = -60;
+
+    // Signal dot arrays — null everywhere except signal bars
+    const greenDots = new Array(n).fill(null);
+    const redDots   = new Array(n).fill(null);
+    const goldDots  = new Array(n).fill(null);
+    data.signals.forEach(s => {
+      if      (s.t === 'green') greenDots[s.i] = s.y;
+      else if (s.t === 'red')   redDots[s.i]   = s.y;
+      else if (s.t === 'gold')  goldDots[s.i]  = s.y;
+    });
+
+    // Shaded zone datasets (fill between lines)
+    const obLine  = new Array(n).fill(ob);
+    const osLine  = new Array(n).fill(os);
+    const os2Line = new Array(n).fill(os2);
+    const zero    = new Array(n).fill(0);
+
+    wtChart = new Chart(ctx, {
+      data: {
+        labels: data.dates,
+        datasets: [
+          // OB zone fill
+          { type:'line', data: obLine,  borderColor:'rgba(255,77,106,0)',
+            backgroundColor:'rgba(255,77,106,0.07)', fill:{target:{value:200}},
+            pointRadius:0, borderWidth:0, order:10 },
+          // OS zone fill
+          { type:'line', data: osLine,  borderColor:'rgba(0,208,132,0)',
+            backgroundColor:'rgba(0,208,132,0.06)', fill:{target:{value:-200}},
+            pointRadius:0, borderWidth:0, order:10 },
+          // Deep OS zone fill
+          { type:'line', data: os2Line, borderColor:'rgba(255,215,0,0)',
+            backgroundColor:'rgba(255,215,0,0.05)', fill:{target:{value:-200}},
+            pointRadius:0, borderWidth:0, order:10 },
+          // OB reference line
+          { type:'line', label:'OB +53',  data: obLine,  borderColor:'rgba(255,77,106,0.45)',
+            borderWidth:1, borderDash:[5,4], pointRadius:0, order:9 },
+          // OS reference line
+          { type:'line', label:'OS −53',  data: osLine,  borderColor:'rgba(0,208,132,0.45)',
+            borderWidth:1, borderDash:[5,4], pointRadius:0, order:9 },
+          // Deep OS reference
+          { type:'line', label:'−60',     data: os2Line, borderColor:'rgba(255,215,0,0.35)',
+            borderWidth:1, borderDash:[3,4], pointRadius:0, order:9 },
+          // Zero line
+          { type:'line', data: zero, borderColor:'rgba(90,100,128,0.25)',
+            borderWidth:1, pointRadius:0, order:9 },
+          // WT2 (signal line — plotted under WT1)
+          { type:'line', label:'WT2', data: data.wt2,
+            borderColor:'#ff6b6b', backgroundColor:'transparent',
+            borderWidth:1.5, pointRadius:0, tension:0.3, order:2 },
+          // WT1 (fast line — main wave)
+          { type:'line', label:'WT1', data: data.wt1,
+            borderColor:'#4dd9f5', backgroundColor:'transparent',
+            borderWidth:2, pointRadius:0, tension:0.3, order:1 },
+          // Green buy dots
+          { type:'line', label:'Buy', data: greenDots,
+            backgroundColor:'#00d084', borderColor:'#00d084',
+            pointRadius: greenDots.map(v => v !== null ? 6 : 0),
+            pointHoverRadius:8, showLine:false, order:0 },
+          // Red sell dots
+          { type:'line', label:'Sell', data: redDots,
+            backgroundColor:'#ff4d6a', borderColor:'#ff4d6a',
+            pointRadius: redDots.map(v => v !== null ? 6 : 0),
+            pointHoverRadius:8, showLine:false, order:0 },
+          // Gold divergence dots
+          { type:'line', label:'Gold', data: goldDots,
+            backgroundColor:'#ffd700', borderColor:'#ffd700',
+            pointRadius: goldDots.map(v => v !== null ? 7 : 0),
+            pointHoverRadius:9, showLine:false, order:0 },
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{
+            display:true,
+            labels:{
+              color:'#8a93a8', font:{size:10}, boxWidth:10, padding:12,
+              filter: item => ['WT1','WT2','Buy','Sell','Gold','OB +53','OS −53'].includes(item.text)
+            }
+          },
+          tooltip:{
+            backgroundColor:'#1a2035', borderColor:'#2a3050', borderWidth:1,
+            titleColor:'#c9d1e0', bodyColor:'#8a93a8',
+            callbacks:{
+              label: ctx => {
+                if (!['WT1','WT2','Buy','Sell','Gold'].includes(ctx.dataset.label)) return null;
+                if (ctx.parsed.y === null) return null;
+                return ` ${ctx.dataset.label}: ${ctx.parsed.y}`;
+              }
+            }
+          }
+        },
+        scales:{
+          x:{ ticks:{color:'#5a6480', maxTicksLimit:8, font:{size:9}},
+              grid:{color:'rgba(30,37,53,0.5)'} },
+          y:{ ticks:{color:'#5a6480', font:{size:9}},
+              grid:{color:'rgba(30,37,53,0.5)'},
+              suggestedMin:-100, suggestedMax:100 }
+        }
+      }
+    });
+  }, 50);
+}
+
+// TV-style MACD: 4 histogram colors based on momentum direction
+function macdHistColors(vals) {
+  return vals.map((v, i) => {
+    const prev = i > 0 ? vals[i - 1] : v;
+    if (v >= 0) return v >= prev ? 'rgba(0,208,132,0.85)' : 'rgba(0,208,132,0.35)';
+    return v <= prev ? 'rgba(255,77,106,0.85)' : 'rgba(255,77,106,0.35)';
+  });
+}
+function macdHistBorders(vals) {
+  return vals.map((v, i) => {
+    const prev = i > 0 ? vals[i - 1] : v;
+    if (v >= 0) return v >= prev ? '#00d084' : 'rgba(0,208,132,0.5)';
+    return v <= prev ? '#ff4d6a' : 'rgba(255,77,106,0.5)';
+  });
+}
+
 function buildMacdChart(canvasId, macd, chartRef) {
   setTimeout(() => {
     const ctx = document.getElementById(canvasId);
     if (!ctx || !macd) return;
     if (chartRef && chartRef.destroy) chartRef.destroy();
+    const zeroLine = new Array(macd.hist_dates.length).fill(0);
     return new Chart(ctx, {
       data: {
         labels: macd.hist_dates,
@@ -704,17 +960,18 @@ function buildMacdChart(canvasId, macd, chartRef) {
             type: 'bar',
             label: 'Histogram',
             data: macd.hist_values,
-            backgroundColor: macd.hist_values.map(v => v >= 0 ? 'rgba(0,208,132,0.45)' : 'rgba(255,77,106,0.45)'),
-            borderColor:     macd.hist_values.map(v => v >= 0 ? '#00d084' : '#ff4d6a'),
+            backgroundColor: macdHistColors(macd.hist_values),
+            borderColor:     macdHistBorders(macd.hist_values),
             borderWidth: 1,
             borderRadius: 2,
-            order: 2,
+            order: 3,
           },
           {
             type: 'line',
             label: 'MACD',
             data: macd.macd_values,
             borderColor: '#4d9fff',
+            backgroundColor: 'transparent',
             borderWidth: 2,
             pointRadius: 0,
             tension: 0.3,
@@ -725,11 +982,23 @@ function buildMacdChart(canvasId, macd, chartRef) {
             label: 'Signal',
             data: macd.signal_values,
             borderColor: '#ffc107',
+            backgroundColor: 'transparent',
             borderWidth: 1.5,
             pointRadius: 0,
             tension: 0.3,
             borderDash: [5, 3],
             order: 1,
+          },
+          {
+            type: 'line',
+            label: 'Zero',
+            data: zeroLine,
+            borderColor: 'rgba(90,100,128,0.35)',
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            borderDash: [3, 3],
+            pointRadius: 0,
+            order: 4,
           }
         ]
       },
@@ -740,7 +1009,10 @@ function buildMacdChart(canvasId, macd, chartRef) {
         plugins: {
           legend: {
             display: true,
-            labels: { color: '#8a93a8', font: { size: 10 }, boxWidth: 12, padding: 12 }
+            labels: {
+              color: '#8a93a8', font: { size: 10 }, boxWidth: 10, padding: 14,
+              filter: item => item.text !== 'Zero'
+            }
           },
           tooltip: {
             backgroundColor: '#1a2035',
@@ -748,16 +1020,23 @@ function buildMacdChart(canvasId, macd, chartRef) {
             borderWidth: 1,
             titleColor: '#c9d1e0',
             bodyColor: '#8a93a8',
+            callbacks: {
+              label: ctx => {
+                if (ctx.dataset.label === 'Zero') return null;
+                const v = ctx.parsed.y;
+                return ` ${ctx.dataset.label}: ${v > 0 ? '+' : ''}${v.toFixed(4)}`;
+              }
+            }
           }
         },
         scales: {
           x: {
             ticks: { color: '#5a6480', maxTicksLimit: 8, font: { size: 9 } },
-            grid: { color: 'rgba(30,37,53,0.8)' }
+            grid: { color: 'rgba(30,37,53,0.6)' }
           },
           y: {
             ticks: { color: '#5a6480', font: { size: 9 } },
-            grid: { color: 'rgba(30,37,53,0.8)' }
+            grid: { color: 'rgba(30,37,53,0.6)' }
           }
         }
       }
@@ -765,53 +1044,199 @@ function buildMacdChart(canvasId, macd, chartRef) {
   }, 100);
 }
 
+// ── Timeframe weights (must match app.py TF_WEIGHTS) ─────────────────────────
+const TF_WEIGHTS = {
+  '1M':15,'1W':12,'5D':9,'3D':8,'2D':7,'1D':10,
+  '12H':5,'8H':4,'6H':3.5,'4H':6,'2H':3,'1H':2,'30m':1.5,'15m':1,'5m':0.5
+};
+
 function renderTechnical(data) {
-  const cb      = data.cipher_b || {};
+  const cb      = data.cipher_b  || {};
+  const cbs     = data.cb_score  || {};
   const macd    = data.macd;
   const macdWk  = data.macd_weekly;
   const vol     = data.volume;
-  const summ    = data.summary || {};
+  const summ    = data.summary   || {};
 
-  const overallColor = summ.overall === 'Bullish' ? 'var(--green)' : summ.overall === 'Bearish' ? 'var(--red)' : 'var(--yellow)';
+  // ── Cipher B score meter ─────────────────────────────────────────────────
+  const score    = cbs.score  || 0;
+  const zone     = cbs.zone   || 'Neutral';
+  const bullW    = cbs.bull_w || 0;
+  const bearW    = cbs.bear_w || 0;
+  const totalW   = bullW + bearW;
 
-  // Cipher B grid — always show last confirmed signal, no dimming
-  const TF_ORDER = ['5m','15m','30m','1H','2H','4H','6H','8H','12H','1D','2D','3D','5D','1W','1M'];
-  const cbHtml = TF_ORDER.map(tf => {
+  // needle position: score -100→0% left, +100→100% left
+  const needlePct = ((score + 100) / 200 * 100).toFixed(1);
+
+  // zone → color
+  const zoneColor =
+    zone === 'Strong Bull' ? '#00d084' :
+    zone === 'Bullish'     ? '#00b870' :
+    zone === 'Slight Bull' ? '#2ecc71' :
+    zone === 'Neutral'     ? '#8a93a8' :
+    zone === 'Slight Bear' ? '#e67e22' :
+    zone === 'Bearish'     ? '#ff6b52' : '#ff4d6a';
+
+  // needle background color
+  const needleColor =
+    score >= 35  ? '#00d084' :
+    score >= 12  ? '#2ecc71' :
+    score >= -12 ? '#8a93a8' :
+    score >= -35 ? '#e67e22' : '#ff4d6a';
+
+  const bullBarPct = totalW > 0 ? (bullW / (bullW + bearW) * 100).toFixed(1) : 50;
+  const bearBarPct = totalW > 0 ? (bearW / (bullW + bearW) * 100).toFixed(1) : 50;
+
+  const scoreMeterHtml = `
+    <div class="cb-score-wrap">
+      <div class="cb-score-header">
+        <div>
+          <div class="cb-score-title">VMC Cipher B — Weighted Signal Score</div>
+          <div class="cb-score-zone" style="color:${zoneColor}">${zone}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">${data.ticker} &nbsp;·&nbsp; ${summ.bullish_count} bullish &nbsp;/ ${summ.bearish_count} bearish / ${summ.neutral_count} neutral signals</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:2rem;font-weight:800;color:${zoneColor};line-height:1">${score > 0 ? '+' : ''}${score}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">out of ±100</div>
+        </div>
+      </div>
+      <div class="cb-meter-track">
+        <div class="cb-meter-center"></div>
+        <div class="cb-meter-needle" style="left:${needlePct}%;background:${needleColor}"></div>
+      </div>
+      <div class="cb-meter-labels">
+        <span>Strong Bear</span><span>Bear</span><span>Neutral</span><span>Bull</span><span>Strong Bull</span>
+      </div>
+      <div class="cb-weight-row">
+        <span class="cb-weight-meta">Bull weight <b style="color:var(--green)">${bullW.toFixed(1)}</b></span>
+        <div class="cb-weight-bar-wrap">
+          <div class="cb-weight-bull" style="width:${bullBarPct}%"></div>
+          <div class="cb-weight-bear" style="width:${bearBarPct}%"></div>
+        </div>
+        <span class="cb-weight-meta">Bear weight <b style="color:var(--red)">${bearW.toFixed(1)}</b></span>
+      </div>
+    </div>`;
+
+  // ── MTF table — grouped rows with WT values and position bar ────────────────
+  const TF_GROUPS = [
+    { label: 'Macro', tfs: ['1M','1W','5D','3D','2D'] },
+    { label: 'Primary', tfs: ['1D','12H','8H','6H','4H'] },
+    { label: 'Intraday', tfs: ['2H','1H','30m','15m','5m'] },
+  ];
+
+  function mtfRow(tf) {
     const d   = cb[tf] || {signal:0, bars_ago:99, wt1:0, wt2:0};
     const sig = d.signal || 0;
+    const w   = TF_WEIGHTS[tf] || 1;
+    const wt2val = d.wt2 || 0;
 
-    let dotClass, label;
-    if      (sig === 2)  { dotClass='sig-gold';  label='G'; }
-    else if (sig === 1)  { dotClass='sig-green'; label='▲'; }
-    else if (sig === -1) { dotClass='sig-red';   label='▼'; }
-    else                 { dotClass='sig-none';  label='─'; }
+    let dotClass, sigText, sigColor;
+    if      (sig === 2)  { dotClass='sig-gold';  sigText='GOLD'; sigColor='var(--gold)'; }
+    else if (sig === 1)  { dotClass='sig-green'; sigText='BUY';  sigColor='var(--green)'; }
+    else if (sig === -1) { dotClass='sig-red';   sigText='SELL'; sigColor='var(--red)'; }
+    else                 { dotClass='sig-none';  sigText='—';    sigColor='var(--muted)'; }
 
-    const barsAgo = (d.bars_ago != null && d.bars_ago < 99)
-      ? `<div style="font-size:8px;color:var(--muted);margin-top:3px">${d.bars_ago}b</div>`
-      : '';
+    // Position bar: map wt2 from [-100,+100] → [0%,100%] needle position
+    const needlePct  = Math.max(0, Math.min(100, (wt2val + 100) / 2));
+    const needleCol  = wt2val >= 53 ? '#ff4d6a' : wt2val <= -60 ? '#ffd700' : wt2val <= -53 ? '#00d084' : '#8a93a8';
 
-    return `<div class="cipher-cell" title="WT1: ${d.wt1} | WT2: ${d.wt2}">
-      <div class="tf-label">${tf}</div>
-      <div class="sig-dot ${dotClass}">${label}</div>
-      ${barsAgo}
-    </div>`;
-  }).join('');
+    const wt1Color = d.wt1 > 0 ? 'var(--green)' : d.wt1 < 0 ? 'var(--red)' : 'var(--muted)';
+    const wt2Color = wt2val >= 53 ? 'var(--red)' : wt2val <= -53 ? 'var(--green)' : 'var(--muted)';
+    const barsAgo  = (d.bars_ago != null && d.bars_ago < 99) ? `<span style="color:var(--muted);font-size:9px;margin-left:4px">${d.bars_ago}b</span>` : '';
 
-  // Daily MACD status strip
-  function macdStrip(m, label) {
-    if (!m) return `<p style="color:var(--muted);font-size:12px">No ${label} MACD data</p>`;
-    const hc    = m.bullish ? 'var(--green)' : 'var(--red)';
-    const state = m.bullish ? '● BULLISH' : '● BEARISH';
-    const cross = m.crossing_up ? ' — 🔺 CROSSING UP NOW' : m.crossing_down ? ' — 🔻 CROSSING DOWN NOW' : '';
-    return `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:12px">
-      <span style="color:${hc};font-weight:700;font-size:13px">${state}${cross}</span>
-      <span>MACD: <b class="mono" style="color:${hc}">${m.macd}</b></span>
-      <span>Signal: <b class="mono" style="color:#ffc107">${m.signal}</b></span>
-      <span>Hist: <b class="mono" style="color:${hc}">${m.histogram}</b></span>
+    return `<div class="mtf-row" title="Weight: ${w}× | WT1: ${d.wt1} | WT2: ${wt2val}">
+      <span class="mtf-tf">${tf}</span>
+      <span class="mtf-sig">
+        <span class="sig-dot ${dotClass}"></span>
+        <span style="color:${sigColor}">${sigText}</span>${barsAgo}
+      </span>
+      <span class="mtf-wt" style="color:${wt1Color}">${d.wt1}</span>
+      <span class="mtf-wt" style="color:${wt2Color}">${wt2val}</span>
+      <div class="mtf-pos-wrap">
+        <div class="mtf-pos-ob"></div>
+        <div class="mtf-pos-os"></div>
+        <div class="mtf-pos-needle" style="left:${needlePct}%;background:${needleCol}"></div>
+      </div>
     </div>`;
   }
 
-  // Volume
+  const mtfTableHtml = `
+    <div style="display:grid;grid-template-columns:48px 90px 54px 54px 1fr;gap:8px;padding:4px 10px 8px;font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">
+      <span>TF</span><span>Signal</span><span style="text-align:right">WT1</span><span style="text-align:right">WT2</span><span style="padding-left:4px">Position</span>
+    </div>
+    ${TF_GROUPS.map(g => `
+      <div class="mtf-group-label" style="padding-left:10px">${g.label}</div>
+      ${g.tfs.map(mtfRow).join('')}
+    `).join('')}`;
+
+  // ── MACD status strip ────────────────────────────────────────────────────
+  function macdStrip(m, label) {
+    if (!m) return `<p style="color:var(--muted);font-size:12px">No ${label} MACD data</p>`;
+    const isBull = m.bullish;
+    const hc     = isBull ? 'var(--green)' : 'var(--red)';
+
+    // Momentum direction from last 2 histogram values
+    const hLen   = m.hist_values.length;
+    const hCur   = m.hist_values[hLen - 1];
+    const hPrev  = m.hist_values[hLen - 2];
+    const momentumBuilding = isBull ? (hCur > hPrev) : (hCur < hPrev);
+    const momentumIcon = momentumBuilding ? '↗' : '↘';
+    const momentumTxt  = momentumBuilding ? 'Building' : 'Fading';
+    const momentumCol  = momentumBuilding ? hc : 'var(--muted)';
+
+    let alertHtml = '';
+    if (m.crossing_up)   alertHtml = `<span style="background:rgba(0,208,132,.15);border:1px solid rgba(0,208,132,.4);color:var(--green);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▲ CROSSING UP</span>`;
+    if (m.crossing_down) alertHtml = `<span style="background:rgba(255,77,106,.15);border:1px solid rgba(255,77,106,.4);color:var(--red);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▼ CROSSING DOWN</span>`;
+
+    return `<div style="background:#0d1220;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+      <span style="color:${hc};font-weight:800;font-size:14px">● ${isBull ? 'BULLISH' : 'BEARISH'}</span>
+      ${alertHtml}
+      <span style="color:${momentumCol};font-size:12px;font-weight:600">${momentumIcon} Momentum ${momentumTxt}</span>
+      <div style="display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap;margin-left:auto">
+        <span>MACD <b class="mono" style="color:#4d9fff">${m.macd > 0 ? '+' : ''}${m.macd}</b></span>
+        <span>Signal <b class="mono" style="color:#ffc107">${m.signal > 0 ? '+' : ''}${m.signal}</b></span>
+        <span>Hist <b class="mono" style="color:${hc}">${m.histogram > 0 ? '+' : ''}${m.histogram}</b></span>
+      </div>
+    </div>`;
+  }
+
+  // ── MACD educational card ────────────────────────────────────────────────
+  const macdEduHtml = `
+    <div class="macd-edu">
+      <div class="macd-edu-title">📘 How to Read the MACD</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="macd-legend-row">
+          <div class="macd-legend-item">
+            <div class="macd-legend-swatch" style="background:rgba(0,208,132,0.85)"></div>
+            <span><b>Bright green bar</b> — bullish momentum building</span>
+          </div>
+          <div class="macd-legend-item">
+            <div class="macd-legend-swatch" style="background:rgba(0,208,132,0.35)"></div>
+            <span><b>Dim green bar</b> — bullish, but momentum fading</span>
+          </div>
+          <div class="macd-legend-item">
+            <div class="macd-legend-swatch" style="background:rgba(255,77,106,0.85)"></div>
+            <span><b>Bright red bar</b> — bearish momentum building</span>
+          </div>
+          <div class="macd-legend-item">
+            <div class="macd-legend-swatch" style="background:rgba(255,77,106,0.35)"></div>
+            <span><b>Dim red bar</b> — bearish, but momentum fading</span>
+          </div>
+        </div>
+        <div class="macd-legend-row" style="font-size:12px;color:var(--muted);gap:8px;">
+          <div><span style="color:#4d9fff;font-weight:700;font-size:13px">━━</span> <b style="color:var(--text)">MACD line</b> — EMA(12) minus EMA(26). Positive = fast EMA above slow (bullish).</div>
+          <div><span style="color:#ffc107;font-weight:700;font-size:13px">╌╌</span> <b style="color:var(--text)">Signal line</b> — EMA(9) of MACD. Acts as the trigger.</div>
+          <div><b style="color:var(--text)">Histogram</b> — Distance between MACD and Signal. Bar height shows momentum strength.</div>
+        </div>
+      </div>
+      <div class="macd-crossover-tip">
+        💡 <b style="color:var(--text)">MACD crosses above Signal</b> = bullish momentum confirmed, potential buy entry. &nbsp;
+           <b style="color:var(--text)">MACD crosses below Signal</b> = bearish momentum confirmed, potential sell/exit signal.
+           Watch for the histogram bars <em>shrinking toward zero</em> — that's your early warning a crossover is coming.
+      </div>
+    </div>`;
+
+  // ── Volume ───────────────────────────────────────────────────────────────
   let volHtml = '<p style="color:var(--muted);font-size:12px">No volume data</p>';
   if (vol) {
     const vColor = vol.color === 'green' ? 'var(--green)' : vol.color === 'yellow' ? 'var(--yellow)' : 'var(--red)';
@@ -835,48 +1260,66 @@ function renderTechnical(data) {
       <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">bar = relative to 2× average</div>`;
   }
 
+  // ── Oscillator TF tab buttons ─────────────────────────────────────────────
+  const oscTfs = ['1M','1W','1D','4H','1H','15m'];
+  const oscTabsHtml = oscTfs.map(tf =>
+    `<button class="osc-tf-btn${tf === '1D' ? ' active' : ''}" data-tf="${tf}" onclick="loadWavetrend('${tf}')">${tf}</button>`
+  ).join('');
+
+  // ── Assemble page ────────────────────────────────────────────────────────
   document.getElementById('technicalContent').innerHTML = `
-    <div class="summary-box" style="margin-top:14px">
-      <div class="summary-overall" style="color:${overallColor}">
-        ${summ.overall === 'Bullish' ? '🟢' : summ.overall === 'Bearish' ? '🔴' : '🟡'} ${summ.overall || 'Mixed'} — ${data.ticker} @ $${data.price}
-      </div>
-      <div class="summary-stats">
-        <span>Cipher B: <b>${summ.bullish_count} Bullish</b> / <b>${summ.bearish_count} Bearish</b> / ${summ.neutral_count} Neutral</span>
-        <span>Daily MACD: <b>${summ.macd_status}</b></span>
-        <span>Volume: <b>${summ.volume_status}</b></span>
-      </div>
-    </div>
+    <div style="margin-top:14px">
+      ${scoreMeterHtml}
 
-    <div class="oh-card">
-      <div class="oh-card-title">🔮 Cipher B — Last Signal by Timeframe
-        <span style="font-size:9px;color:var(--muted);margin-left:8px">🟢 BUY &nbsp; 🔴 SELL &nbsp; 🟡 GOLD (divergence) &nbsp; ─ No signal</span>
+      <div class="oh-card">
+        <div class="oh-card-title">WaveTrend Oscillator
+          <span style="font-size:9px;color:var(--muted);margin-left:8px">WT1 <span style="color:#4dd9f5">━━</span> &nbsp; WT2 <span style="color:#ff6b6b">━━</span> &nbsp; OB +53 / OS −53</span>
+        </div>
+        <div class="osc-tf-tabs">${oscTabsHtml}</div>
+        <div id="wtChartWrap" style="position:relative;height:200px">
+          <div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading oscillator...</div>
+        </div>
       </div>
-      <div class="cipher-grid">${cbHtml}</div>
-    </div>
 
-    <div class="oh-card">
-      <div class="oh-card-title">📈 MACD (12 / 26 / 9) — Daily
-        <span style="font-size:9px;color:var(--muted);margin-left:8px">Blue = MACD line &nbsp; Yellow dashed = Signal &nbsp; Bars = Histogram</span>
+      <div class="oh-card">
+        <div class="oh-card-title">VMC Cipher B — Multi-Timeframe Signals
+          <span style="font-size:9px;color:var(--muted);margin-left:8px">
+            <span style="color:var(--green)">●</span> Buy &nbsp;
+            <span style="color:var(--red)">●</span> Sell &nbsp;
+            <span style="color:var(--gold)">●</span> Gold (divergence) &nbsp;&nbsp;
+            WT1 / WT2 values shown
+          </span>
+        </div>
+        ${mtfTableHtml}
       </div>
-      ${macdStrip(macd, 'Daily')}
-      <div class="chart-wrap" style="height:180px"><canvas id="macdDailyCanvas"></canvas></div>
-    </div>
 
-    <div class="oh-card">
-      <div class="oh-card-title">📈 MACD (12 / 26 / 9) — Weekly
-        <span style="font-size:9px;color:var(--muted);margin-left:8px">Longer-term trend view (52 weeks)</span>
+      <div class="oh-card">
+        <div class="oh-card-title">MACD (12 / 26 / 9) — Daily</div>
+        ${macdStrip(macd, 'Daily')}
+        <div class="chart-wrap" style="height:200px"><canvas id="macdDailyCanvas"></canvas></div>
+        ${macdEduHtml}
       </div>
-      ${macdStrip(macdWk, 'Weekly')}
-      <div class="chart-wrap" style="height:180px"><canvas id="macdWeeklyCanvas"></canvas></div>
-    </div>
 
-    <div class="oh-card">
-      <div class="oh-card-title">📊 Volume Analysis — Daily</div>
-      ${volHtml}
+      <div class="oh-card">
+        <div class="oh-card-title">MACD (12 / 26 / 9) — Weekly
+          <span style="font-size:9px;color:var(--muted);margin-left:8px">Longer-term trend view · 52 weeks</span>
+        </div>
+        ${macdStrip(macdWk, 'Weekly')}
+        <div class="chart-wrap" style="height:200px"><canvas id="macdWeeklyCanvas"></canvas></div>
+      </div>
+
+      <div class="oh-card">
+        <div class="oh-card-title">Volume Analysis — Daily</div>
+        ${volHtml}
+      </div>
     </div>`;
 
   macdChartDaily  = buildMacdChart('macdDailyCanvas',  macd,   macdChartDaily);
   macdChartWeekly = buildMacdChart('macdWeeklyCanvas', macdWk, macdChartWeekly);
+
+  // Load oscillator chart for default TF (1D)
+  _currentWtTicker = data.ticker;
+  loadWavetrend('1D');
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

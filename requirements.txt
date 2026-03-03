@@ -1,9 +1,12 @@
-flask
+fastapi
+uvicorn[standard]
+python-multipart
+slowapi
+gunicorn
 yfinance
 numpy
 scipy
 pandas
-gunicorn
 pyngrok
 requests
 tradingview-datafeed
