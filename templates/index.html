@@ -812,6 +812,27 @@ async function loadWavetrend(tf) {
     if (data.error) { wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px">${data.error}</p>`; return; }
     wrap.innerHTML = '<canvas id="wtCanvas"></canvas>';
     buildWtChart(data);
+
+    // Status bar — current values + zone + momentum direction
+    const wt1 = data.current_wt1, wt2 = data.current_wt2;
+    const zone = wt2 > 53 ? 'Overbought' : wt2 < -60 ? 'Deep Oversold' : wt2 < -53 ? 'Oversold' : 'Neutral';
+    const zoneColor = wt2 > 53 ? 'var(--red)' : wt2 < -53 ? 'var(--green)' : 'var(--muted)';
+    const bullish = wt1 > wt2;
+    const sb = document.getElementById('wtStatusBar');
+    if (sb) sb.innerHTML = `
+      <div style="display:flex;gap:14px;padding:8px 14px 4px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:11px;color:var(--text)">
+          WT1&nbsp;<strong style="color:#4dd9f5">${wt1}</strong>
+          &nbsp;&nbsp;WT2&nbsp;<strong style="color:#ff6b6b">${wt2}</strong>
+        </span>
+        <span style="font-size:10px;padding:2px 9px;border-radius:10px;background:rgba(0,0,0,0.25);color:${zoneColor};font-weight:600">${zone}</span>
+        <span style="font-size:10px;color:${bullish ? 'var(--green)' : 'var(--red)'}">${bullish ? '▲ Bullish momentum (WT1 above WT2)' : '▼ Bearish momentum (WT1 below WT2)'}</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);padding:4px 14px 10px;line-height:1.8">
+        <span style="color:#00d084">●</span> Green dot = buy signal — WT crossover in oversold zone (&lt;−53) &nbsp;
+        <span style="color:#ff4d6a">●</span> Red dot = sell signal — crossover in overbought zone (&gt;+53) &nbsp;
+        <span style="color:#ffd700">●</span> Gold dot = strong buy — deep oversold + price divergence (&lt;−60)
+      </div>`;
   } catch(e) {
     wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px">Oscillator error: ${e.message}</p>`;
   }
@@ -915,9 +936,15 @@ function buildWtChart(data) {
             titleColor:'#c9d1e0', bodyColor:'#8a93a8',
             callbacks:{
               label: ctx => {
-                if (!['WT1','WT2','Buy','Sell','Gold'].includes(ctx.dataset.label)) return null;
+                const lbl = ctx.dataset.label;
+                if (!['WT1','WT2','Buy','Sell','Gold'].includes(lbl)) return null;
                 if (ctx.parsed.y === null) return null;
-                return ` ${ctx.dataset.label}: ${ctx.parsed.y}`;
+                if (lbl === 'Buy')  return ' ● Buy Signal (oversold crossover)';
+                if (lbl === 'Sell') return ' ● Sell Signal (overbought crossover)';
+                if (lbl === 'Gold') return ' ★ Gold Signal (deep OS divergence — strong buy)';
+                const v = ctx.parsed.y;
+                const zone = v > 53 ? ' · Overbought' : v < -60 ? ' · Deep Oversold' : v < -53 ? ' · Oversold' : '';
+                return ` ${lbl}: ${v}${zone}`;
               }
             }
           }
@@ -1341,9 +1368,10 @@ function renderTechnical(data) {
           <span style="font-size:9px;color:var(--muted);margin-left:8px">WT1 <span style="color:#4dd9f5">━━</span> &nbsp; WT2 <span style="color:#ff6b6b">━━</span> &nbsp; OB +53 / OS −53</span>
         </div>
         <div class="osc-tf-tabs">${oscTabsHtml}</div>
-        <div id="wtChartWrap" style="position:relative;height:220px">
+        <div id="wtChartWrap" style="position:relative;height:260px">
           <div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading oscillator...</div>
         </div>
+        <div id="wtStatusBar"></div>
       </div>
 
       <div class="oh-card">
