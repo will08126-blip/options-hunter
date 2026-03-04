@@ -420,33 +420,43 @@ def calc_cipher_b_score(cipher_b):
 
 def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
     """
-    Fetches OHLCV via yfinance (reliable on cloud hosting) and calculates WT1/WT2.
-    Returns full series + signal markers for the oscillator chart.
-    yfinance intervals: 5m/15m capped at 60d; 1h capped at 730d.
+    Fetches OHLCV from TradingView (tvDatafeed) — same source as the MTF table,
+    so oscillator chart values match TradingView exactly.
+    Native intervals used for all TFs (no resampling needed).
+    Each TvDatafeed instance runs in its own thread (not thread-safe to share).
     """
-    YF_MAP = {
-        '5m':  ('5m',  '60d',  None),
-        '15m': ('15m', '60d',  None),
-        '1H':  ('1h',  '2y',   None),
-        '4H':  ('1h',  '2y',   '4h'),   # resample 1H → 4H
-        '1D':  ('1d',  '2y',   None),
-        '1W':  ('1wk', '5y',   None),
-        '1M':  ('1mo', 'max',  None),
+    TV_MAP = {
+        '15m': (TvInterval.in_15_minute, 300),
+        '1H':  (TvInterval.in_1_hour,    250),
+        '4H':  (TvInterval.in_4_hour,    220),
+        '1D':  (TvInterval.in_daily,     300),
+        '1W':  (TvInterval.in_weekly,    220),
+        '1M':  (TvInterval.in_monthly,    80),
     }
-    if tf not in YF_MAP:
+    if tf not in TV_MAP:
         return None
-    yf_interval, period, resample_rule = YF_MAP[tf]
+
+    interval, n_bars = TV_MAP[tf]
+    symbol, exchange = get_tv_symbol_exchange(ticker)
+
+    def _fetch():
+        try:
+            tv = TvDatafeed()
+            return tv_get_hist(tv, symbol, exchange, interval, n_bars)
+        except Exception as e:
+            print(f"TV wavetrend fetch error ({ticker}/{tf}): {e}")
+            return None
+
     try:
-        t   = yf.Ticker(ticker)
-        df  = t.history(period=period, interval=yf_interval, auto_adjust=True)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            df = ex.submit(_fetch).result(timeout=25)
+    except concurrent.futures.TimeoutError:
+        print(f"tvDatafeed timeout: {ticker}/{tf}")
+        return None
+
+    try:
         if df is None or df.empty:
             return None
-        # Standardise timezone
-        if df.index.tz is None:
-            df.index = df.index.tz_localize('UTC')
-        df.index = df.index.tz_convert('America/New_York')
-        if resample_rule:
-            df = resample_ohlcv(df, resample_rule)
 
         wt1, wt2 = calc_wavetrend(df)
         if wt1 is None:
