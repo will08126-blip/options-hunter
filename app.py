@@ -38,22 +38,29 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from tvDatafeed import TvDatafeed, Interval as TvInterval
 
-# ─── PASSWORD PROTECTION ───────────────────────────────────────────────────────
-# Set APP_PASSWORD in Render environment variables to enable.
-# Leave unset (or empty) to run open (e.g. local dev).
-_APP_PASSWORD = os.getenv('APP_PASSWORD', '').strip()
-# Stable cookie token derived from the password — changing password invalidates all sessions.
-_AUTH_TOKEN   = hashlib.sha256((_APP_PASSWORD + 'oh-v1').encode()).hexdigest() if _APP_PASSWORD else ''
+# ─── ACCESS CODE PROTECTION ────────────────────────────────────────────────────
+# Set ACCESS_CODES in Render environment variables as a comma-separated list.
+# Give each person their own unique code so you can revoke individually.
+# Example:  ACCESS_CODES=myownpassword,jake-xk29,sarah-mt44
+# To revoke someone: remove their code, save → Render redeploys (~3 min).
+# Leave unset to run open (local dev).
+#
+# Each code is hashed into a cookie token — the raw code is never stored in cookies.
+
+def _hash_code(code: str) -> str:
+    return hashlib.sha256((code.strip() + 'oh-v1').encode()).hexdigest()
+
+_RAW_CODES = [c.strip() for c in os.getenv('ACCESS_CODES', '').split(',') if c.strip()]
+_VALID_TOKENS: set = {_hash_code(c) for c in _RAW_CODES}   # set of valid cookie values
 
 class _AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if not _APP_PASSWORD:                          # protection disabled
+        if not _VALID_TOKENS:                              # no codes set → open access
             return await call_next(request)
-        if request.url.path.startswith('/login'):      # always allow login page
+        if request.url.path.startswith('/login'):          # always allow login page
             return await call_next(request)
-        if request.cookies.get('oh_auth') == _AUTH_TOKEN:
+        if request.cookies.get('oh_auth') in _VALID_TOKENS:
             return await call_next(request)
-        # API callers get JSON 401; browser pages get redirect
         if request.url.path.startswith('/api/'):
             return JSONResponse({'error': 'Unauthorized'}, status_code=401)
         return RedirectResponse('/login', status_code=302)
@@ -1017,7 +1024,7 @@ def login_page(error: str = ''):
     <h1>Options Hunter</h1>
     <p class="sub">Personal trading dashboard</p>
     <form method="post" action="/login">
-      <input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password">
+      <input type="password" name="password" placeholder="Access code" autofocus autocomplete="current-password">
       {err_html}
       <button type="submit">Enter</button>
     </form>
@@ -1028,14 +1035,14 @@ def login_page(error: str = ''):
 
 @app.post('/login')
 async def login_submit(request: Request):
-    form     = await request.form()
-    password = (form.get('password') or '').strip()
-    if _APP_PASSWORD and password == _APP_PASSWORD:
+    form = await request.form()
+    code = (form.get('password') or '').strip()
+    if code and _hash_code(code) in _VALID_TOKENS:
         resp = RedirectResponse('/', status_code=302)
-        resp.set_cookie('oh_auth', _AUTH_TOKEN, httponly=True, samesite='lax',
+        resp.set_cookie('oh_auth', _hash_code(code), httponly=True, samesite='lax',
                         max_age=60 * 60 * 24 * 30)   # 30-day cookie
         return resp
-    return RedirectResponse('/login?error=Incorrect+password', status_code=302)
+    return RedirectResponse('/login?error=Incorrect+access+code', status_code=302)
 
 
 @app.get('/')
