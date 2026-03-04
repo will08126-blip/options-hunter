@@ -448,33 +448,45 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
         if wt1 is None:
             return None
 
-        lb         = 5
-        cross_up   = (wt1 > wt2) & (wt1.shift(1) <= wt2.shift(1))
-        cross_down = (wt1 < wt2) & (wt1.shift(1) >= wt2.shift(1))
-        price_ll   = df['Low'].rolling(lb).min() < df['Low'].rolling(lb).min().shift(lb)
-        wt_hl      = wt2.rolling(lb).min() > wt2.rolling(lb).min().shift(lb)
+        # Merge wt1/wt2 + price into one frame and drop NaN rows.
+        # EWM produces NaN at the start of the series; json.dumps rejects float('nan').
+        work = pd.DataFrame({
+            'wt1':  wt1,
+            'wt2':  wt2,
+            'high': df['High'],
+            'low':  df['Low'],
+        }).dropna()
+        if len(work) < 10:
+            return None
 
-        green_mask = cross_up   & (wt2 <= os_level)
-        red_mask   = cross_down & (wt2 >= ob)
-        gold_mask  = cross_up   & (wt2 <= os2) & price_ll & wt_hl
+        lb         = 5
+        cross_up   = (work['wt1'] > work['wt2']) & (work['wt1'].shift(1) <= work['wt2'].shift(1))
+        cross_down = (work['wt1'] < work['wt2']) & (work['wt1'].shift(1) >= work['wt2'].shift(1))
+        price_ll   = work['low'].rolling(lb).min() < work['low'].rolling(lb).min().shift(lb)
+        wt_hl      = work['wt2'].rolling(lb).min() > work['wt2'].rolling(lb).min().shift(lb)
+
+        green_mask = cross_up   & (work['wt2'] <= os_level)
+        red_mask   = cross_down & (work['wt2'] >= ob)
+        gold_mask  = cross_up   & (work['wt2'] <= os2) & price_ll & wt_hl
 
         signals = []
-        for i in range(len(wt2)):
+        for i in range(len(work)):
+            wt2_val = round(float(work['wt2'].iloc[i]), 2)
             if gold_mask.iloc[i]:
-                signals.append({'i': i, 'y': round(float(wt2.iloc[i]), 2), 't': 'gold'})
+                signals.append({'i': i, 'y': wt2_val, 't': 'gold'})
             elif green_mask.iloc[i]:
-                signals.append({'i': i, 'y': round(float(wt2.iloc[i]), 2), 't': 'green'})
+                signals.append({'i': i, 'y': wt2_val, 't': 'green'})
             elif red_mask.iloc[i]:
-                signals.append({'i': i, 'y': round(float(wt2.iloc[i]), 2), 't': 'red'})
+                signals.append({'i': i, 'y': wt2_val, 't': 'red'})
 
-        dates = [str(d)[:10] for d in wt1.index]
+        dates = [str(d)[:10] for d in work.index]
         return {
             'dates':       dates,
-            'wt1':         [round(float(v), 2) for v in wt1.values],
-            'wt2':         [round(float(v), 2) for v in wt2.values],
+            'wt1':         [round(float(v), 2) for v in work['wt1'].values],
+            'wt2':         [round(float(v), 2) for v in work['wt2'].values],
             'signals':     signals,
-            'current_wt1': round(float(wt1.iloc[-1]), 2),
-            'current_wt2': round(float(wt2.iloc[-1]), 2),
+            'current_wt1': round(float(work['wt1'].iloc[-1]), 2),
+            'current_wt2': round(float(work['wt2'].iloc[-1]), 2),
         }
     except Exception as e:
         print(f"Wavetrend chart error ({ticker}/{tf}): {e}")
