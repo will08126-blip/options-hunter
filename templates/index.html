@@ -771,8 +771,7 @@ function renderBriefing(data) {
 // ═════════════════════════════════════════════════════════════════════════════
 //  TECHNICAL ANALYSIS
 // ═════════════════════════════════════════════════════════════════════════════
-let macdChartDaily = null;
-let macdChartWeekly = null;
+let macdChartDaily = null; // unused — charts now managed via Chart.getChart in loadMacd
 
 async function loadTechnical() {
   const ticker = document.getElementById('techTicker').value.trim().toUpperCase();
@@ -846,17 +845,17 @@ function buildWtChart(data) {
       data: {
         labels: data.dates,
         datasets: [
-          // OB zone fill
-          { type:'line', data: obLine,  borderColor:'rgba(255,77,106,0)',
-            backgroundColor:'rgba(255,77,106,0.07)', fill:{target:{value:200}},
+          // OB zone fill (fill to top of chart)
+          { type:'line', data: obLine,  borderColor:'transparent',
+            backgroundColor:'rgba(255,77,106,0.07)', fill:'end',
             pointRadius:0, borderWidth:0, order:10 },
-          // OS zone fill
-          { type:'line', data: osLine,  borderColor:'rgba(0,208,132,0)',
-            backgroundColor:'rgba(0,208,132,0.06)', fill:{target:{value:-200}},
+          // OS zone fill (fill to bottom of chart)
+          { type:'line', data: osLine,  borderColor:'transparent',
+            backgroundColor:'rgba(0,208,132,0.06)', fill:'start',
             pointRadius:0, borderWidth:0, order:10 },
           // Deep OS zone fill
-          { type:'line', data: os2Line, borderColor:'rgba(255,215,0,0)',
-            backgroundColor:'rgba(255,215,0,0.05)', fill:{target:{value:-200}},
+          { type:'line', data: os2Line, borderColor:'transparent',
+            backgroundColor:'rgba(255,215,0,0.05)', fill:'start',
             pointRadius:0, borderWidth:0, order:10 },
           // OB reference line
           { type:'line', label:'OB +53',  data: obLine,  borderColor:'rgba(255,77,106,0.45)',
@@ -950,7 +949,8 @@ function buildMacdChart(canvasId, macd, chartRef) {
   setTimeout(() => {
     const ctx = document.getElementById(canvasId);
     if (!ctx || !macd) return;
-    if (chartRef && chartRef.destroy) chartRef.destroy();
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
     const zeroLine = new Array(macd.hist_dates.length).fill(0);
     return new Chart(ctx, {
       data: {
@@ -1042,6 +1042,116 @@ function buildMacdChart(canvasId, macd, chartRef) {
       }
     });
   }, 100);
+}
+
+// ── MACD strip (module-level so loadMacd can use it) ─────────────────────────
+function macdStripHtml(m) {
+  if (!m) return `<p style="color:var(--muted);font-size:12px">No data</p>`;
+  const isBull = m.bullish;
+  const hc     = isBull ? 'var(--green)' : 'var(--red)';
+  const hLen   = m.hist_values.length;
+  const hCur   = m.hist_values[hLen - 1];
+  const hPrev  = m.hist_values[hLen - 2];
+  const momentumBuilding = isBull ? (hCur > hPrev) : (hCur < hPrev);
+  const momentumIcon = momentumBuilding ? '↗' : '↘';
+  const momentumTxt  = momentumBuilding ? 'Building' : 'Fading';
+  const momentumCol  = momentumBuilding ? hc : 'var(--muted)';
+  let alertHtml = '';
+  if (m.crossing_up)   alertHtml = `<span style="background:rgba(0,208,132,.15);border:1px solid rgba(0,208,132,.4);color:var(--green);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▲ CROSSING UP</span>`;
+  if (m.crossing_down) alertHtml = `<span style="background:rgba(255,77,106,.15);border:1px solid rgba(255,77,106,.4);color:var(--red);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▼ CROSSING DOWN</span>`;
+  return `<div style="background:#0d1220;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+    <span style="color:${hc};font-weight:800;font-size:14px">● ${isBull ? 'BULLISH' : 'BEARISH'}</span>
+    ${alertHtml}
+    <span style="color:${momentumCol};font-size:12px;font-weight:600">${momentumIcon} Momentum ${momentumTxt}</span>
+    <div style="display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap;margin-left:auto">
+      <span>MACD <b class="mono" style="color:#4d9fff">${m.macd > 0 ? '+' : ''}${m.macd}</b></span>
+      <span>Signal <b class="mono" style="color:#ffc107">${m.signal > 0 ? '+' : ''}${m.signal}</b></span>
+      <span>Hist <b class="mono" style="color:${hc}">${m.histogram > 0 ? '+' : ''}${m.histogram}</b></span>
+    </div>
+  </div>`;
+}
+
+const macdEduHtml = `
+  <div class="macd-edu">
+    <div class="macd-edu-title">📘 How to Read the MACD</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="macd-legend-row">
+        <div class="macd-legend-item"><div class="macd-legend-swatch" style="background:rgba(0,208,132,0.85)"></div><span><b>Bright green bar</b> — bullish momentum building</span></div>
+        <div class="macd-legend-item"><div class="macd-legend-swatch" style="background:rgba(0,208,132,0.35)"></div><span><b>Dim green bar</b> — bullish, momentum fading</span></div>
+        <div class="macd-legend-item"><div class="macd-legend-swatch" style="background:rgba(255,77,106,0.85)"></div><span><b>Bright red bar</b> — bearish momentum building</span></div>
+        <div class="macd-legend-item"><div class="macd-legend-swatch" style="background:rgba(255,77,106,0.35)"></div><span><b>Dim red bar</b> — bearish, momentum fading</span></div>
+      </div>
+      <div class="macd-legend-row" style="font-size:12px;color:var(--muted);gap:8px;">
+        <div><span style="color:#4d9fff;font-weight:700;font-size:13px">━━</span> <b style="color:var(--text)">MACD line</b> — EMA(12) minus EMA(26).</div>
+        <div><span style="color:#ffc107;font-weight:700;font-size:13px">╌╌</span> <b style="color:var(--text)">Signal line</b> — EMA(9) of MACD. Acts as the trigger.</div>
+        <div><b style="color:var(--text)">Histogram</b> — Distance between MACD and Signal. Bar height = momentum strength.</div>
+      </div>
+    </div>
+    <div class="macd-crossover-tip">💡 <b style="color:var(--text)">MACD crosses above Signal</b> = bullish confirmed. <b style="color:var(--text)">Crosses below</b> = bearish. Watch histogram bars shrink toward zero — early warning of a crossover.</div>
+  </div>`;
+
+// ── Selectable MACD slots ─────────────────────────────────────────────────────
+const MACD_TFS = ['5m','15m','1H','4H','1D','1W','1M'];
+
+async function loadMacd(slot, tf) {
+  if (!_currentWtTicker) return;
+  document.querySelectorAll(`.macd${slot}-tf-btn`).forEach(b =>
+    b.classList.toggle('active', b.dataset.tf === tf));
+  const wrap = document.getElementById(`macdContent${slot}`);
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div>';
+  try {
+    const res  = await fetch(`/api/macd/${_currentWtTicker}/${tf}`);
+    const data = await res.json();
+    if (data.error) { wrap.innerHTML = `<p style="color:var(--red);padding:12px;font-size:12px">${data.error}</p>`; return; }
+    const canvasId = `macdCanvas${slot}`;
+    wrap.innerHTML = `
+      ${macdStripHtml(data)}
+      <div class="chart-wrap" style="height:200px"><canvas id="${canvasId}"></canvas></div>
+      ${slot === 1 ? macdEduHtml : ''}`;
+    buildMacdChart(canvasId, data, null);
+  } catch(e) {
+    wrap.innerHTML = '<p style="color:var(--muted);padding:12px;font-size:12px">Failed to load MACD.</p>';
+  }
+}
+
+// ── Volume by timeframe ───────────────────────────────────────────────────────
+function volHtmlStr(vol) {
+  if (!vol) return '<p style="color:var(--muted);font-size:12px">No volume data</p>';
+  const vColor = vol.color === 'green' ? 'var(--green)' : vol.color === 'yellow' ? 'var(--yellow)' : 'var(--red)';
+  const pct    = Math.min(vol.ratio * 50, 100);
+  return `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:16px;font-weight:700;color:${vColor}">${vol.label}</span>
+      <span class="mono" style="font-size:13px;color:#fff">${vol.ratio}×</span>
+      <span style="font-size:11px;color:var(--muted)">20-bar avg</span>
+    </div>
+    <div style="background:#0d1220;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:12px;color:var(--muted)">${vol.interpretation}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between">
+      <span>Current: <b style="color:var(--text)">${(vol.current/1e6).toFixed(2)}M</b></span>
+      <span>20-bar avg: <b style="color:var(--text)">${(vol.average_20/1e6).toFixed(2)}M</b></span>
+    </div>
+    <div class="vol-bar-track">
+      <div class="vol-bar-fill" style="width:${pct}%;background:${vColor}"></div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">bar = relative to 2× average</div>`;
+}
+
+async function loadVolumeTf(tf) {
+  if (!_currentWtTicker) return;
+  document.querySelectorAll('.vol-tf-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tf === tf));
+  const wrap = document.getElementById('volumeContent');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading volume...</div>';
+  try {
+    const res  = await fetch(`/api/volume/${_currentWtTicker}/${tf}`);
+    const data = await res.json();
+    if (data.error) { wrap.innerHTML = `<p style="color:var(--red);padding:12px;font-size:12px">${data.error}</p>`; return; }
+    wrap.innerHTML = volHtmlStr(data);
+  } catch(e) {
+    wrap.innerHTML = '<p style="color:var(--muted);padding:12px;font-size:12px">Failed to load volume.</p>';
+  }
 }
 
 // ── Timeframe weights (must match app.py TF_WEIGHTS) ─────────────────────────
@@ -1169,101 +1279,21 @@ function renderTechnical(data) {
       ${g.tfs.map(mtfRow).join('')}
     `).join('')}`;
 
-  // ── MACD status strip ────────────────────────────────────────────────────
-  function macdStrip(m, label) {
-    if (!m) return `<p style="color:var(--muted);font-size:12px">No ${label} MACD data</p>`;
-    const isBull = m.bullish;
-    const hc     = isBull ? 'var(--green)' : 'var(--red)';
-
-    // Momentum direction from last 2 histogram values
-    const hLen   = m.hist_values.length;
-    const hCur   = m.hist_values[hLen - 1];
-    const hPrev  = m.hist_values[hLen - 2];
-    const momentumBuilding = isBull ? (hCur > hPrev) : (hCur < hPrev);
-    const momentumIcon = momentumBuilding ? '↗' : '↘';
-    const momentumTxt  = momentumBuilding ? 'Building' : 'Fading';
-    const momentumCol  = momentumBuilding ? hc : 'var(--muted)';
-
-    let alertHtml = '';
-    if (m.crossing_up)   alertHtml = `<span style="background:rgba(0,208,132,.15);border:1px solid rgba(0,208,132,.4);color:var(--green);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▲ CROSSING UP</span>`;
-    if (m.crossing_down) alertHtml = `<span style="background:rgba(255,77,106,.15);border:1px solid rgba(255,77,106,.4);color:var(--red);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▼ CROSSING DOWN</span>`;
-
-    return `<div style="background:#0d1220;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center">
-      <span style="color:${hc};font-weight:800;font-size:14px">● ${isBull ? 'BULLISH' : 'BEARISH'}</span>
-      ${alertHtml}
-      <span style="color:${momentumCol};font-size:12px;font-weight:600">${momentumIcon} Momentum ${momentumTxt}</span>
-      <div style="display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap;margin-left:auto">
-        <span>MACD <b class="mono" style="color:#4d9fff">${m.macd > 0 ? '+' : ''}${m.macd}</b></span>
-        <span>Signal <b class="mono" style="color:#ffc107">${m.signal > 0 ? '+' : ''}${m.signal}</b></span>
-        <span>Hist <b class="mono" style="color:${hc}">${m.histogram > 0 ? '+' : ''}${m.histogram}</b></span>
-      </div>
-    </div>`;
-  }
-
-  // ── MACD educational card ────────────────────────────────────────────────
-  const macdEduHtml = `
-    <div class="macd-edu">
-      <div class="macd-edu-title">📘 How to Read the MACD</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div class="macd-legend-row">
-          <div class="macd-legend-item">
-            <div class="macd-legend-swatch" style="background:rgba(0,208,132,0.85)"></div>
-            <span><b>Bright green bar</b> — bullish momentum building</span>
-          </div>
-          <div class="macd-legend-item">
-            <div class="macd-legend-swatch" style="background:rgba(0,208,132,0.35)"></div>
-            <span><b>Dim green bar</b> — bullish, but momentum fading</span>
-          </div>
-          <div class="macd-legend-item">
-            <div class="macd-legend-swatch" style="background:rgba(255,77,106,0.85)"></div>
-            <span><b>Bright red bar</b> — bearish momentum building</span>
-          </div>
-          <div class="macd-legend-item">
-            <div class="macd-legend-swatch" style="background:rgba(255,77,106,0.35)"></div>
-            <span><b>Dim red bar</b> — bearish, but momentum fading</span>
-          </div>
-        </div>
-        <div class="macd-legend-row" style="font-size:12px;color:var(--muted);gap:8px;">
-          <div><span style="color:#4d9fff;font-weight:700;font-size:13px">━━</span> <b style="color:var(--text)">MACD line</b> — EMA(12) minus EMA(26). Positive = fast EMA above slow (bullish).</div>
-          <div><span style="color:#ffc107;font-weight:700;font-size:13px">╌╌</span> <b style="color:var(--text)">Signal line</b> — EMA(9) of MACD. Acts as the trigger.</div>
-          <div><b style="color:var(--text)">Histogram</b> — Distance between MACD and Signal. Bar height shows momentum strength.</div>
-        </div>
-      </div>
-      <div class="macd-crossover-tip">
-        💡 <b style="color:var(--text)">MACD crosses above Signal</b> = bullish momentum confirmed, potential buy entry. &nbsp;
-           <b style="color:var(--text)">MACD crosses below Signal</b> = bearish momentum confirmed, potential sell/exit signal.
-           Watch for the histogram bars <em>shrinking toward zero</em> — that's your early warning a crossover is coming.
-      </div>
-    </div>`;
-
-  // ── Volume ───────────────────────────────────────────────────────────────
-  let volHtml = '<p style="color:var(--muted);font-size:12px">No volume data</p>';
-  if (vol) {
-    const vColor = vol.color === 'green' ? 'var(--green)' : vol.color === 'yellow' ? 'var(--yellow)' : 'var(--red)';
-    const pct    = Math.min(vol.ratio * 50, 100);
-    volHtml = `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="font-size:16px;font-weight:700;color:${vColor}">${vol.label}</span>
-        <span class="mono" style="font-size:13px;color:#fff">${vol.ratio}×</span>
-        <span style="font-size:11px;color:var(--muted)">avg</span>
-      </div>
-      <div class="narrative-box" style="margin-bottom:12px;padding:12px 14px">
-        <div class="narrative-text" style="font-size:12px">${vol.interpretation}</div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between">
-        <span>Today: <b style="color:var(--text)">${(vol.current/1e6).toFixed(1)}M shares</b></span>
-        <span>20-day avg: <b style="color:var(--text)">${(vol.average_20/1e6).toFixed(1)}M shares</b></span>
-      </div>
-      <div class="vol-bar-track">
-        <div class="vol-bar-fill" style="width:${pct}%;background:${vColor}"></div>
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right">bar = relative to 2× average</div>`;
-  }
-
-  // ── Oscillator TF tab buttons ─────────────────────────────────────────────
+  // ── Oscillator TF tabs ───────────────────────────────────────────────────
   const oscTfs = ['1M','1W','1D','4H','1H','15m'];
   const oscTabsHtml = oscTfs.map(tf =>
     `<button class="osc-tf-btn${tf === '1D' ? ' active' : ''}" data-tf="${tf}" onclick="loadWavetrend('${tf}')">${tf}</button>`
+  ).join('');
+
+  // ── MACD TF tab rows ─────────────────────────────────────────────────────
+  const macdTabsHtml = (slot, defaultTf) => MACD_TFS.map(tf =>
+    `<button class="osc-tf-btn macd${slot}-tf-btn${tf === defaultTf ? ' active' : ''}" data-tf="${tf}" onclick="loadMacd(${slot},'${tf}')">${tf}</button>`
+  ).join('');
+
+  // ── Volume TF tabs ────────────────────────────────────────────────────────
+  const volTfs = ['1H','4H','1D','1W'];
+  const volTabsHtml = volTfs.map(tf =>
+    `<button class="osc-tf-btn vol-tf-btn${tf === '1D' ? ' active' : ''}" data-tf="${tf}" onclick="loadVolumeTf('${tf}')">${tf}</button>`
   ).join('');
 
   // ── Assemble page ────────────────────────────────────────────────────────
@@ -1276,7 +1306,7 @@ function renderTechnical(data) {
           <span style="font-size:9px;color:var(--muted);margin-left:8px">WT1 <span style="color:#4dd9f5">━━</span> &nbsp; WT2 <span style="color:#ff6b6b">━━</span> &nbsp; OB +53 / OS −53</span>
         </div>
         <div class="osc-tf-tabs">${oscTabsHtml}</div>
-        <div id="wtChartWrap" style="position:relative;height:200px">
+        <div id="wtChartWrap" style="position:relative;height:220px">
           <div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading oscillator...</div>
         </div>
       </div>
@@ -1294,32 +1324,32 @@ function renderTechnical(data) {
       </div>
 
       <div class="oh-card">
-        <div class="oh-card-title">MACD (12 / 26 / 9) — Daily</div>
-        ${macdStrip(macd, 'Daily')}
-        <div class="chart-wrap" style="height:200px"><canvas id="macdDailyCanvas"></canvas></div>
-        ${macdEduHtml}
+        <div class="oh-card-title">MACD (12 / 26 / 9) — Chart 1</div>
+        <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(1,'1D')}</div>
+        <div id="macdContent1"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
       </div>
 
       <div class="oh-card">
-        <div class="oh-card-title">MACD (12 / 26 / 9) — Weekly
-          <span style="font-size:9px;color:var(--muted);margin-left:8px">Longer-term trend view · 52 weeks</span>
+        <div class="oh-card-title">MACD (12 / 26 / 9) — Chart 2</div>
+        <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(2,'1W')}</div>
+        <div id="macdContent2"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
+      </div>
+
+      <div class="oh-card">
+        <div class="oh-card-title">Volume Analysis
+          <span style="font-size:9px;color:var(--muted);margin-left:8px">vs 20-bar average</span>
         </div>
-        ${macdStrip(macdWk, 'Weekly')}
-        <div class="chart-wrap" style="height:200px"><canvas id="macdWeeklyCanvas"></canvas></div>
-      </div>
-
-      <div class="oh-card">
-        <div class="oh-card-title">Volume Analysis — Daily</div>
-        ${volHtml}
+        <div class="osc-tf-tabs" style="margin-bottom:10px">${volTabsHtml}</div>
+        <div id="volumeContent"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading volume...</div></div>
       </div>
     </div>`;
 
-  macdChartDaily  = buildMacdChart('macdDailyCanvas',  macd,   macdChartDaily);
-  macdChartWeekly = buildMacdChart('macdWeeklyCanvas', macdWk, macdChartWeekly);
-
-  // Load oscillator chart for default TF (1D)
+  // Trigger all async loads after DOM is ready
   _currentWtTicker = data.ticker;
   loadWavetrend('1D');
+  loadMacd(1, '1D');
+  loadMacd(2, '1W');
+  loadVolumeTf('1D');
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

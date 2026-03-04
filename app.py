@@ -991,6 +991,77 @@ def wavetrend_chart(request: Request, ticker: str, timeframe: str):
     return data
 
 
+# ── MACD by timeframe ─────────────────────────────────────────────────────────
+MACD_TF_MAP = {
+    '5m':  (TvInterval.in_5_minute,  200),
+    '15m': (TvInterval.in_15_minute, 200),
+    '30m': (TvInterval.in_30_minute, 150),
+    '1H':  (TvInterval.in_1_hour,    150),
+    '2H':  (TvInterval.in_2_hour,    120),
+    '4H':  (TvInterval.in_4_hour,    120),
+    '1D':  (TvInterval.in_daily,     120),
+    '1W':  (TvInterval.in_weekly,     80),
+    '1M':  (TvInterval.in_monthly,    60),
+}
+
+@app.get('/api/macd/{ticker}/{timeframe}')
+@limiter.limit("12/minute")
+def macd_endpoint(request: Request, ticker: str, timeframe: str):
+    ticker = ticker.upper().strip()
+    if timeframe not in MACD_TF_MAP:
+        return JSONResponse({'error': f'Unsupported timeframe: {timeframe}'}, status_code=400)
+    cache_key = f'macd_{ticker}_{timeframe}'
+    cached = cache_get(cache_key, ttl=CACHE_TTL_TECHNICAL)
+    if cached:
+        return cached
+    interval, n_bars = MACD_TF_MAP[timeframe]
+    try:
+        symbol, exchange = get_tv_symbol_exchange(ticker)
+        tv   = TvDatafeed()
+        df   = tv_get_hist(tv, symbol, exchange, interval, n_bars)
+        if df is None or df.empty:
+            return JSONResponse({'error': 'No data available'}, status_code=400)
+        bars = 40 if timeframe == '1M' else min(60, n_bars // 2)
+        result = calc_macd(df, bars=bars)
+        if not result:
+            return JSONResponse({'error': 'Could not calculate MACD'}, status_code=400)
+        result['timeframe'] = timeframe
+        cache_set(cache_key, result)
+        return result
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+# ── Volume by timeframe ────────────────────────────────────────────────────────
+@app.get('/api/volume/{ticker}/{timeframe}')
+@limiter.limit("12/minute")
+def volume_endpoint(request: Request, ticker: str, timeframe: str):
+    ticker = ticker.upper().strip()
+    if timeframe not in MACD_TF_MAP:
+        return JSONResponse({'error': f'Unsupported timeframe: {timeframe}'}, status_code=400)
+    cache_key = f'vol_{ticker}_{timeframe}'
+    cached = cache_get(cache_key, ttl=CACHE_TTL_TECHNICAL)
+    if cached:
+        return cached
+    interval, n_bars = MACD_TF_MAP[timeframe]
+    try:
+        symbol, exchange = get_tv_symbol_exchange(ticker)
+        tv = TvDatafeed()
+        df = tv_get_hist(tv, symbol, exchange, interval, n_bars)
+        if df is None or df.empty:
+            return JSONResponse({'error': 'No data available'}, status_code=400)
+        # Drop the last (potentially incomplete) bar for accuracy
+        df_complete = df.iloc[:-1] if len(df) > 21 else df
+        result = calc_volume_analysis(df_complete)
+        if not result:
+            return JSONResponse({'error': 'Could not calculate volume'}, status_code=400)
+        result['timeframe'] = timeframe
+        cache_set(cache_key, result)
+        return result
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
 # ── Options Hunter ────────────────────────────────────────────────────────────
 @app.get('/api/stock/{ticker}')
 @limiter.limit("10/minute")
