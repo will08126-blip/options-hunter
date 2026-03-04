@@ -15,6 +15,8 @@ import webbrowser
 import socket
 import requests
 import concurrent.futures
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime as _parse_rfc_date
 
 import numpy as np
 import pandas as pd
@@ -811,43 +813,76 @@ def get_top_movers():
     return {'gainers': [], 'losers': []}
 
 
+# RSS feeds + Google News queries covering market, macro, geopolitical, and crypto
+_NEWS_FEEDS = [
+    ('Reuters',       'https://feeds.reuters.com/reuters/businessNews'),
+    ('Reuters',       'https://feeds.reuters.com/reuters/topNews'),
+    ('CNBC',          'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258'),
+    ('CNBC',          'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114'),
+    ('MarketWatch',   'https://feeds.marketwatch.com/marketwatch/topstories/'),
+    ('Google News',   'https://news.google.com/rss/search?q=stock+market+S%26P500+nasdaq+wall+street&hl=en-US&gl=US&ceid=US:en'),
+    ('Google News',   'https://news.google.com/rss/search?q=federal+reserve+interest+rates+inflation+economy&hl=en-US&gl=US&ceid=US:en'),
+    ('Google News',   'https://news.google.com/rss/search?q=war+military+conflict+oil+sanctions+geopolitical&hl=en-US&gl=US&ceid=US:en'),
+    ('Google News',   'https://news.google.com/rss/search?q=tariffs+trade+war+china+dollar+treasury&hl=en-US&gl=US&ceid=US:en'),
+    ('Google News',   'https://news.google.com/rss/search?q=bitcoin+cryptocurrency+crypto+market&hl=en-US&gl=US&ceid=US:en'),
+]
+
+def _fetch_rss(source_url):
+    """Fetch and parse one RSS feed. Returns list of article dicts."""
+    label, url = source_url
+    items = []
+    try:
+        r = requests.get(url, timeout=6, headers={'User-Agent': 'Mozilla/5.0'})
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+        for item in root.findall('.//item'):
+            title = (item.findtext('title') or '').strip()
+            link  = (item.findtext('link')  or '').strip()
+            pub_date = item.findtext('pubDate') or ''
+            # source tag override (e.g. Reuters sets <source>)
+            src_el = item.find('source')
+            publisher = (src_el.text if src_el is not None else label) or label
+
+            ts = 0
+            try:
+                ts = int(_parse_rfc_date(pub_date).timestamp())
+            except Exception:
+                pass
+
+            if title and link:
+                items.append({'title': title, 'link': link, 'publisher': publisher, 'time': ts})
+    except Exception as e:
+        print(f"RSS [{label}] error: {e}")
+    return items
+
+
 def get_market_news():
-    """Pull latest market headlines via yfinance."""
+    """Pull trading-relevant headlines from RSS feeds covering markets, macro, geo, and crypto."""
     cached = cache_get('market_news')
     if cached:
         return cached
-    news = []
-    try:
-        for sym in ['SPY', 'QQQ']:
-            t = yf.Ticker(sym)
-            raw = t.news or []
-            for item in raw[:8]:
-                try:
-                    # Handle both old and new yfinance news formats
-                    if 'content' in item:
-                        content = item['content']
-                        title   = content.get('title', '')
-                        link    = content.get('canonicalUrl', {}).get('url', '') or content.get('clickThroughUrl', {}).get('url', '')
-                        pub     = content.get('provider', {}).get('displayName', '')
-                        ts      = 0
-                    else:
-                        title = item.get('title', '')
-                        link  = item.get('link', '')
-                        pub   = item.get('publisher', '')
-                        ts    = item.get('providerPublishTime', 0)
 
-                    if title and not any(n['title'] == title for n in news):
-                        news.append({'title': title, 'link': link, 'publisher': pub, 'time': ts})
-                except Exception:
-                    continue
-            if len(news) >= 10:
-                break
-    except Exception as e:
-        print(f"News error: {e}")
+    all_items = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+        futures = {ex.submit(_fetch_rss, src): src for src in _NEWS_FEEDS}
+        for fut in concurrent.futures.as_completed(futures, timeout=9):
+            try:
+                all_items.extend(fut.result())
+            except Exception:
+                pass
 
-    news = news[:12]
-    cache_set('market_news', news)
-    return news
+    # Sort newest-first, deduplicate by first 60 chars of title
+    all_items.sort(key=lambda x: x['time'], reverse=True)
+    seen, unique = set(), []
+    for item in all_items:
+        key = item['title'][:60].lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+
+    result = unique[:18]
+    cache_set('market_news', result)
+    return result
 
 
 # ══════════════════════════════════════════════════════════════════════════════

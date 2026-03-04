@@ -732,10 +732,19 @@ function renderBriefing(data) {
     </div>`).join('') || '<p style="color:var(--muted);font-size:12px;padding:4px 0">No data</p>';
 
   // ── News ──
+  const nowSec = Math.floor(Date.now() / 1000);
+  function relTime(ts) {
+    if (!ts) return '';
+    const diff = nowSec - ts;
+    if (diff < 60)   return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  }
   const newsHtml = (data.news || []).map(n => `
     <div class="news-card">
       <a href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
-      <span class="news-pub">${n.publisher || 'Market News'}</span>
+      <span class="news-pub">${n.publisher || 'Market News'}${n.time ? ' &nbsp;·&nbsp; ' + relTime(n.time) : ''}</span>
     </div>`).join('') || '<p style="color:var(--muted);font-size:13px">No headlines available right now.</p>';
 
   document.getElementById('briefingContent').innerHTML = `
