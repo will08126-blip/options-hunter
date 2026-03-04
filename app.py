@@ -263,8 +263,12 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
         cross_up   = (wt1 > wt2) & (wt1.shift(1) <= wt2.shift(1))
         cross_down = (wt1 < wt2) & (wt1.shift(1) >= wt2.shift(1))
 
-        green = cross_up   & (wt2 <= os_level)   # buy: cross up from oversold
-        red   = cross_down & (wt2 >= ob)          # sell: cross down from overbought
+        # TradingView shows a circle at EVERY crossover regardless of zone.
+        # Previously we restricted to OB/OS zones which caused mismatches —
+        # a recent crossdown from neutral territory would be ignored and an old
+        # oversold green shown instead. Now matches TV exactly.
+        green = cross_up    # any bullish crossover
+        red   = cross_down  # any bearish crossover
 
         # Gold: cross up from deeply oversold WITH bullish divergence
         # Pine Script (55-bar lookback):
@@ -516,8 +520,8 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
         price_ll   = work['low'] < work['low'].rolling(lb).min().shift(1)
         wt_hl      = work['wt2'] > work['wt2'].rolling(lb).min().shift(1)
 
-        green_mask = cross_up   & (work['wt2'] <= os_level)
-        red_mask   = cross_down & (work['wt2'] >= ob)
+        green_mask = cross_up    # any bullish crossover (matches TradingView)
+        red_mask   = cross_down  # any bearish crossover
         gold_mask  = cross_up   & (work['wt2'] <= os2) & price_ll & wt_hl
 
         signals = []
