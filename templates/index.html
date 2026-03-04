@@ -793,13 +793,14 @@ async function loadTechnical() {
 let wtChart = null;
 let _currentWtTicker = '';
 let _currentWtTf = '1D';
+let _currentPrice = 0;
 
 async function loadWavetrend(tf) {
   if (!_currentWtTicker) return;
   _currentWtTf = tf;
 
-  // Update active tab
-  document.querySelectorAll('.osc-tf-btn').forEach(b =>
+  // Update active tab — scope to oscillator tabs only (not MACD/volume tabs)
+  document.querySelectorAll('.wt-tf-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tf === tf));
 
   const wrap = document.getElementById('wtChartWrap');
@@ -818,8 +819,11 @@ async function loadWavetrend(tf) {
 
 function buildWtChart(data) {
   setTimeout(() => {
+    try {
     const ctx = document.getElementById('wtCanvas');
     if (!ctx) return;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
     if (wtChart) { wtChart.destroy(); wtChart = null; }
 
     const n = data.dates.length;
@@ -842,6 +846,7 @@ function buildWtChart(data) {
     const zero    = new Array(n).fill(0);
 
     wtChart = new Chart(ctx, {
+      type: 'line',
       data: {
         labels: data.dates,
         datasets: [
@@ -926,6 +931,10 @@ function buildWtChart(data) {
         }
       }
     });
+    } catch(err) {
+      const w = document.getElementById('wtChartWrap');
+      if (w) w.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px">Chart error: ${err.message}</p>`;
+    }
   }, 50);
 }
 
@@ -1059,14 +1068,33 @@ function macdStripHtml(m) {
   let alertHtml = '';
   if (m.crossing_up)   alertHtml = `<span style="background:rgba(0,208,132,.15);border:1px solid rgba(0,208,132,.4);color:var(--green);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▲ CROSSING UP</span>`;
   if (m.crossing_down) alertHtml = `<span style="background:rgba(255,77,106,.15);border:1px solid rgba(255,77,106,.4);color:var(--red);border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">▼ CROSSING DOWN</span>`;
-  return `<div style="background:#0d1220;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center">
-    <span style="color:${hc};font-weight:800;font-size:14px">● ${isBull ? 'BULLISH' : 'BEARISH'}</span>
-    ${alertHtml}
-    <span style="color:${momentumCol};font-size:12px;font-weight:600">${momentumIcon} Momentum ${momentumTxt}</span>
-    <div style="display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap;margin-left:auto">
-      <span>MACD <b class="mono" style="color:#4d9fff">${m.macd > 0 ? '+' : ''}${m.macd}</b></span>
-      <span>Signal <b class="mono" style="color:#ffc107">${m.signal > 0 ? '+' : ''}${m.signal}</b></span>
-      <span>Hist <b class="mono" style="color:${hc}">${m.histogram > 0 ? '+' : ''}${m.histogram}</b></span>
+  const price = _currentPrice;
+  const macdPct = price > 0 ? ` <span style="color:var(--muted);font-size:9px">(${(Math.abs(m.macd)/price*100).toFixed(2)}% of price)</span>` : '';
+  const histAbs = Math.abs(m.histogram);
+  const histCtx = histAbs < 0.01 ? 'nearly flat — crossover imminent' : momentumBuilding ? 'gap widening — momentum accelerating' : 'gap narrowing — watch for crossover';
+
+  return `<div style="background:#0d1220;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px">
+      <span style="color:${hc};font-weight:800;font-size:14px">● ${isBull ? 'BULLISH' : 'BEARISH'}</span>
+      ${alertHtml}
+      <span style="color:${momentumCol};font-size:12px;font-weight:600">${momentumIcon} Momentum ${momentumTxt}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      <div style="background:#131720;border-radius:7px;padding:9px 11px;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">MACD Line</div>
+        <div class="mono" style="font-size:14px;font-weight:700;color:#4d9fff">${m.macd > 0 ? '+' : ''}${m.macd}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">EMA(12) − EMA(26)${macdPct}</div>
+      </div>
+      <div style="background:#131720;border-radius:7px;padding:9px 11px;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">Signal Line</div>
+        <div class="mono" style="font-size:14px;font-weight:700;color:#ffc107">${m.signal > 0 ? '+' : ''}${m.signal}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">9-bar EMA of MACD · trigger line</div>
+      </div>
+      <div style="background:#131720;border-radius:7px;padding:9px 11px;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px">Histogram</div>
+        <div class="mono" style="font-size:14px;font-weight:700;color:${hc}">${m.histogram > 0 ? '+' : ''}${m.histogram}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">${histCtx}</div>
+      </div>
     </div>
   </div>`;
 }
@@ -1218,12 +1246,19 @@ function renderTechnical(data) {
         <span>Strong Bear</span><span>Bear</span><span>Neutral</span><span>Bull</span><span>Strong Bull</span>
       </div>
       <div class="cb-weight-row">
-        <span class="cb-weight-meta">Bull weight <b style="color:var(--green)">${bullW.toFixed(1)}</b></span>
+        <span class="cb-weight-meta"><b style="color:var(--green)">${bullBarPct}%</b> Bull</span>
         <div class="cb-weight-bar-wrap">
           <div class="cb-weight-bull" style="width:${bullBarPct}%"></div>
           <div class="cb-weight-bear" style="width:${bearBarPct}%"></div>
         </div>
-        <span class="cb-weight-meta">Bear weight <b style="color:var(--red)">${bearW.toFixed(1)}</b></span>
+        <span class="cb-weight-meta">Bear <b style="color:var(--red)">${bearBarPct}%</b></span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.6;border-top:1px solid var(--border);padding-top:8px">
+        <b style="color:var(--text)">How the score works:</b> Each timeframe vote (Buy/Sell/Gold) is multiplied by its swing-trading weight
+        — Monthly (15×), Weekly (12×), Daily (10×), 4H (6×), down to 5m (0.5×).
+        Gold dots count 1.5× for their higher-confidence divergence signal.
+        The bar above shows what share of active weighted signals are bullish vs bearish.
+        Raw score <b style="color:var(--text)">${score > 0 ? '+' : ''}${score}</b> is normalized to ±100.
       </div>
     </div>`;
 
@@ -1282,7 +1317,7 @@ function renderTechnical(data) {
   // ── Oscillator TF tabs ───────────────────────────────────────────────────
   const oscTfs = ['1M','1W','1D','4H','1H','15m'];
   const oscTabsHtml = oscTfs.map(tf =>
-    `<button class="osc-tf-btn${tf === '1D' ? ' active' : ''}" data-tf="${tf}" onclick="loadWavetrend('${tf}')">${tf}</button>`
+    `<button class="osc-tf-btn wt-tf-btn${tf === '1D' ? ' active' : ''}" data-tf="${tf}" onclick="loadWavetrend('${tf}')">${tf}</button>`
   ).join('');
 
   // ── MACD TF tab rows ─────────────────────────────────────────────────────
@@ -1346,6 +1381,7 @@ function renderTechnical(data) {
 
   // Trigger all async loads after DOM is ready
   _currentWtTicker = data.ticker;
+  _currentPrice    = data.price || 0;
   loadWavetrend('1D');
   loadMacd(1, '1D');
   loadMacd(2, '1W');
