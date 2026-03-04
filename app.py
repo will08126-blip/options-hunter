@@ -749,29 +749,19 @@ def get_crypto_prices(symbols):
 
 
 def get_crypto_indices():
-    """Fetch TOTAL market cap, TOTAL3 via CoinGecko; BTC dominance from TradingView (CRYPTOCAP:BTC.D)."""
+    """Fetch total crypto market cap, TOTAL3, and BTC dominance via CoinGecko.
+    BTC.D = BTC market cap / sum of ALL coins' market caps — standard industry metric.
+    """
     cached = cache_get('crypto_indices')
     if cached:
         return cached
-
-    # Pull BTC.D directly from TradingView so it matches what you see in TV charts
-    btc_dom_tv = None
-    try:
-        tv_btcd = TvDatafeed()
-        df_btcd = tv_btcd.get_hist('BTC.D', 'CRYPTOCAP', interval=TvInterval.in_daily, n_bars=3)
-        if df_btcd is not None and not df_btcd.empty:
-            btc_dom_tv = round(float(df_btcd['close'].iloc[-1]), 2)
-    except Exception as e:
-        print(f"tvDatafeed BTC.D error: {e}")
-
     try:
         r    = requests.get('https://api.coingecko.com/api/v3/global', timeout=8)
         data = r.json().get('data', {})
 
         total      = data.get('total_market_cap', {}).get('usd', 0)
         chg24      = data.get('market_cap_change_percentage_24h_usd', 0)
-        # Prefer TradingView value; fall back to CoinGecko if TV fetch failed
-        btc_dom    = btc_dom_tv if btc_dom_tv is not None else data.get('market_cap_percentage', {}).get('btc', 0)
+        btc_dom    = data.get('market_cap_percentage', {}).get('btc', 0)
         eth_dom    = data.get('market_cap_percentage', {}).get('eth', 0)
         btc_mcap   = total * btc_dom / 100
         eth_mcap   = total * eth_dom / 100
