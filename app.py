@@ -986,11 +986,15 @@ def wavetrend_chart(request: Request, ticker: str, timeframe: str):
     cached = cache_get(cache_key, ttl=CACHE_TTL_TECHNICAL)
     if cached:
         return cached
-    data = get_wavetrend_chart_data(ticker, timeframe)
-    if not data:
-        return JSONResponse({'error': 'Could not fetch wavetrend data'}, status_code=400)
-    cache_set(cache_key, data)
-    return data
+    try:
+        data = get_wavetrend_chart_data(ticker, timeframe)
+        if not data:
+            return JSONResponse({'error': 'Could not fetch wavetrend data'}, status_code=400)
+        cache_set(cache_key, data)
+        return JSONResponse(data)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse({'error': f'Server error: {str(e)}'}, status_code=500)
 
 
 # ── MACD by timeframe ─────────────────────────────────────────────────────────
