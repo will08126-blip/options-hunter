@@ -1419,17 +1419,16 @@ function renderTechnical(data) {
         ${mtfTableHtml}
       </div>
 
-      <div class="macd-row">
-        <div class="oh-card">
-          <div class="oh-card-title">MACD — Chart 1</div>
-          <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(1,'1D')}</div>
-          <div id="macdContent1"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
-        </div>
-        <div class="oh-card">
-          <div class="oh-card-title">MACD — Chart 2</div>
-          <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(2,'1W')}</div>
-          <div id="macdContent2"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
-        </div>
+      <div class="oh-card">
+        <div class="oh-card-title">MACD (12 / 26 / 9) — Chart 1</div>
+        <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(1,'1D')}</div>
+        <div id="macdContent1"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
+      </div>
+
+      <div class="oh-card">
+        <div class="oh-card-title">MACD (12 / 26 / 9) — Chart 2</div>
+        <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(2,'1W')}</div>
+        <div id="macdContent2"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
       </div>
 
       <div class="oh-card">
