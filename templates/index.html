@@ -813,7 +813,7 @@ async function loadWavetrend(tf) {
     wrap.innerHTML = '<canvas id="wtCanvas"></canvas>';
     buildWtChart(data);
   } catch(e) {
-    wrap.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:20px">Failed to load oscillator.</p>';
+    wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px">Oscillator error: ${e.message}</p>`;
   }
 }
 

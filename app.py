@@ -416,35 +416,38 @@ def calc_cipher_b_score(cipher_b):
 
 def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
     """
-    Returns the full WT1/WT2 series for the oscillator chart on a given timeframe,
-    plus signal marker positions so the frontend can plot buy/sell/gold dots on the wave.
+    Fetches OHLCV via yfinance (reliable on cloud hosting) and calculates WT1/WT2.
+    Returns full series + signal markers for the oscillator chart.
+    yfinance intervals: 5m/15m capped at 60d; 1h capped at 730d.
     """
-    TF_MAP = {
-        '5m':  (TvInterval.in_5_minute,  300),
-        '15m': (TvInterval.in_15_minute, 200),
-        '30m': (TvInterval.in_30_minute, 150),
-        '1H':  (TvInterval.in_1_hour,    150),
-        '2H':  (TvInterval.in_2_hour,    120),
-        '4H':  (TvInterval.in_4_hour,    120),
-        '1D':  (TvInterval.in_daily,     120),
-        '1W':  (TvInterval.in_weekly,     80),
-        '1M':  (TvInterval.in_monthly,    60),
+    YF_MAP = {
+        '5m':  ('5m',  '60d',  None),
+        '15m': ('15m', '60d',  None),
+        '1H':  ('1h',  '2y',   None),
+        '4H':  ('1h',  '2y',   '4h'),   # resample 1H → 4H
+        '1D':  ('1d',  '2y',   None),
+        '1W':  ('1wk', '5y',   None),
+        '1M':  ('1mo', 'max',  None),
     }
-    if tf not in TF_MAP:
+    if tf not in YF_MAP:
         return None
-    interval, n_bars = TF_MAP[tf]
+    yf_interval, period, resample_rule = YF_MAP[tf]
     try:
-        symbol, exchange = get_tv_symbol_exchange(ticker)
-        tv = TvDatafeed()
-        df = tv_get_hist(tv, symbol, exchange, interval, n_bars)
+        t   = yf.Ticker(ticker)
+        df  = t.history(period=period, interval=yf_interval, auto_adjust=True)
         if df is None or df.empty:
             return None
+        # Standardise timezone
+        if df.index.tz is None:
+            df.index = df.index.tz_localize('UTC')
+        df.index = df.index.tz_convert('America/New_York')
+        if resample_rule:
+            df = resample_ohlcv(df, resample_rule)
 
         wt1, wt2 = calc_wavetrend(df)
         if wt1 is None:
             return None
 
-        # Detect signal bars (same logic as get_cipher_b_signal)
         lb         = 5
         cross_up   = (wt1 > wt2) & (wt1.shift(1) <= wt2.shift(1))
         cross_down = (wt1 < wt2) & (wt1.shift(1) >= wt2.shift(1))
@@ -455,7 +458,6 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
         red_mask   = cross_down & (wt2 >= ob)
         gold_mask  = cross_up   & (wt2 <= os2) & price_ll & wt_hl
 
-        # Build signal marker list — index + WT2 value at that bar
         signals = []
         for i in range(len(wt2)):
             if gold_mask.iloc[i]:
