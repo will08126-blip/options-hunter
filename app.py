@@ -25,23 +25,45 @@ from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from pydantic import BaseModel
 
+import hashlib
 import yfinance as yf
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from tvDatafeed import TvDatafeed, Interval as TvInterval
 
+# ─── PASSWORD PROTECTION ───────────────────────────────────────────────────────
+# Set APP_PASSWORD in Render environment variables to enable.
+# Leave unset (or empty) to run open (e.g. local dev).
+_APP_PASSWORD = os.getenv('APP_PASSWORD', '').strip()
+# Stable cookie token derived from the password — changing password invalidates all sessions.
+_AUTH_TOKEN   = hashlib.sha256((_APP_PASSWORD + 'oh-v1').encode()).hexdigest() if _APP_PASSWORD else ''
+
+class _AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not _APP_PASSWORD:                          # protection disabled
+            return await call_next(request)
+        if request.url.path.startswith('/login'):      # always allow login page
+            return await call_next(request)
+        if request.cookies.get('oh_auth') == _AUTH_TOKEN:
+            return await call_next(request)
+        # API callers get JSON 401; browser pages get redirect
+        if request.url.path.startswith('/api/'):
+            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+        return RedirectResponse('/login', status_code=302)
+
 # ─── RATE LIMITER ─────────────────────────────────────────────────────────────
-# Protects free APIs (tvDatafeed/yfinance) from abuse and future paid APIs.
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/hour"])
 
-app       = FastAPI(title="Options Hunter v2.0", docs_url="/docs")
+app       = FastAPI(title="Options Hunter v2.0", docs_url=None)
 templates = Jinja2Templates(directory="templates")
+app.add_middleware(_AuthMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 try:
@@ -964,6 +986,56 @@ def get_sentiment(ticker_symbol):
 class AnalyzeBody(BaseModel):
     ticker:     str
     expiration: str
+
+
+@app.get('/login', response_class=HTMLResponse)
+def login_page(error: str = ''):
+    err_html = f'<p style="color:#ff4d6a;margin-top:12px;font-size:13px">{error}</p>' if error else ''
+    return HTMLResponse(f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Options Hunter — Login</title>
+  <style>
+    *{{box-sizing:border-box;margin:0;padding:0}}
+    body{{background:#0b0e14;color:#c9d1e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         display:flex;align-items:center;justify-content:center;min-height:100vh}}
+    .card{{background:#111827;border:1px solid #1e2535;border-radius:14px;padding:40px 36px;width:100%;max-width:360px;text-align:center}}
+    h1{{font-size:20px;font-weight:700;margin-bottom:6px;color:#dde4f0}}
+    .sub{{font-size:12px;color:#5a6480;margin-bottom:28px}}
+    input[type=password]{{width:100%;padding:11px 14px;background:#0b0e14;border:1px solid #1e2535;
+      border-radius:8px;color:#dde4f0;font-size:14px;outline:none;transition:border-color .2s}}
+    input[type=password]:focus{{border-color:#3b82f6}}
+    button{{margin-top:14px;width:100%;padding:11px;background:#3b82f6;border:none;border-radius:8px;
+      color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}}
+    button:hover{{background:#2563eb}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Options Hunter</h1>
+    <p class="sub">Personal trading dashboard</p>
+    <form method="post" action="/login">
+      <input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password">
+      {err_html}
+      <button type="submit">Enter</button>
+    </form>
+  </div>
+</body>
+</html>""")
+
+
+@app.post('/login')
+async def login_submit(request: Request):
+    form     = await request.form()
+    password = (form.get('password') or '').strip()
+    if _APP_PASSWORD and password == _APP_PASSWORD:
+        resp = RedirectResponse('/', status_code=302)
+        resp.set_cookie('oh_auth', _AUTH_TOKEN, httponly=True, samesite='lax',
+                        max_age=60 * 60 * 24 * 30)   # 30-day cookie
+        return resp
+    return RedirectResponse('/login?error=Incorrect+password', status_code=302)
 
 
 @app.get('/')
