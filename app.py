@@ -488,7 +488,7 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
 
         # Use time-aware labels for intraday so the x-axis shows HH:MM not duplicate dates
         if tf in ('5m', '15m', '1H', '4H'):
-            dates = [d.strftime('%m/%d %H:%M') for d in work.index]
+            dates = [d.strftime('%m/%d %-I:%M %p') for d in work.index]
         else:
             dates = [d.strftime('%Y-%m-%d') for d in work.index]
 
