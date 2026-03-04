@@ -238,11 +238,12 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
         red   = cross_down & (wt2 >= ob)          # sell: cross down from overbought
 
         # Gold: cross up from deeply oversold WITH bullish divergence
-        # Matches Pine Script: priceLL = ta.lowest(low,5) < ta.lowest(low,5)[5]
-        #                      wtHL   = ta.lowest(wt2,5) > ta.lowest(wt2,5)[5]
-        lb = 5
-        price_ll = df['Low'].rolling(lb).min() < df['Low'].rolling(lb).min().shift(lb)
-        wt_hl    = wt2.rolling(lb).min() > wt2.rolling(lb).min().shift(lb)
+        # Pine Script (55-bar lookback):
+        #   priceLL = low < ta.lowest(low, 55)[1]   → new 55-bar price low
+        #   wtHL    = wt2 > ta.lowest(wt2,  55)[1]  → WT2 above its 55-bar low (divergence)
+        lb = 55
+        price_ll = df['Low'] < df['Low'].rolling(lb).min().shift(1)
+        wt_hl    = wt2 > wt2.rolling(lb).min().shift(1)
         gold     = cross_up & (wt2 <= os2) & price_ll & wt_hl
 
         signals = pd.Series(0, index=wt1.index)
@@ -469,11 +470,12 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
         if max_bars and len(work) > max_bars:
             work = work.iloc[-max_bars:].copy()
 
-        lb         = 5
+        # Pine Script 55-bar divergence lookback (same as MTF table)
+        lb         = 55
         cross_up   = (work['wt1'] > work['wt2']) & (work['wt1'].shift(1) <= work['wt2'].shift(1))
         cross_down = (work['wt1'] < work['wt2']) & (work['wt1'].shift(1) >= work['wt2'].shift(1))
-        price_ll   = work['low'].rolling(lb).min() < work['low'].rolling(lb).min().shift(lb)
-        wt_hl      = work['wt2'].rolling(lb).min() > work['wt2'].rolling(lb).min().shift(lb)
+        price_ll   = work['low'] < work['low'].rolling(lb).min().shift(1)
+        wt_hl      = work['wt2'] > work['wt2'].rolling(lb).min().shift(1)
 
         green_mask = cross_up   & (work['wt2'] <= os_level)
         red_mask   = cross_down & (work['wt2'] >= ob)
