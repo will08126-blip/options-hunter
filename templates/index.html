@@ -70,6 +70,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .mtf-pos-dos {position:absolute;top:0;bottom:0;left:0; width:20%;  background:rgba(255,215,0,.1); border-radius:3px 0 0 3px;}
 .mtf-pos-needle{position:absolute;top:-2px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%);border:2px solid #0b0e14;}
 
+/* ── MACD SIDE-BY-SIDE ── */
+.macd-row{display:flex;gap:12px;}
+.macd-row>.oh-card{flex:1;min-width:0;}
+@media(max-width:640px){.macd-row{flex-direction:column;}}
+
 /* ── OSCILLATOR CHART TF TABS ── */
 .osc-tf-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
 .osc-tf-btn{background:#0b0e14;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;min-height:32px;}
@@ -1326,8 +1331,14 @@ function renderTechnical(data) {
     else                 { dotClass='sig-none';  sigText='—';    sigColor='var(--muted)'; }
 
     // Position bar: map wt2 from [-100,+100] → [0%,100%] needle position
-    const needlePct  = Math.max(0, Math.min(100, (wt2val + 100) / 2));
-    const needleCol  = wt2val >= 53 ? '#ff4d6a' : wt2val <= -60 ? '#ffd700' : wt2val <= -53 ? '#00d084' : '#8a93a8';
+    const needlePct = Math.max(0, Math.min(100, (wt2val + 100) / 2));
+    // Needle color: use signal color when there's an active signal, else zone color
+    const needleCol = sig === 2  ? '#ffd700' :
+                      sig === 1  ? '#00d084' :
+                      sig === -1 ? '#ff4d6a' :
+                      wt2val >= 53  ? '#ff4d6a' :
+                      wt2val <= -60 ? '#ffd700' :
+                      wt2val <= -53 ? '#00d084' : '#8a93a8';
 
     const wt1Color = d.wt1 > 0 ? 'var(--green)' : d.wt1 < 0 ? 'var(--red)' : 'var(--muted)';
     const wt2Color = wt2val >= 53 ? 'var(--red)' : wt2val <= -53 ? 'var(--green)' : 'var(--muted)';
@@ -1350,8 +1361,13 @@ function renderTechnical(data) {
   }
 
   const mtfTableHtml = `
-    <div style="display:grid;grid-template-columns:48px 90px 54px 54px 1fr;gap:8px;padding:4px 10px 8px;font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">
+    <div style="display:grid;grid-template-columns:48px 90px 54px 54px 1fr;gap:8px;padding:4px 10px 4px;font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">
       <span>TF</span><span>Signal</span><span style="text-align:right">WT1</span><span style="text-align:right">WT2</span><span style="padding-left:4px">Position</span>
+    </div>
+    <div style="font-size:10px;color:var(--muted);padding:0 10px 10px;line-height:1.7;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:4px;">
+      <span style="color:#4dd9f5;font-weight:600">WT1</span> = fast momentum wave — direction of current move &nbsp;·&nbsp;
+      <span style="color:#ff6b6b;font-weight:600">WT2</span> = slow signal line — WT1 crossing above WT2 is bullish, below is bearish &nbsp;·&nbsp;
+      <span style="color:var(--muted)">Position dot</span> = where WT2 sits now: <span style="color:var(--green)">green=oversold</span>, <span style="color:var(--red)">red=overbought</span>, <span style="color:var(--gold)">gold=deep oversold</span>
     </div>
     ${TF_GROUPS.map(g => `
       <div class="mtf-group-label" style="padding-left:10px">${g.label}</div>
@@ -1403,16 +1419,17 @@ function renderTechnical(data) {
         ${mtfTableHtml}
       </div>
 
-      <div class="oh-card">
-        <div class="oh-card-title">MACD (12 / 26 / 9) — Chart 1</div>
-        <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(1,'1D')}</div>
-        <div id="macdContent1"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
-      </div>
-
-      <div class="oh-card">
-        <div class="oh-card-title">MACD (12 / 26 / 9) — Chart 2</div>
-        <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(2,'1W')}</div>
-        <div id="macdContent2"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
+      <div class="macd-row">
+        <div class="oh-card">
+          <div class="oh-card-title">MACD — Chart 1</div>
+          <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(1,'1D')}</div>
+          <div id="macdContent1"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
+        </div>
+        <div class="oh-card">
+          <div class="oh-card-title">MACD — Chart 2</div>
+          <div class="osc-tf-tabs" style="margin-bottom:10px">${macdTabsHtml(2,'1W')}</div>
+          <div id="macdContent2"><div class="osc-loading"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Loading MACD...</div></div>
+        </div>
       </div>
 
       <div class="oh-card">
