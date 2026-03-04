@@ -811,7 +811,7 @@ async function loadWavetrend(tf) {
     const data = await res.json();
     if (data.error) { wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px">${data.error}</p>`; return; }
     wrap.innerHTML = '<canvas id="wtCanvas"></canvas>';
-    buildWtChart(data);
+    buildWtChart(data, tf);
 
     // Status bar — current values + zone + momentum direction
     const wt1 = data.current_wt1, wt2 = data.current_wt2;
@@ -838,7 +838,7 @@ async function loadWavetrend(tf) {
   }
 }
 
-function buildWtChart(data) {
+function buildWtChart(data, tf) {
   setTimeout(() => {
     try {
     const ctx = document.getElementById('wtCanvas');
@@ -950,8 +950,16 @@ function buildWtChart(data) {
           }
         },
         scales:{
-          x:{ ticks:{color:'#5a6480', maxTicksLimit:8, font:{size:9}},
-              grid:{color:'rgba(30,37,53,0.5)'} },
+          x:{
+            ticks:{
+              color:'#5a6480',
+              maxTicksLimit: ['15m','1H'].includes(tf) ? 10 : ['4H'].includes(tf) ? 8 : 7,
+              font:{size:9},
+              maxRotation: 0,
+              autoSkip: true
+            },
+            grid:{color:'rgba(30,37,53,0.5)'}
+          },
           y:{ ticks:{color:'#5a6480', font:{size:9}},
               grid:{color:'rgba(30,37,53,0.5)'},
               suggestedMin:-100, suggestedMax:100 }

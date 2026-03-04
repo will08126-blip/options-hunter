@@ -459,6 +459,13 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
         if len(work) < 10:
             return None
 
+        # Trim to a readable number of bars per timeframe so the chart isn't cramped.
+        # Trim BEFORE computing signals so indices are correct.
+        MAX_BARS = {'5m': 200, '15m': 150, '1H': 120, '4H': 90, '1D': 180, '1W': 104, '1M': None}
+        max_bars = MAX_BARS.get(tf)
+        if max_bars and len(work) > max_bars:
+            work = work.iloc[-max_bars:].copy()
+
         lb         = 5
         cross_up   = (work['wt1'] > work['wt2']) & (work['wt1'].shift(1) <= work['wt2'].shift(1))
         cross_down = (work['wt1'] < work['wt2']) & (work['wt1'].shift(1) >= work['wt2'].shift(1))
@@ -479,7 +486,12 @@ def get_wavetrend_chart_data(ticker, tf, ob=53, os_level=-53, os2=-60):
             elif red_mask.iloc[i]:
                 signals.append({'i': i, 'y': wt2_val, 't': 'red'})
 
-        dates = [str(d)[:10] for d in work.index]
+        # Use time-aware labels for intraday so the x-axis shows HH:MM not duplicate dates
+        if tf in ('5m', '15m', '1H', '4H'):
+            dates = [d.strftime('%m/%d %H:%M') for d in work.index]
+        else:
+            dates = [d.strftime('%Y-%m-%d') for d in work.index]
+
         return {
             'dates':       dates,
             'wt1':         [round(float(v), 2) for v in work['wt1'].values],
