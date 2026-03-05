@@ -1116,6 +1116,301 @@ def score_option(row, greeks, dte):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  DEBIT SPREAD HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_earnings_info(ticker_obj):
+    """Get next earnings date and days-to-earnings from today."""
+    try:
+        cal = ticker_obj.calendar
+        if cal is None:
+            return {'has_earnings': False, 'date': None, 'dte': None, 'warning': False}
+        earn_date = None
+        if isinstance(cal, dict):
+            val = cal.get('Earnings Date')
+            if val and len(val) > 0:
+                earn_date = val[0]
+        elif hasattr(cal, 'loc'):
+            try:
+                earn_date = cal.loc['Earnings Date'].iloc[0]
+            except Exception:
+                pass
+        if earn_date is None:
+            return {'has_earnings': False, 'date': None, 'dte': None, 'warning': False}
+        if hasattr(earn_date, 'date'):
+            earn_date = earn_date.date()
+        elif isinstance(earn_date, str):
+            earn_date = datetime.strptime(earn_date[:10], '%Y-%m-%d').date()
+        dte_to_earn = (earn_date - date.today()).days
+        return {
+            'has_earnings': True,
+            'date':         str(earn_date),
+            'dte':          dte_to_earn,
+            'warning':      0 < dte_to_earn <= 7,
+        }
+    except Exception:
+        return {'has_earnings': False, 'date': None, 'dte': None, 'warning': False}
+
+
+def estimate_ivr(ticker_obj, current_atm_iv):
+    """
+    Estimate IV Rank (IVR) using 1-year rolling 25-day HV as a proxy for
+    historical IV. IVR = (current_IV - HV_min) / (HV_max - HV_min) × 100.
+    """
+    try:
+        hist = ticker_obj.history(period='1y')
+        if hist.empty or len(hist) < 30:
+            ivr = 50
+        else:
+            log_ret    = np.log(hist['Close'] / hist['Close'].shift(1)).dropna()
+            rolling_hv = log_ret.rolling(25).std() * np.sqrt(252)
+            rolling_hv = rolling_hv.dropna()
+            hv_min = float(rolling_hv.min())
+            hv_max = float(rolling_hv.max())
+            if hv_max <= hv_min + 0.001:
+                ivr = 50
+            else:
+                ivr = int(round(((current_atm_iv - hv_min) / (hv_max - hv_min)) * 100))
+                ivr = max(0, min(100, ivr))
+        if ivr < 30:
+            label  = 'Low'
+            action = 'IV is cheap — spread is affordable; consider going wider for more profit potential'
+            color  = 'green'
+        elif ivr < 50:
+            label  = 'Normal'
+            action = 'Standard debit spread sizing'
+            color  = 'blue'
+        elif ivr < 70:
+            label  = 'Elevated'
+            action = 'Short leg sells expensive premium — your spread costs less relative to its value'
+            color  = 'yellow'
+        else:
+            label  = 'High'
+            action = 'Use spread only — short leg significantly offsets the expensive premium'
+            color  = 'red'
+        return {'ivr': ivr, 'label': label, 'action': action, 'color': color}
+    except Exception:
+        return {'ivr': None, 'label': 'Unknown', 'action': 'Check IV before entering', 'color': 'muted'}
+
+
+def estimate_price_target(ticker_obj, price, direction):
+    """Estimate a 1–5 day swing trade price target using 1.5× the 14-day ATR."""
+    try:
+        hist = ticker_obj.history(period='3mo')
+        if hist.empty or len(hist) < 15:
+            pct  = 0.05 if price < 50 else 0.04 if price < 100 else 0.03 if price < 200 else 0.025
+            move = price * pct
+        else:
+            h  = hist['High']
+            l  = hist['Low']
+            c  = hist['Close'].shift(1)
+            tr = pd.concat([(h - l), (h - c).abs(), (l - c).abs()], axis=1).max(axis=1)
+            move = float(tr.rolling(14).mean().iloc[-1]) * 1.5
+        return round(price + move if direction == 'call' else price - move, 2)
+    except Exception:
+        move = price * 0.04
+        return round(price + move if direction == 'call' else price - move, 2)
+
+
+def find_best_spreads(chain_df, price, price_target, direction, expiration, dte):
+    """
+    Build and rank debit spread combos per trading strategy rules:
+      Long leg  — ATM or 1 strike ITM
+      Short leg — at/near price target, width $2–5 (<$100 stock) or $5–10 (≥$100)
+    """
+    strikes  = sorted(chain_df['strike'].unique())
+    min_w, max_w = (2, 5) if price < 100 else (5, 10)
+    T   = max(dte / 365.0, 0.001)
+    r_f = 0.05
+    chain_lu = {float(r['strike']): r for _, r in chain_df.iterrows()}
+
+    atm_idx = min(range(len(strikes)), key=lambda i: abs(strikes[i] - price))
+    if direction == 'call':
+        long_cands = [strikes[atm_idx]] + ([strikes[atm_idx - 1]] if atm_idx > 0 else [])
+    else:
+        long_cands = [strikes[atm_idx]] + ([strikes[atm_idx + 1]] if atm_idx < len(strikes) - 1 else [])
+
+    spreads = []
+    for long_strike in long_cands:
+        lr = chain_lu.get(long_strike)
+        if lr is None:
+            continue
+        lb, la = float(lr.get('bid', 0) or 0), float(lr.get('ask', 0) or 0)
+        lm     = (lb + la) / 2 if la > 0 else float(lr.get('lastPrice', 0) or 0)
+        if lm <= 0:
+            continue
+        l_iv  = float(lr['impliedVolatility']) if not pd.isna(lr['impliedVolatility']) else 0.3
+        l_g   = calculate_greeks(price, long_strike, T, r_f, l_iv, direction)
+        l_vol = int(lr.get('volume', 0) or 0)
+        l_oi  = int(lr.get('openInterest', 0) or 0)
+
+        if direction == 'call':
+            valid_sh = [s for s in strikes if min_w <= s - long_strike <= max_w]
+            t_cands  = [s for s in strikes if s > long_strike]
+        else:
+            valid_sh = [s for s in strikes if min_w <= long_strike - s <= max_w]
+            t_cands  = [s for s in strikes if s < long_strike]
+
+        if t_cands:
+            near_t = min(t_cands, key=lambda s: abs(s - price_target))
+            if near_t not in valid_sh and abs(near_t - long_strike) >= 1:
+                valid_sh.append(near_t)
+
+        for short_strike in valid_sh:
+            sr = chain_lu.get(short_strike)
+            if sr is None:
+                continue
+            sb, sa = float(sr.get('bid', 0) or 0), float(sr.get('ask', 0) or 0)
+            sm     = (sb + sa) / 2 if sa > 0 else float(sr.get('lastPrice', 0) or 0)
+            if sm <= 0:
+                continue
+            s_iv  = float(sr['impliedVolatility']) if not pd.isna(sr['impliedVolatility']) else 0.3
+            s_g   = calculate_greeks(price, short_strike, T, r_f, s_iv, direction)
+            s_vol = int(sr.get('volume', 0) or 0)
+            s_oi  = int(sr.get('openInterest', 0) or 0)
+
+            net_deb = lm - sm
+            if net_deb <= 0.01:
+                continue
+            if direction == 'call':
+                width = short_strike - long_strike
+                beven = long_strike + net_deb
+                bpct  = round((beven / price - 1) * 100, 2)
+            else:
+                width = long_strike - short_strike
+                beven = long_strike - net_deb
+                bpct  = round((1 - beven / price) * 100, 2)
+
+            max_prof  = (width - net_deb) * 100
+            max_loss  = net_deb * 100
+            if max_prof <= 0:
+                continue
+            rr        = round(max_prof / max_loss, 2)
+            deb_pct_w = round(net_deb / width * 100, 1)
+            val_65    = round((net_deb + 0.65 * (width - net_deb)) * 100, 2)
+            val_75    = round((net_deb + 0.75 * (width - net_deb)) * 100, 2)
+            prof_65   = round(val_65 - max_loss, 2)
+            prof_75   = round(val_75 - max_loss, 2)
+
+            score   = 0
+            reasons = []
+            if rr >= 2.0:      score += 35; reasons.append(('good', f'R:R {rr:.1f}:1 — excellent'))
+            elif rr >= 1.5:    score += 28; reasons.append(('good', f'R:R {rr:.1f}:1 — good'))
+            elif rr >= 1.0:    score += 18; reasons.append(('ok',   f'R:R {rr:.1f}:1 — acceptable'))
+            elif rr >= 0.75:   score += 8;  reasons.append(('warn', f'R:R {rr:.1f}:1 — below ideal (want ≥1:1)'))
+            else:              score += 0;  reasons.append(('bad',  f'R:R {rr:.1f}:1 — poor risk/reward'))
+
+            if deb_pct_w <= 40:   score += 25; reasons.append(('good', f'Debit is {deb_pct_w:.0f}% of width — excellent value'))
+            elif deb_pct_w <= 50: score += 18; reasons.append(('good', f'Debit is {deb_pct_w:.0f}% of width — good value'))
+            elif deb_pct_w <= 60: score += 10; reasons.append(('ok',   f'Debit is {deb_pct_w:.0f}% of width — acceptable'))
+            else:                 score += 3;  reasons.append(('warn', f'Debit is {deb_pct_w:.0f}% of width — paying too much'))
+
+            if 21 <= dte <= 35:   score += 20; reasons.append(('good', f'{dte} DTE — ideal window (21–35 days)'))
+            elif 18 <= dte <= 45: score += 13; reasons.append(('ok',   f'{dte} DTE — acceptable'))
+            elif 14 <= dte <= 55: score += 6;  reasons.append(('warn', f'{dte} DTE — outside ideal range'))
+            else:                 score += 2;  reasons.append(('bad',  f'{dte} DTE — not ideal for this strategy'))
+
+            ld = abs(l_g['delta'])
+            if 0.45 <= ld <= 0.70:   score += 10; reasons.append(('good', f'Long leg \u03b4{ld:.2f} — ATM/ITM (ideal)'))
+            elif 0.35 <= ld <= 0.80: score += 6;  reasons.append(('ok',   f'Long leg \u03b4{ld:.2f} — acceptable'))
+            else:                     score += 2;  reasons.append(('warn', f'Long leg \u03b4{ld:.2f} — not ATM/ITM'))
+
+            min_vol = min(l_vol, s_vol)
+            min_oi  = min(l_oi, s_oi)
+            liq = 0
+            if min_vol > 100: liq += 5
+            elif min_vol > 10: liq += 2
+            if min_oi > 500: liq += 5
+            elif min_oi > 50: liq += 2
+            liq = min(liq, 10)
+            score += liq
+            if liq >= 8:   reasons.append(('good', 'Good liquidity on both legs'))
+            elif liq >= 4: reasons.append(('ok',   'Acceptable liquidity on both legs'))
+            else:          reasons.append(('warn', 'Low liquidity — check bid/ask before trading'))
+
+            spreads.append({
+                'direction':        direction.upper(),
+                'expiration':       expiration,
+                'dte':              dte,
+                'long_strike':      long_strike,
+                'short_strike':     short_strike,
+                'spread_width':     round(width, 2),
+                'net_debit':        round(net_deb, 2),
+                'net_debit_total':  round(max_loss, 2),
+                'max_profit':       round(max_prof, 2),
+                'max_loss':         round(max_loss, 2),
+                'rr_ratio':         rr,
+                'debit_pct_width':  deb_pct_w,
+                'breakeven':        round(beven, 2),
+                'breakeven_pct':    bpct,
+                'val_65':           val_65,
+                'val_75':           val_75,
+                'profit_at_65':     prof_65,
+                'profit_at_75':     prof_75,
+                'long_bid':         round(lb, 2),
+                'long_ask':         round(la, 2),
+                'long_mid':         round(lm, 2),
+                'long_delta':       l_g['delta'],
+                'long_iv':          round(l_iv * 100, 1),
+                'long_volume':      l_vol,
+                'long_oi':          l_oi,
+                'short_bid':        round(sb, 2),
+                'short_ask':        round(sa, 2),
+                'short_mid':        round(sm, 2),
+                'short_delta':      s_g['delta'],
+                'short_iv':         round(s_iv * 100, 1),
+                'short_volume':     s_vol,
+                'short_oi':         s_oi,
+                'net_delta':        round(abs(l_g['delta']) - abs(s_g['delta']), 3),
+                'is_target_aligned': abs(short_strike - price_target) <= width,
+                'score':            score,
+                'reasons':          reasons,
+            })
+
+    spreads.sort(key=lambda x: x['score'], reverse=True)
+    seen   = set()
+    unique = []
+    for s in spreads:
+        k = (s['long_strike'], s['short_strike'])
+        if k not in seen:
+            seen.add(k)
+            unique.append(s)
+    for i, s in enumerate(unique):
+        s['rank'] = i + 1
+    return unique[:5]
+
+
+def recommend_structure(ivr_data, setup_score, earnings_info):
+    """Apply the decision framework: DEBIT SPREAD vs LONG OPTION."""
+    has_earnings_soon = earnings_info.get('warning', False)
+    ivr_label = ivr_data.get('label', 'Unknown')
+    ivr_val   = ivr_data.get('ivr') or 50
+    if has_earnings_soon:
+        return {
+            'structure': 'DEBIT SPREAD ONLY',
+            'flag':      'warning',
+            'reasoning': f'Earnings in {earnings_info.get("dte", "?")} days — never hold long options through earnings. Spread only, or skip the trade.',
+        }
+    if ivr_label in ('Elevated', 'High') or ivr_val >= 50:
+        return {
+            'structure': 'DEBIT SPREAD',
+            'flag':      'default',
+            'reasoning': f'IVR is {ivr_val}% ({ivr_label}) — the short leg sells expensive premium, reducing your cost. Spread is clearly the smarter structure here.',
+        }
+    if ivr_label == 'Low' and abs(setup_score) >= 60:
+        return {
+            'structure': 'CONSIDER LONG OPTION',
+            'flag':      'green',
+            'reasoning': f'IVR is low ({ivr_val}%) and setup is strong ({setup_score:+d}). Premium is cheap. A long call/put is viable if you expect a large, fast move.',
+        }
+    return {
+        'structure': 'DEBIT SPREAD',
+        'flag':      'default',
+        'reasoning': 'Standard setup — debit spread is the default structure. Defined risk, cost-effective, works in any IV environment.',
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  MORNING BRIEFING DATA
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1959,6 +2254,119 @@ def contract_recommend(request: Request, ticker: str, direction: str = 'call'):
             'expiration':    best_exp,
             'dte':           dte,
             'top_contracts': candidates[:5],
+        }
+        cache_set(cache_key, out)
+        return out
+
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+# ── Debit Spread Recommender ──────────────────────────────────────────────────
+@app.get('/api/spread-recommend/{ticker}')
+@limiter.limit("8/minute")
+def spread_recommend(request: Request, ticker: str, direction: str = 'call', setup_score: int = 0):
+    """
+    Find and rank debit spread recommendations for a given ticker + direction.
+    Uses 21–35 DTE, ATM/1-ITM long leg, price-target-aligned short leg.
+    Includes IVR estimate, earnings warning, and structure recommendation.
+    """
+    ticker    = ticker.upper().strip()
+    direction = direction.lower()
+    if direction not in ('call', 'put'):
+        direction = 'call'
+
+    cache_key = f'spread_{ticker}_{direction}'
+    cached    = cache_get(cache_key, ttl=CACHE_TTL_STOCK)
+    if cached:
+        return cached
+
+    try:
+        stock = yf.Ticker(ticker)
+        info  = stock.info
+        price = float(info.get('currentPrice') or info.get('regularMarketPrice') or 0)
+        if not price:
+            hist  = stock.history(period='1d')
+            price = float(hist['Close'].iloc[-1]) if not hist.empty else 0
+        price = float(price)
+
+        expirations = stock.options
+        if not expirations:
+            return JSONResponse({'error': 'No options available for this ticker'}, status_code=400)
+
+        # Find expiry closest to 28 days (center of 21-35 DTE window)
+        today     = date.today()
+        best_exp  = None
+        best_diff = 999
+        for exp in expirations:
+            exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
+            dte      = (exp_date - today).days
+            if 18 <= dte <= 45:
+                diff = abs(dte - 28)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_exp  = exp
+
+        if not best_exp:
+            for exp in expirations:
+                exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
+                if (exp_date - today).days >= 18:
+                    best_exp = exp
+                    break
+
+        if not best_exp:
+            return JSONResponse(
+                {'error': 'No expiration found in the 21–35 DTE range. Try a more liquid ticker.'},
+                status_code=400
+            )
+
+        chain        = stock.option_chain(best_exp)
+        exp_d        = datetime.strptime(best_exp, '%Y-%m-%d').date()
+        dte          = max((exp_d - today).days, 0)
+        contracts_df = chain.calls if direction == 'call' else chain.puts
+
+        # Filter to ±30% from current price
+        atm_range   = price * 0.30
+        filtered_df = contracts_df[
+            (contracts_df['strike'] >= price - atm_range) &
+            (contracts_df['strike'] <= price + atm_range)
+        ].copy()
+
+        # Get ATM IV for IVR estimate
+        dist_series = (filtered_df['strike'] - price).abs()
+        atm_row     = filtered_df.loc[dist_series.idxmin()] if not filtered_df.empty else None
+        atm_iv      = float(atm_row['impliedVolatility']) if atm_row is not None and not pd.isna(atm_row['impliedVolatility']) else 0.3
+
+        # Gather context data
+        earnings_info  = get_earnings_info(stock)
+        ivr_data       = estimate_ivr(stock, atm_iv)
+        price_target   = estimate_price_target(stock, price, direction)
+        structure_rec  = recommend_structure(ivr_data, setup_score, earnings_info)
+
+        # Build spreads
+        spreads = find_best_spreads(filtered_df, price, price_target, direction, best_exp, dte)
+
+        del chain, filtered_df, contracts_df
+        gc.collect()
+
+        if not spreads:
+            return JSONResponse(
+                {'error': 'No valid debit spreads found. The chain may be illiquid or strikes are too far apart.'},
+                status_code=400
+            )
+
+        out = {
+            'ticker':        ticker,
+            'price':         round(price, 2),
+            'direction':     direction.upper(),
+            'expiration':    best_exp,
+            'dte':           dte,
+            'price_target':  price_target,
+            'atm_iv':        round(atm_iv * 100, 1),
+            'ivr':           ivr_data,
+            'earnings':      earnings_info,
+            'structure_rec': structure_rec,
+            'top_spreads':   spreads,
         }
         cache_set(cache_key, out)
         return out
