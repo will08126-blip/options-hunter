@@ -8,6 +8,7 @@ Three-tab trading dashboard:
   Tab 3 — Options Hunter (options chain scoring)
 """
 
+import gc
 import os
 import time
 import threading
@@ -16,6 +17,7 @@ import socket
 import requests
 import concurrent.futures
 import xml.etree.ElementTree as ET
+from collections import OrderedDict
 from email.utils import parsedate_to_datetime as _parse_rfc_date
 
 import numpy as np
@@ -79,20 +81,35 @@ except Exception:
     pass   # empty static dir is fine
 
 # ─── SIMPLE IN-MEMORY CACHE ───────────────────────────────────────────────────
-_cache = {}
+_CACHE_MAX_ENTRIES  = 200   # hard ceiling — LRU eviction above this
+_cache: OrderedDict = OrderedDict()
 CACHE_TTL           = 600   # 10 min — market briefing, movers, news
 CACHE_TTL_TECHNICAL = 300   # 5 min  — Cipher B + MACD per ticker
 CACHE_TTL_STOCK     = 300   # 5 min  — sentiment + options expirations
+
+def _cache_evict_stale():
+    """Remove entries older than 2× max TTL. Called on every write."""
+    now = time.time()
+    stale = [k for k, v in _cache.items() if now - v['ts'] > CACHE_TTL * 2]
+    for k in stale:
+        del _cache[k]
 
 def cache_get(key, ttl=None):
     if key in _cache:
         age = time.time() - _cache[key]['ts']
         if age < (ttl if ttl is not None else CACHE_TTL):
+            _cache.move_to_end(key)          # LRU touch
             return _cache[key]['data']
+        else:
+            del _cache[key]                  # evict expired entry immediately
     return None
 
 def cache_set(key, data):
+    _cache_evict_stale()                     # sweep stale before inserting
+    if len(_cache) >= _CACHE_MAX_ENTRIES:
+        _cache.popitem(last=False)           # evict least-recently-used
     _cache[key] = {'data': data, 'ts': time.time()}
+    _cache.move_to_end(key)
 
 # ─── SECTOR ETF MAPPING ───────────────────────────────────────────────────────
 SECTOR_ETFS = {
@@ -690,6 +707,7 @@ def batch_score_tickers(tickers):
     multi = isinstance(df_d_all.columns, pd.MultiIndex)
 
     for ticker in tickers:
+        df_d = df_w = None
         try:
             if multi:
                 # yfinance 1.x: top level = Ticker, second = Price field
@@ -716,7 +734,11 @@ def batch_score_tickers(tickers):
                 results.append(r)
         except Exception as e:
             print(f"Batch score error ({ticker}): {e}")
+        finally:
+            del df_d, df_w
 
+    del df_d_all, df_w_all
+    gc.collect()
     return results
 
 
@@ -975,6 +997,12 @@ def get_all_cipher_b(ticker):
                 continue
             df = resample_ohlcv(base_df, rule) if rule else base_df
             results[label] = get_cipher_b_signal(df)
+
+        # Free raw fetched frames no longer needed (df_daily and df_week are returned)
+        for _ref in [df5m, df15m, df30m, df1h, df2h, df4h, df1mo]:
+            del _ref
+        del df5m, df15m, df30m, df1h, df2h, df4h, df1mo
+        gc.collect()
 
     except Exception as e:
         print(f"Cipher B error: {e}")
@@ -1648,8 +1676,16 @@ def analyze(request: Request, body: AnalyzeBody):
                 except Exception:
                     continue
 
-        process(chain.calls, 'call')
-        process(chain.puts,  'put')
+        # Filter to near-the-money strikes (±20%) with any volume — reduces 2000+ contracts to ~200
+        def _filter_chain(df):
+            atm_range = price * 0.20
+            return df[(df['strike'] >= price - atm_range) &
+                      (df['strike'] <= price + atm_range) &
+                      (df['volume'].fillna(0) > 0)]
+
+        process(_filter_chain(chain.calls), 'call')
+        process(_filter_chain(chain.puts),  'put')
+        del chain
         results.sort(key=lambda x: x['score'], reverse=True)
         for i, r in enumerate(results):
             r['rank'] = i + 1
