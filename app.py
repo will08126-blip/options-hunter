@@ -1238,7 +1238,8 @@ def estimate_price_target(ticker_obj, price, direction):
             l  = hist['Low']
             c  = hist['Close'].shift(1)
             tr = pd.concat([(h - l), (h - c).abs(), (l - c).abs()], axis=1).max(axis=1)
-            move = float(tr.rolling(14).mean().iloc[-1]) * 1.5
+            atr = tr.rolling(14).mean().iloc[-1]
+            move = float(atr) * 1.5 if not pd.isna(atr) else price * 0.04
         return round(price + move if direction == 'call' else price - move, 2)
     except Exception:
         move = price * 0.04
