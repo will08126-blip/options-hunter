@@ -438,6 +438,15 @@ def get_cipher_b_signal(df, ob=53, os_level=-53, os2=-60):
         return {'signal': 0, 'bars_ago': 99, 'wt1': 0.0, 'wt2': 0.0}
 
 
+def _calc_rsi(closes, period=14):
+    """RSI-14 using Wilder's smoothing (EWM alpha=1/period)."""
+    delta = closes.diff()
+    gain  = delta.clip(lower=0).ewm(alpha=1/period, adjust=False).mean()
+    loss  = (-delta.clip(upper=0)).ewm(alpha=1/period, adjust=False).mean()
+    rs    = gain / loss.replace(0, 1e-9)
+    return 100 - (100 / (1 + rs))
+
+
 def calc_macd(df, fast=12, slow=26, signal=9, bars=60):
     """Calculate MACD — returns histogram, MACD line, and Signal line for charting."""
     if df is None or len(df) < slow + signal + 5:
@@ -525,6 +534,7 @@ def _score_from_df(ticker, df_d, df_w):
       MACD weekly      — confirms or contradicts daily  (20 pts)
       Volume           — confirmation of direction      (10 pts)
       Price momentum   — 5-day % change                 (15 pts)
+      RSI-14 modifier  — overbought/oversold filter     (±12 pts)
     """
     try:
         if df_d is None or len(df_d) < 25:
@@ -643,6 +653,29 @@ def _score_from_df(ticker, df_d, df_w):
 
         score += mom_score
         components['momentum'] = {'score': mom_score, 'label': mom_label}
+
+        # ── 6. RSI-14 modifier (max ±12 pts) ─────────────────────────────────
+        # Used as a conviction filter: penalise overbought bullish setups and
+        # attenuate oversold bearish ones so extended sectors score lower.
+        rsi_mod = 0; rsi_label = 'No data'
+        if len(close_d) >= 20:
+            rsi_val = float(_calc_rsi(close_d).iloc[-1])
+            if score > 0:          # bullish context — penalise if extended
+                if rsi_val > 80:   rsi_mod = -12; rsi_label = f'{rsi_val:.0f} — overbought (heavy)'
+                elif rsi_val > 70: rsi_mod = -7;  rsi_label = f'{rsi_val:.0f} — overbought'
+                elif rsi_val > 65: rsi_mod = -3;  rsi_label = f'{rsi_val:.0f} — slightly extended'
+                elif rsi_val > 50: rsi_mod = +3;  rsi_label = f'{rsi_val:.0f} — bullish zone'
+                else:              rsi_mod = 0;   rsi_label = f'{rsi_val:.0f} — neutral'
+            elif score < 0:        # bearish context — attenuate if oversold
+                if rsi_val < 20:   rsi_mod = +12; rsi_label = f'{rsi_val:.0f} — oversold (heavy)'
+                elif rsi_val < 30: rsi_mod = +7;  rsi_label = f'{rsi_val:.0f} — oversold'
+                elif rsi_val < 35: rsi_mod = +3;  rsi_label = f'{rsi_val:.0f} — slightly oversold'
+                elif rsi_val < 50: rsi_mod = -3;  rsi_label = f'{rsi_val:.0f} — bearish zone'
+                else:              rsi_mod = 0;   rsi_label = f'{rsi_val:.0f} — neutral'
+            else:
+                rsi_label = f'{rsi_val:.0f} — neutral'
+            score += rsi_mod
+            components['rsi'] = {'score': rsi_mod, 'label': rsi_label, 'value': round(rsi_val, 1)}
 
         # ── Normalize & direction ─────────────────────────────────────────────
         normalized = max(-100, min(100, score))
