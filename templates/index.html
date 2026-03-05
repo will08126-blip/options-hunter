@@ -279,6 +279,86 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .news-card a:hover{color:var(--blue);}
 .news-pub{font-size:11px;color:var(--muted);}
 
+/* ══════════════════════════════════════════════
+   SECTOR SCANNER & STOCK SCREENER STYLES
+══════════════════════════════════════════════ */
+
+/* Scanner header bar */
+.scanner-bar{background:linear-gradient(135deg,#0d1320 0%,#0f1a2e 100%);border-bottom:1px solid var(--border);padding:16px 20px;}
+.scanner-bar-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.scanner-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;}
+.scanner-sub{font-size:12px;color:var(--muted);}
+
+/* Sector cards grid */
+.sector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;padding:14px 20px;background:#0d1018;border-bottom:2px solid var(--border);}
+.sector-card{background:var(--surface);border:2px solid var(--border);border-radius:10px;padding:11px 13px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.sector-card:hover{border-color:var(--blue);transform:translateY(-1px);}
+.sector-card.selected{border-color:var(--blue);background:#0d1a2e;}
+.sector-card.selected::after{content:'✓';position:absolute;top:6px;right:8px;font-size:11px;color:var(--blue);font-weight:700;}
+.sector-card.bull-card{border-color:rgba(0,208,132,.3);}
+.sector-card.bull-card.selected{border-color:var(--green);background:#081a10;}
+.sector-card.bear-card{border-color:rgba(255,77,106,.2);}
+.sector-card.bear-card.selected{border-color:var(--red);background:#1a0810;}
+.sc-etf{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#fff;margin-bottom:1px;}
+.sc-name{font-size:10px;color:var(--muted);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-score{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:800;line-height:1;margin-bottom:3px;}
+.sc-dir{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.sc-bar-wrap{margin-top:7px;height:3px;background:#1a1f2e;border-radius:2px;overflow:hidden;}
+.sc-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+
+/* Setups section */
+.setups-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.setups-title{font-weight:700;color:#fff;font-size:14px;}
+.setups-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+
+/* Setup cards */
+.setups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:14px 20px;background:#0a0d13;border-bottom:2px solid var(--border);}
+.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 14px;cursor:pointer;transition:all .2s;position:relative;}
+.setup-card:hover{border-color:var(--blue);background:#0d1525;}
+.setup-card.call-setup{border-left:3px solid var(--green);}
+.setup-card.put-setup{border-left:3px solid var(--red);}
+.setup-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.setup-ticker{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:800;color:#fff;}
+.setup-price{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-top:1px;}
+.setup-score-badge{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;padding:3px 9px;border-radius:6px;}
+.setup-score-bull{background:rgba(0,208,132,.15);color:var(--green);border:1px solid rgba(0,208,132,.3);}
+.setup-score-bear{background:rgba(255,77,106,.15);color:var(--red);border:1px solid rgba(255,77,106,.3);}
+.setup-dir-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:10px;margin-bottom:7px;}
+.dir-call{background:rgba(0,208,132,.12);color:var(--green);}
+.dir-put{background:rgba(255,77,106,.12);color:var(--red);}
+.setup-components{display:flex;flex-direction:column;gap:3px;margin-bottom:9px;}
+.setup-comp-row{display:flex;justify-content:space-between;font-size:10px;}
+.setup-comp-label{color:var(--muted);}
+.setup-comp-val{color:var(--text);font-weight:500;max-width:160px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.setup-btn{width:100%;background:rgba(77,159,255,.1);border:1px solid rgba(77,159,255,.3);color:var(--blue);border-radius:7px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;}
+.setup-btn:hover{background:var(--blue);color:#fff;}
+.setup-btn.put-btn{background:rgba(255,77,106,.1);border-color:rgba(255,77,106,.3);color:var(--red);}
+.setup-btn.put-btn:hover{background:var(--red);color:#fff;}
+
+/* Contract section */
+.contract-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.contract-section-body{background:#0a0d13;border-bottom:2px solid var(--border);}
+
+/* Contract recommendation cards */
+.contract-rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:14px 20px;}
+.contract-rec{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.contract-rec.top-pick{border-color:rgba(0,208,132,.4);background:linear-gradient(135deg,#0a1a12,#0d1720);}
+.cr-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.cr-rank{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;}
+.cr-grade-badge{padding:2px 9px;border-radius:5px;font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.cr-strike{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:#fff;margin-bottom:2px;}
+.cr-exp{font-size:11px;color:var(--muted);margin-bottom:10px;}
+.cr-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.cr-stat{background:#0b0e14;border-radius:6px;padding:7px 9px;}
+.cr-stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
+.cr-stat-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#fff;}
+.cr-reasons{border-top:1px solid var(--border);padding-top:8px;margin-top:4px;}
+.cr-reason-item{font-size:10px;padding:2px 0;display:flex;gap:5px;align-items:flex-start;}
+
+/* Score progress bar inside setup cards */
+.setup-score-bar{height:3px;background:#1a1f2e;border-radius:2px;overflow:hidden;margin-top:6px;}
+.setup-score-fill{height:100%;border-radius:2px;}
+
 /* ── RESPONSIVE / iOS ── */
 
 /* Prevent iOS font-size bump on landscape */
@@ -433,7 +513,65 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
 ════════════════════════════════════════════════════════════════════════════ -->
 <div class="tab-content-oh" id="content-options">
 
-  <!-- Sentiment -->
+  <!-- ── SECTOR SCANNER ─────────────────────────────────────────────────── -->
+  <div class="scanner-bar">
+    <div class="scanner-bar-inner">
+      <div>
+        <div class="scanner-title">⚡ Sector Scanner</div>
+        <div class="scanner-sub">Score all 14 ETFs → click sectors to build your ranked watchlist → find the best contract</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span id="scanStatus" style="font-size:11px;color:var(--muted)"></span>
+        <button class="btn-outline-oh" id="clearSectorsBtn" onclick="clearSectorSelection()" style="display:none;padding:8px 14px;font-size:12px">Clear</button>
+        <button class="btn-primary-oh" onclick="runSectorScan()" id="scanBtn" style="min-width:130px">🔍 Scan Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sector grid (populated after scan) -->
+  <div id="sectorGrid">
+    <div class="state-box" style="padding:24px">
+      <div class="icon" style="font-size:2rem">📡</div>
+      <p>Click <b>Scan Now</b> to score all 14 sector ETFs and find where the momentum is</p>
+    </div>
+  </div>
+
+  <!-- ── RANKED WATCHLIST ──────────────────────────────────────────────── -->
+  <div id="setupsSection" style="display:none">
+    <div class="setups-bar">
+      <div>
+        <div class="setups-title">📋 Ranked Watchlist</div>
+        <div class="setups-sub" id="setupsSub">Stocks ranked by composite score from selected sectors</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="filter-btn active" onclick="setSetupFilter('all')"  id="sf-all">All</button>
+        <button class="filter-btn"        onclick="setSetupFilter('call')" id="sf-call">📈 Calls</button>
+        <button class="filter-btn"        onclick="setSetupFilter('put')"  id="sf-put">📉 Puts</button>
+        <button class="filter-btn"        onclick="setSetupFilter('best')" id="sf-best">⭐ 50+ Score</button>
+        <span style="font-size:11px;color:var(--muted);align-self:center;margin-left:4px" id="setupsCount"></span>
+      </div>
+    </div>
+    <div id="setupsList"></div>
+  </div>
+
+  <!-- ── CONTRACT VIEWER ───────────────────────────────────────────────── -->
+  <div id="contractSection" style="display:none">
+    <div class="contract-bar">
+      <button class="btn-outline-oh" onclick="closeContractSection()" style="padding:6px 14px;font-size:12px">← Watchlist</button>
+      <div style="font-weight:700;color:#fff;font-size:14px" id="contractTitle">Best Contracts</div>
+      <div style="font-size:11px;color:var(--muted);margin-left:4px" id="contractMeta"></div>
+    </div>
+    <div class="contract-section-body">
+      <div id="contractResults"></div>
+    </div>
+  </div>
+
+  <!-- ── DIVIDER ───────────────────────────────────────────────────────── -->
+  <div class="section-divider" style="padding:0 20px;margin:18px 0 2px">
+    <span class="sd-label">Manual Search</span>
+  </div>
+
+  <!-- Sentiment bar -->
   <div class="sentiment-bar" id="sentimentBar">
     <div class="sent-pill"><span class="s-label">Market</span><span class="s-dot s-yellow" id="mktDot"></span><span class="pos" id="mktSent">—</span></div>
     <div class="sent-pill"><span class="s-label">Sector</span><span class="s-dot s-yellow" id="secDot"></span><span id="secSent">—</span></div>
@@ -1450,7 +1588,360 @@ function renderTechnical(data) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  OPTIONS HUNTER
+//  SECTOR SCANNER + RANKED WATCHLIST
+// ═════════════════════════════════════════════════════════════════════════════
+let _selectedSectors = new Set();
+let _allSetups = [];
+let _setupFilter = 'all';
+let _scanData = null;
+
+async function runSectorScan() {
+  const btn = document.getElementById('scanBtn');
+  const status = document.getElementById('scanStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Scanning...';
+  status.textContent = 'Scoring 14 ETFs...';
+
+  document.getElementById('sectorGrid').innerHTML =
+    '<div class="state-box" style="padding:24px"><div class="spinner"></div><p>Scoring all 14 sector ETFs — takes ~15 seconds...</p></div>';
+
+  try {
+    const res  = await fetch('/api/sector-scan');
+    const data = await res.json();
+    if (data.error) { showToast(data.error); return; }
+    _scanData = data;
+    _selectedSectors.clear();
+    renderSectorGrid(data);
+    status.textContent = `Updated ${data.updated}`;
+    document.getElementById('setupsSection').style.display = 'none';
+    document.getElementById('contractSection').style.display = 'none';
+  } catch(e) {
+    showToast('Sector scan failed. Check your connection.');
+    document.getElementById('sectorGrid').innerHTML =
+      '<div class="state-box" style="padding:20px"><div class="icon">⚠️</div><p>Scan failed. Try again.</p></div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Scan Now';
+  }
+}
+
+function renderSectorGrid(data) {
+  const sectors = data.sectors || [];
+  if (!sectors.length) {
+    document.getElementById('sectorGrid').innerHTML =
+      '<div class="state-box" style="padding:20px"><p>No sector data returned.</p></div>';
+    return;
+  }
+
+  const html = `<div class="sector-grid">${sectors.map(s => {
+    const score = s.score;
+    const isBull = score > 0;
+    const isStrong = Math.abs(score) >= 40;
+    const cardClass = isStrong && isBull ? 'bull-card' : isStrong && !isBull ? 'bear-card' : '';
+    const scoreColor = score >= 40 ? 'var(--green)' : score >= 15 ? '#2ecc71' :
+                       score >= -15 ? 'var(--muted)' : score >= -40 ? '#e67e22' : 'var(--red)';
+    const dirColor = isBull ? 'var(--green)' : score < 0 ? 'var(--red)' : 'var(--muted)';
+    const barPct = Math.min(100, Math.abs(score));
+    const barColor = isBull ? 'var(--green)' : 'var(--red)';
+    const trend = s.components && s.components.trend ? s.components.trend.label.split('(')[0].trim() : '—';
+
+    return `<div class="sector-card ${cardClass}" id="sc-${s.etf}" onclick="toggleSector('${s.etf}')">
+      <div class="sc-etf">${s.etf}</div>
+      <div class="sc-name">${s.name}</div>
+      <div class="sc-score" style="color:${scoreColor}">${score > 0 ? '+' : ''}${score}</div>
+      <div class="sc-dir" style="color:${dirColor}">${s.dir_label}</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:3px">${trend}</div>
+      <div class="sc-bar-wrap">
+        <div class="sc-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
+      </div>
+    </div>`;
+  }).join('')}</div>
+  <div style="padding:6px 20px 10px;font-size:11px;color:var(--muted)">
+    Click one or more sectors to load a ranked watchlist for those sectors.
+    <span id="sectorHint" style="color:var(--blue);margin-left:6px"></span>
+  </div>`;
+
+  document.getElementById('sectorGrid').innerHTML = html;
+}
+
+async function toggleSector(etf) {
+  if (_selectedSectors.has(etf)) {
+    _selectedSectors.delete(etf);
+    document.getElementById(`sc-${etf}`).classList.remove('selected');
+  } else {
+    _selectedSectors.add(etf);
+    document.getElementById(`sc-${etf}`).classList.add('selected');
+  }
+
+  const clearBtn = document.getElementById('clearSectorsBtn');
+  clearBtn.style.display = _selectedSectors.size > 0 ? 'inline-flex' : 'none';
+
+  document.getElementById('sectorHint').textContent =
+    _selectedSectors.size > 0 ? `${_selectedSectors.size} sector(s) selected` : '';
+
+  if (_selectedSectors.size === 0) {
+    document.getElementById('setupsSection').style.display = 'none';
+    document.getElementById('contractSection').style.display = 'none';
+    return;
+  }
+
+  await loadWatchlist(Array.from(_selectedSectors));
+}
+
+function clearSectorSelection() {
+  _selectedSectors.forEach(etf => {
+    const el = document.getElementById(`sc-${etf}`);
+    if (el) el.classList.remove('selected');
+  });
+  _selectedSectors.clear();
+  document.getElementById('clearSectorsBtn').style.display = 'none';
+  document.getElementById('sectorHint').textContent = '';
+  document.getElementById('setupsSection').style.display = 'none';
+  document.getElementById('contractSection').style.display = 'none';
+}
+
+async function loadWatchlist(sectors) {
+  const setupsSection = document.getElementById('setupsSection');
+  const setupsList    = document.getElementById('setupsList');
+  const sub           = document.getElementById('setupsSub');
+
+  setupsSection.style.display = 'block';
+  setupsList.innerHTML =
+    '<div class="state-box" style="padding:30px"><div class="spinner"></div><p>Scanning stocks in selected sectors... (~20-30 seconds)</p></div>';
+  sub.textContent = `Loading stocks from: ${sectors.join(', ')}`;
+
+  try {
+    const res  = await fetch(`/api/stock-screener?sectors=${encodeURIComponent(sectors.join(','))}`);
+    const data = await res.json();
+    if (data.error) { showToast(data.error); return; }
+
+    _allSetups = data.setups || [];
+    const scanned = data.total_scanned || 0;
+    const total   = _allSetups.length;
+
+    sub.textContent = `${total} setups found from ${scanned} stocks scanned · ${sectors.join(', ')} · ${data.updated}`;
+    document.getElementById('setupsCount').textContent = `${total} total`;
+
+    _setupFilter = 'all';
+    ['all','call','put','best'].forEach(f => {
+      document.getElementById(`sf-${f}`).classList.toggle('active', f === 'all');
+    });
+
+    renderSetupsList();
+    document.getElementById('contractSection').style.display = 'none';
+
+  } catch(e) {
+    setupsList.innerHTML =
+      '<div class="state-box" style="padding:20px"><div class="icon">⚠️</div><p>Failed to load watchlist. Try again.</p></div>';
+    showToast('Watchlist load failed.');
+  }
+}
+
+function setSetupFilter(f) {
+  _setupFilter = f;
+  ['all','call','put','best'].forEach(id =>
+    document.getElementById(`sf-${id}`).classList.toggle('active', id === f));
+  renderSetupsList();
+}
+
+function renderSetupsList() {
+  const list = document.getElementById('setupsList');
+  let rows = _allSetups;
+
+  if (_setupFilter === 'call') rows = rows.filter(r => r.direction === 'CALL');
+  if (_setupFilter === 'put')  rows = rows.filter(r => r.direction === 'PUT');
+  if (_setupFilter === 'best') rows = rows.filter(r => Math.abs(r.score) >= 50);
+
+  document.getElementById('setupsCount').textContent = `${rows.length} shown`;
+
+  if (!rows.length) {
+    list.innerHTML = '<div class="state-box" style="padding:24px"><div class="icon">🔍</div><p>No setups match this filter</p></div>';
+    return;
+  }
+
+  const html = `<div class="setups-grid">${rows.map((r, i) => {
+    const isBull = r.direction === 'CALL';
+    const cardClass = isBull ? 'call-setup' : 'put-setup';
+    const badgeClass = isBull ? 'setup-score-bull' : 'setup-score-bear';
+    const dirClass   = isBull ? 'dir-call' : 'dir-put';
+    const btnClass   = isBull ? '' : 'put-btn';
+    const dirIcon    = isBull ? '📈' : '📉';
+    const c = r.components || {};
+    const barColor = isBull ? 'var(--green)' : 'var(--red)';
+    const barPct   = Math.min(100, Math.abs(r.score));
+    const pos3m    = r.price_pos_3m != null ? `${r.price_pos_3m.toFixed(0)}% of 3m range` : '';
+
+    return `<div class="setup-card ${cardClass}" id="setup-${i}">
+      <div class="setup-top">
+        <div>
+          <div class="setup-ticker">${r.ticker}</div>
+          <div class="setup-price">$${r.price}</div>
+        </div>
+        <span class="setup-score-badge ${badgeClass}">${r.score > 0 ? '+' : ''}${r.score}</span>
+      </div>
+      <span class="setup-dir-badge ${dirClass}">${dirIcon} ${r.dir_label}</span>
+      <div class="setup-score-bar"><div class="setup-score-fill" style="width:${barPct}%;background:${barColor}"></div></div>
+      <div class="setup-components" style="margin-top:8px">
+        ${c.trend     ? `<div class="setup-comp-row"><span class="setup-comp-label">Trend</span><span class="setup-comp-val">${c.trend.label.split('(')[0].trim()}</span></div>` : ''}
+        ${c.macd_daily  ? `<div class="setup-comp-row"><span class="setup-comp-label">MACD Daily</span><span class="setup-comp-val">${c.macd_daily.label}</span></div>` : ''}
+        ${c.macd_weekly ? `<div class="setup-comp-row"><span class="setup-comp-label">MACD Weekly</span><span class="setup-comp-val">${c.macd_weekly.label}</span></div>` : ''}
+        ${c.volume      ? `<div class="setup-comp-row"><span class="setup-comp-label">Volume</span><span class="setup-comp-val">${c.volume.label}</span></div>` : ''}
+        ${c.momentum    ? `<div class="setup-comp-row"><span class="setup-comp-label">Momentum</span><span class="setup-comp-val">${c.momentum.label}</span></div>` : ''}
+        ${pos3m         ? `<div class="setup-comp-row"><span class="setup-comp-label">3m Range</span><span class="setup-comp-val">${pos3m}</span></div>` : ''}
+      </div>
+      <button class="setup-btn ${btnClass}" onclick="openContractView('${r.ticker}','${r.direction.toLowerCase()}',${r.score})">
+        ${isBull ? '📈 View Best Calls' : '📉 View Best Puts'}
+      </button>
+    </div>`;
+  }).join('')}</div>`;
+
+  list.innerHTML = html;
+}
+
+async function openContractView(ticker, direction, setupScore) {
+  const contractSection = document.getElementById('contractSection');
+  const contractResults = document.getElementById('contractResults');
+  const contractTitle   = document.getElementById('contractTitle');
+  const contractMeta    = document.getElementById('contractMeta');
+
+  contractSection.style.display = 'block';
+  contractTitle.textContent = `${ticker} — Best ${direction.toUpperCase()}S`;
+  contractMeta.textContent  = `Setup score: ${setupScore > 0 ? '+' : ''}${setupScore}`;
+  contractResults.innerHTML =
+    '<div class="state-box" style="padding:30px"><div class="spinner"></div><p>Finding best 30-45 DTE contracts...</p></div>';
+
+  // Scroll to contract section
+  contractSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res  = await fetch(`/api/contract-recommend/${ticker}?direction=${direction}`);
+    const data = await res.json();
+    if (data.error) {
+      contractResults.innerHTML = `<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>${data.error}</p></div>`;
+      return;
+    }
+    renderContracts(data);
+  } catch(e) {
+    contractResults.innerHTML =
+      '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Failed to load contracts. Try again.</p></div>';
+  }
+}
+
+function renderContracts(data) {
+  const contracts = data.top_contracts || [];
+  if (!contracts.length) {
+    document.getElementById('contractResults').innerHTML =
+      '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>No contracts found in target range.</p></div>';
+    return;
+  }
+
+  const isBull = data.direction === 'CALL';
+  const accentColor = isBull ? 'var(--green)' : 'var(--red)';
+
+  const ivWarning = contracts[0] && contracts[0].iv > 60
+    ? `<div style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.3);border-radius:8px;padding:10px 14px;margin:0 20px 12px;font-size:12px;color:var(--yellow)">
+        ⚠️ IV is elevated (${contracts[0].iv}%) — premiums are expensive. The market is pricing in a bigger move than usual. Consider waiting for IV to cool, or size down.
+      </div>` : '';
+
+  const summaryHtml = `
+    <div style="padding:12px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--muted)">Ticker: <b style="color:#fff">${data.ticker}</b></span>
+      <span style="font-size:12px;color:var(--muted)">Price: <b class="mono" style="color:#fff">$${data.price}</b></span>
+      <span style="font-size:12px;color:var(--muted)">Expiry: <b style="color:#fff">${fmtDate(data.expiration)}</b></span>
+      <span style="font-size:12px;color:var(--muted)">DTE: <b style="color:#fff">${data.dte} days</b></span>
+      <span style="font-size:12px;color:var(--muted)">Direction: <b style="color:${accentColor}">${data.direction}</b></span>
+      <button class="btn-outline-oh" style="margin-left:auto;padding:6px 14px;font-size:12px"
+        onclick="loadFullChain('${data.ticker}')">
+        View Full Options Chain ↓
+      </button>
+    </div>`;
+
+  const gradeColors = {
+    'A+': {bg:'rgba(0,208,132,.2)',color:'var(--green)',border:'rgba(0,208,132,.4)'},
+    'A':  {bg:'rgba(0,208,132,.12)',color:'#00b870',border:'rgba(0,208,132,.2)'},
+    'B+': {bg:'rgba(77,159,255,.15)',color:'var(--blue)',border:'rgba(77,159,255,.3)'},
+    'B':  {bg:'rgba(77,159,255,.1)',color:'#4d99cc',border:'rgba(77,159,255,.2)'},
+    'C':  {bg:'rgba(255,193,7,.15)',color:'var(--yellow)',border:'rgba(255,193,7,.3)'},
+    'D':  {bg:'rgba(255,77,106,.12)',color:'var(--red)',border:'rgba(255,77,106,.3)'},
+  };
+
+  const cardsHtml = contracts.map((c, i) => {
+    const gc = gradeColors[c.grade] || gradeColors['C'];
+    const isTop = i === 0;
+    const topLabel = isTop ? '<span style="font-size:10px;background:rgba(0,208,132,.15);color:var(--green);border-radius:10px;padding:1px 8px;font-weight:700">TOP PICK</span>' : '';
+
+    const reasons = (c.reasons || []).map(([type, txt]) => {
+      const col = type === 'good' ? 'var(--green)' : type === 'ok' ? 'var(--text)' : type === 'warn' ? '#ff944d' : 'var(--red)';
+      const icon = type === 'good' ? '✓' : type === 'ok' ? '◎' : '✗';
+      return `<div class="cr-reason-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:var(--muted)">${txt}</span></div>`;
+    }).join('');
+
+    const ivColor = c.iv > 80 ? 'var(--red)' : c.iv > 50 ? 'var(--yellow)' : 'var(--green)';
+    const beLabel = data.direction === 'CALL'
+      ? `+${((c.breakeven / data.price - 1) * 100).toFixed(1)}% to breakeven`
+      : `-${((1 - c.breakeven / data.price) * 100).toFixed(1)}% to breakeven`;
+
+    return `<div class="contract-rec${isTop ? ' top-pick' : ''}">
+      <div class="cr-header">
+        <div class="cr-rank">#${c.rank} Pick &nbsp; ${topLabel}</div>
+        <span class="cr-grade-badge" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.border}">${c.grade}</span>
+      </div>
+      <div class="cr-strike">$${c.strike} ${data.direction}</div>
+      <div class="cr-exp">${fmtDate(c.expiration)} · ${c.dte} DTE · Score ${c.score}/100</div>
+      <div class="cr-stats">
+        <div class="cr-stat">
+          <div class="cr-stat-label">Contract Cost</div>
+          <div class="cr-stat-val" style="color:var(--blue)">$${c.cost}</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Mid Price</div>
+          <div class="cr-stat-val">$${c.mid} <span style="font-size:10px;color:var(--muted)">(${c.bid}/${c.ask})</span></div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Delta</div>
+          <div class="cr-stat-val">${c.delta}</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Theta / day</div>
+          <div class="cr-stat-val" style="color:var(--red)">-$${Math.abs(c.theta).toFixed(3)}</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">IV</div>
+          <div class="cr-stat-val" style="color:${ivColor}">${c.iv}%</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Vol / OI</div>
+          <div class="cr-stat-val">${c.volume.toLocaleString()} / ${c.openInterest.toLocaleString()}</div>
+        </div>
+        <div class="cr-stat" style="grid-column:1/-1">
+          <div class="cr-stat-label">Breakeven at expiry</div>
+          <div class="cr-stat-val" style="color:var(--yellow)">$${c.breakeven} <span style="font-size:10px;color:var(--muted);font-weight:400">(${beLabel})</span></div>
+        </div>
+      </div>
+      <div class="cr-reasons">${reasons}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('contractResults').innerHTML = `
+    ${summaryHtml}
+    ${ivWarning}
+    <div class="contract-rec-grid">${cardsHtml}</div>`;
+}
+
+function closeContractSection() {
+  document.getElementById('contractSection').style.display = 'none';
+  document.getElementById('setupsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadFullChain(ticker) {
+  // Pre-fill the manual search ticker and trigger a full load
+  document.getElementById('tickerInput').value = ticker;
+  document.getElementById('sentimentBar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  await loadStock();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  OPTIONS HUNTER  (manual search — unchanged)
 // ═════════════════════════════════════════════════════════════════════════════
 let allResults = [], currentFilter = 'all', openRow = null;
 

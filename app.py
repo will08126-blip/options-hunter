@@ -127,6 +127,68 @@ POPULAR_STOCKS = [
     'COIN','JPM','XOM','HOOD','SOFI'
 ]
 
+# ─── SECTOR STOCK UNIVERSE ─────────────────────────────────────────────────────
+# 30-45 liquid stocks per sector ETF for the options screener.
+# Mix of large-cap leaders + mid-cap momentum names. Emphasis on sub-$100 stocks
+# for cheaper premiums, but higher-priced names included when setups are strong.
+SECTOR_STOCKS = {
+    'XLK':  ['AMD','INTC','AVGO','QCOM','TXN','MU','AMAT','KLAC','LRCX','ADI',
+              'MRVL','ON','HPQ','DELL','STX','WDC','CSCO','PLTR','NET','DDOG',
+              'PANW','CRWD','ZS','FTNT','KEYS','SWKS','MPWR','MCHP','TER','ENTG',
+              'WOLF','AMBA','SLAB','ACLS','SITM','NXPI','MTSI','ALGM','COHR','FORM'],
+    'QQQ':  ['NFLX','PYPL','COST','PEP','MDLZ','REGN','BIIB','GILD','VRTX',
+              'IDXX','DXCM','FAST','PAYX','CDNS','ANSS','MNST','TEAM','WDAY',
+              'OKTA','VEEV','ZI','GTLB','BILL','HUBS','DOCN','TTD','ROKU','EXAS',
+              'PODD','NTRA','BMRN','SGEN','RARE','FOLD','ALKS','CSGP','LCID','JOBY'],
+    'XLF':  ['JPM','BAC','WFC','C','MS','GS','BLK','SCHW','COF','AXP',
+              'USB','PNC','TFC','FITB','HBAN','RF','CFG','KEY','MTB','ZION',
+              'HOOD','SOFI','SQ','AFRM','UPST','NU','LC','ALLY','SYF','DFS',
+              'NAVI','NMIH','MCO','SPGI','ICE','CME','CBOE','MKTX','VIRT','LPLA'],
+    'XLV':  ['LLY','PFE','ABBV','MRK','BMY','AMGN','GILD','BIIB','REGN',
+              'VRTX','HCA','CVS','CI','HUM','MOH','CNC','ISRG','SYK','BAX',
+              'BDX','EW','ZBH','RMD','DXCM','PODD','ALGN','HOLX','WAT','TECH',
+              'IRTC','NVCR','TNDM','INSP','GKOS','ACCD','PHR','PRVA','AMED','ENSG'],
+    'XLE':  ['COP','EOG','SLB','HAL','BKR','MPC','PSX','VLO','DVN','FANG',
+              'OXY','APA','HES','MRO','AR','EQT','RRC','OKE','KMI','WMB',
+              'LNG','CTRA','SM','NOG','MTDR','MGY','VTLE','ROCC','KNTK','TRGP',
+              'HES','MMP','AM','SBOW','CIVI','BTU','ARCH','DKL','HESM','GPRE'],
+    'XLI':  ['CAT','DE','HON','GE','RTX','LMT','NOC','GD','EMR','ETN',
+              'PH','ROK','AME','XYL','IR','TT','CARR','OTIS','WM','RSG',
+              'CTAS','FAST','GWW','JBHT','UPS','FDX','AXON','TDY','LDOS','SAIC',
+              'KTOS','RCAT','JOBY','ACHR','EH','UAL','DAL','AAL','SKYW','MESA'],
+    'XLY':  ['HD','LOW','TGT','BKNG','MAR','HLT','MGM','LVS','WYNN','RCL',
+              'CCL','NCLH','NKE','LULU','TPR','RL','GM','F','RIVN','SBUX',
+              'MCD','CMG','DPZ','YUM','QSR','DKNG','PENN','GENI','CZR','BYD',
+              'BLNK','CHPT','EVGO','LAZR','GOEV','RIDE','PLBY','NKLA','VLTA','PTRA'],
+    'XLP':  ['PG','KO','PEP','WMT','COST','MDLZ','GIS','K','CPB','SJM',
+              'MKC','CAG','HRL','TSN','KHC','STZ','CLX','CL','CHD','KR',
+              'MNST','PM','MO','BTI','TAP','SAM','ELF','OLLI','PRGO','HAIN',
+              'FRPT','SMPL','BYND','OTLY','CELH','FIZZ','REED','NAPA','COKE','SFM'],
+    'XLB':  ['LIN','APD','SHW','FCX','NEM','AA','ALB','CF','MOS','NUE',
+              'STLD','RS','CMC','ATI','MP','LAC','LTHM','CC','HUN','RPM',
+              'PPG','EMN','CE','OLN','WLK','LYB','DD','AXTA','VMC','MLM',
+              'CRS','MTRN','KALU','CENX','CSTM','HBM','AG','PAAS','EXK','MAG'],
+    'XLU':  ['NEE','DUK','SO','AEP','EXC','SRE','XEL','ED','WEC','ETR',
+              'FE','PPL','CNP','NI','AES','CMS','LNT','EVRG','POR','AVA',
+              'BEPC','CWEN','NOVA','SHLS','ARRY','FSLR','ENPH','SPWR','RUN','SEDG'],
+    'XLRE': ['PLD','CCI','EQIX','PSA','DLR','O','SPG','VTR','WELL','AVB',
+              'EQR','ESS','MAA','NNN','STAG','COLD','REXR','EXR','CUBE','LSI',
+              'AMH','INVH','SUI','ELS','UDR','CPT','NLY','AGNC','RITM','KREF',
+              'LADR','GPMT','PMT','MFA','TWO','IVR','NYMT','AOMR','EARN','BXMT'],
+    'XLC':  ['META','GOOGL','NFLX','DIS','CMCSA','T','VZ','TMUS','EA','TTWO',
+              'RBLX','MTCH','ZM','SNAP','PINS','RDDT','SPOT','WBD','LYV','MSGS',
+              'CHTR','FOXA','NYT','IPG','OMC','NWSA','PARA','AMC','IACI','CARG',
+              'TKO','FUBO','SIRI','LUMN','ATUS','DISH','CNXC','GSAT','LILM','VZIO'],
+    'SPY':  ['AAPL','MSFT','NVDA','AMZN','META','GOOGL','TSLA','AVGO','JPM',
+              'V','UNH','MA','HD','ORCL','COST','XOM','CVX','LLY','JNJ','PG',
+              'ABBV','MRK','WMT','BAC','KO','PEP','NFLX','AMD','CRM','ABT'],
+    'IWM':  ['SMCI','INSP','EXAS','QLYS','BJ','HIMS','GKOS','IMAX','RMBS',
+              'CORT','IRTC','KRYS','CALX','CAKE','BOOT','BLFS','ARCB','ACVA',
+              'PRCT','PCVX','NVRI','HCC','SLAB','PCRX','SMPL','IONQ','ARQT',
+              'RXRX','JOBY','ACHR','CLOV','SKIN','TPVG','AEIS','OSIS','AVAV',
+              'KTOS','DRS','VSCO','DLHC','TASK','NTRA','ALEC','JANX','SPCE'],
+}
+
 # ─── TRADINGVIEW SYMBOL / EXCHANGE MAP ───────────────────────────────────────
 # Crypto → Binance USDT pairs (most liquid, matches TV default)
 TV_SYMBOL_MAP = {
@@ -378,6 +440,177 @@ def calc_volume_analysis(df):
             'interpretation': interp,
         }
     except Exception:
+        return None
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  QUICK COMPOSITE SCORE  (yfinance only — no tvDatafeed, runs fast in parallel)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def quick_score_ticker(ticker):
+    """
+    Fast composite technical score using yfinance daily + weekly data.
+    Returns score -100 to +100, direction (CALL/PUT/NEUTRAL), and breakdown.
+    Components:
+      Trend alignment  — price vs EMA20 vs EMA50      (30 pts)
+      MACD daily       — histogram direction + crossover (25 pts)
+      MACD weekly      — confirms or contradicts daily   (20 pts)
+      Volume           — confirmation of direction       (10 pts)
+      Price momentum   — 5-day and 10-day % change       (15 pts)
+    """
+    try:
+        t    = yf.Ticker(ticker)
+        df_d = t.history(period='3mo')
+        df_w = t.history(period='1y', interval='1wk')
+
+        if df_d is None or len(df_d) < 25:
+            return None
+
+        close_d = df_d['Close'].dropna()
+        vol_d   = df_d['Volume'].dropna()
+        price   = float(close_d.iloc[-1])
+        score   = 0
+        components = {}
+
+        # ── 1. Trend alignment (30 pts) ──────────────────────────────────────
+        n50    = min(50, len(close_d) - 1)
+        ema20  = float(close_d.ewm(span=20, adjust=False).mean().iloc[-1])
+        ema50  = float(close_d.ewm(span=n50,  adjust=False).mean().iloc[-1])
+
+        if price > ema20 > ema50:
+            t_score = 30; t_label = 'Strong Bull (P > EMA20 > EMA50)'
+        elif price > ema50 and ema20 < ema50:
+            t_score = 15; t_label = 'Bull (above EMA50, EMA20 recovering)'
+        elif price > ema50:
+            t_score = 10; t_label = 'Slight Bull (above EMA50)'
+        elif price < ema20 < ema50:
+            t_score = -30; t_label = 'Strong Bear (P < EMA20 < EMA50)'
+        elif price < ema50 and ema20 > ema50:
+            t_score = -15; t_label = 'Bear (below EMA50, EMA20 weakening)'
+        elif price < ema50:
+            t_score = -10; t_label = 'Slight Bear (below EMA50)'
+        else:
+            t_score = 0; t_label = 'Neutral'
+
+        score += t_score
+        components['trend'] = {
+            'score': t_score, 'label': t_label,
+            'ema20': round(ema20, 2), 'ema50': round(ema50, 2)
+        }
+
+        # ── 2. MACD Daily (25 pts) ────────────────────────────────────────────
+        macd_d  = calc_macd(df_d, bars=30)
+        m_d_score = 0; m_d_label = 'No data'
+        if macd_d:
+            hvals = macd_d['hist_values']
+            building = len(hvals) >= 2 and (
+                (hvals[-1] > hvals[-2]) if macd_d['bullish'] else (hvals[-1] < hvals[-2])
+            )
+            if macd_d['crossing_up']:
+                m_d_score = 25; m_d_label = 'Crossing Up'
+            elif macd_d['bullish'] and building:
+                m_d_score = 20; m_d_label = 'Bullish (building)'
+            elif macd_d['bullish']:
+                m_d_score = 12; m_d_label = 'Bullish (fading)'
+            elif macd_d['crossing_down']:
+                m_d_score = -25; m_d_label = 'Crossing Down'
+            elif not macd_d['bullish'] and building:
+                m_d_score = -20; m_d_label = 'Bearish (building)'
+            else:
+                m_d_score = -12; m_d_label = 'Bearish (fading)'
+
+        score += m_d_score
+        components['macd_daily'] = {'score': m_d_score, 'label': m_d_label}
+
+        # ── 3. MACD Weekly (20 pts) ───────────────────────────────────────────
+        m_w_score = 0; m_w_label = 'No data'
+        if df_w is not None and len(df_w) >= 26:
+            macd_w = calc_macd(df_w, bars=26)
+            if macd_w:
+                if macd_w['crossing_up']:
+                    m_w_score = 20; m_w_label = 'Crossing Up'
+                elif macd_w['bullish']:
+                    m_w_score = 14; m_w_label = 'Bullish'
+                elif macd_w['crossing_down']:
+                    m_w_score = -20; m_w_label = 'Crossing Down'
+                else:
+                    m_w_score = -14; m_w_label = 'Bearish'
+
+        score += m_w_score
+        components['macd_weekly'] = {'score': m_w_score, 'label': m_w_label}
+
+        # ── 4. Volume (10 pts) ────────────────────────────────────────────────
+        v_score = 0; v_label = 'No data'
+        if len(vol_d) >= 20:
+            vol_now = float(vol_d.iloc[-1])
+            vol_avg = float(vol_d.rolling(20).mean().iloc[-1])
+            ratio   = vol_now / vol_avg if vol_avg > 0 else 1.0
+            bullish_move = t_score > 0
+
+            if ratio >= 1.5:
+                v_score = 10 if bullish_move else -10
+                v_label = f'{ratio:.1f}x avg — strong conviction'
+            elif ratio >= 1.0:
+                v_score = 5 if bullish_move else -3
+                v_label = f'{ratio:.1f}x avg — normal'
+            elif ratio >= 0.6:
+                v_score = 0; v_label = f'{ratio:.1f}x avg — quiet'
+            else:
+                v_score = -3; v_label = f'{ratio:.1f}x avg — very light'
+
+        score += v_score
+        components['volume'] = {'score': v_score, 'label': v_label}
+
+        # ── 5. Price momentum (15 pts) ────────────────────────────────────────
+        mom_score = 0; mom_label = 'No data'
+        if len(close_d) >= 10:
+            mom5  = (close_d.iloc[-1] / close_d.iloc[-5]  - 1) * 100
+            mom10 = (close_d.iloc[-1] / close_d.iloc[-10] - 1) * 100
+            if mom5 > 4:
+                mom_score = 15; mom_label = f'+{mom5:.1f}% (5d) — strong'
+            elif mom5 > 1.5:
+                mom_score = 10; mom_label = f'+{mom5:.1f}% (5d) — positive'
+            elif mom5 > 0:
+                mom_score = 5;  mom_label = f'+{mom5:.1f}% (5d) — slight'
+            elif mom5 > -1.5:
+                mom_score = -5; mom_label = f'{mom5:.1f}% (5d) — slight'
+            elif mom5 > -4:
+                mom_score = -10; mom_label = f'{mom5:.1f}% (5d) — weak'
+            else:
+                mom_score = -15; mom_label = f'{mom5:.1f}% (5d) — selling'
+
+        score += mom_score
+        components['momentum'] = {'score': mom_score, 'label': mom_label}
+
+        # ── Normalize & direction ─────────────────────────────────────────────
+        normalized = max(-100, min(100, score))
+
+        if normalized >= 25:
+            direction = 'CALL'; dir_label = 'Bullish Setup'
+        elif normalized <= -25:
+            direction = 'PUT';  dir_label = 'Bearish Setup'
+        else:
+            direction = 'NEUTRAL'; dir_label = 'Mixed Signals'
+
+        # Price position in 3-month range (proxy for overbought/oversold)
+        high_3m = float(df_d['High'].max())
+        low_3m  = float(df_d['Low'].min())
+        price_pos_3m = round(
+            (price - low_3m) / (high_3m - low_3m) * 100, 1
+        ) if high_3m > low_3m else 50.0
+
+        return {
+            'ticker':       ticker,
+            'price':        round(price, 2),
+            'score':        normalized,
+            'direction':    direction,
+            'dir_label':    dir_label,
+            'components':   components,
+            'price_pos_3m': price_pos_3m,
+        }
+
+    except Exception as e:
+        print(f"Quick score error ({ticker}): {e}")
         return None
 
 
@@ -711,11 +944,11 @@ def score_option(row, greeks, dte):
     elif liq >= 12: reasons.append(('ok',  f'Vol {vol:,} / OI {oi:,} — decent liquidity'))
     else:           reasons.append(('bad', f'Vol {vol:,} / OI {oi:,} — low liquidity'))
 
-    # DTE (15 pts)
-    if 14 <= dte <= 30:   dte_s = 15; reasons.append(('good', f'{dte} DTE — ideal for 1–5 day swing'))
-    elif 7 <= dte < 14 or 30 < dte <= 45: dte_s = 10; reasons.append(('ok', f'{dte} DTE — acceptable'))
-    elif 5 <= dte < 7 or 45 < dte <= 60:  dte_s = 5;  reasons.append(('warn', f'{dte} DTE — borderline'))
-    else:                                  dte_s = 2;  reasons.append(('bad', f'{dte} DTE — not ideal'))
+    # DTE (15 pts) — target window is 30-45 days for swing trades
+    if 30 <= dte <= 45:   dte_s = 15; reasons.append(('good', f'{dte} DTE — ideal for swing trade (30–45 day window)'))
+    elif 20 <= dte < 30 or 45 < dte <= 55: dte_s = 10; reasons.append(('ok', f'{dte} DTE — acceptable'))
+    elif 14 <= dte < 20 or 55 < dte <= 65: dte_s = 5;  reasons.append(('warn', f'{dte} DTE — outside ideal range'))
+    else:                                   dte_s = 2;  reasons.append(('bad', f'{dte} DTE — not suitable for this strategy'))
 
     # IV (10 pts)
     iv_pct = iv * 100
@@ -1305,6 +1538,253 @@ def analyze(request: Request, body: AnalyzeBody):
 
         return {'results': results, 'ticker': ticker,
                 'currentPrice': round(price, 2), 'expiration': expiration, 'dte': dte}
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+# ── Sector Scanner ────────────────────────────────────────────────────────────
+_SCAN_ETFS = {
+    'SPY': 'S&P 500',    'QQQ': 'NASDAQ 100', 'IWM': 'Russell 2000',
+    'XLK': 'Technology', 'XLF': 'Financials', 'XLV': 'Healthcare',
+    'XLE': 'Energy',     'XLI': 'Industrials','XLY': 'Cons. Cyclical',
+    'XLP': 'Cons. Defensive', 'XLB': 'Materials', 'XLU': 'Utilities',
+    'XLRE':'Real Estate', 'XLC': 'Comm. Svcs',
+}
+
+@app.get('/api/sector-scan')
+@limiter.limit("5/minute")
+def sector_scan(request: Request):
+    """Score all 14 sector ETFs. Returns ranked list + top bullish/bearish."""
+    cached = cache_get('sector_scan', ttl=300)
+    if cached:
+        return cached
+
+    results = []
+
+    def _score_etf(item):
+        sym, name = item
+        r = quick_score_ticker(sym)
+        if r:
+            r['name'] = name
+            r['etf']  = sym
+        return r
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        futures = [ex.submit(_score_etf, item) for item in _SCAN_ETFS.items()]
+        for f in concurrent.futures.as_completed(futures, timeout=60):
+            try:
+                r = f.result()
+                if r:
+                    results.append(r)
+            except Exception as e:
+                print(f"Sector scan worker error: {e}")
+
+    results.sort(key=lambda x: x['score'], reverse=True)
+
+    out = {
+        'sectors':      results,
+        'updated':      datetime.now(ZoneInfo('America/New_York')).strftime('%-I:%M %p ET'),
+        'top_bullish':  [r['etf'] for r in results if r['score'] >= 20][:5],
+        'top_bearish':  [r['etf'] for r in results if r['score'] <= -20][:5],
+    }
+    cache_set('sector_scan', out)
+    return out
+
+
+# ── Stock Screener ─────────────────────────────────────────────────────────────
+@app.get('/api/stock-screener')
+@limiter.limit("3/minute")
+def stock_screener(request: Request, sectors: str = ''):
+    """
+    Screen stocks from specified sector ETFs.
+    sectors: comma-separated ETF tickers (e.g. 'XLK,XLF')
+    Returns top 50 setups ranked by absolute score.
+    """
+    if sectors:
+        sector_list = [s.strip().upper() for s in sectors.split(',') if s.strip()]
+    else:
+        scan = cache_get('sector_scan', ttl=300)
+        sector_list = (scan or {}).get('top_bullish', ['SPY', 'QQQ', 'XLK'])[:3]
+
+    if not sector_list:
+        sector_list = ['SPY', 'QQQ', 'XLK']
+
+    cache_key = f'screener_{"_".join(sorted(sector_list))}'
+    cached = cache_get(cache_key, ttl=300)
+    if cached:
+        return cached
+
+    # Build deduplicated stock list from selected sectors
+    stock_set = []
+    seen = set()
+    for etf in sector_list:
+        for s in SECTOR_STOCKS.get(etf, [])[:35]:
+            if s not in seen:
+                seen.add(s)
+                stock_set.append(s)
+        if len(stock_set) >= 70:
+            break
+
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as ex:
+        futures = {ex.submit(quick_score_ticker, s): s for s in stock_set}
+        for f in concurrent.futures.as_completed(futures, timeout=120):
+            try:
+                r = f.result()
+                if r and r['direction'] != 'NEUTRAL':
+                    results.append(r)
+            except Exception as e:
+                print(f"Screener worker error: {e}")
+
+    results.sort(key=lambda x: abs(x['score']), reverse=True)
+
+    out = {
+        'setups':         results[:50],
+        'calls':          [r for r in results if r['direction'] == 'CALL'][:25],
+        'puts':           [r for r in results if r['direction'] == 'PUT'][:25],
+        'sectors':        sector_list,
+        'total_scanned':  len(stock_set),
+        'updated':        datetime.now(ZoneInfo('America/New_York')).strftime('%-I:%M %p ET'),
+    }
+    cache_set(cache_key, out)
+    return out
+
+
+# ── Contract Recommender ───────────────────────────────────────────────────────
+@app.get('/api/contract-recommend/{ticker}')
+@limiter.limit("8/minute")
+def contract_recommend(request: Request, ticker: str, direction: str = 'call'):
+    """
+    For a ticker + direction, find the best 30-45 DTE contract targeting delta
+    0.35-0.60. Returns top 5 scored recommendations.
+    """
+    ticker    = ticker.upper().strip()
+    direction = direction.lower()
+    if direction not in ('call', 'put'):
+        direction = 'call'
+
+    cache_key = f'recommend_{ticker}_{direction}'
+    cached = cache_get(cache_key, ttl=CACHE_TTL_STOCK)
+    if cached:
+        return cached
+
+    try:
+        stock = yf.Ticker(ticker)
+        info  = stock.info
+        price = float(info.get('currentPrice') or info.get('regularMarketPrice') or 0)
+        if not price:
+            hist  = stock.history(period='1d')
+            price = float(hist['Close'].iloc[-1]) if not hist.empty else 0
+        price = float(price)
+
+        expirations = stock.options
+        if not expirations:
+            return JSONResponse({'error': 'No options available for this ticker'}, status_code=400)
+
+        # Find expiry closest to 37 days (center of 30-45 DTE window)
+        today    = date.today()
+        best_exp = None
+        best_diff = 999
+
+        for exp in expirations:
+            exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
+            dte      = (exp_date - today).days
+            if 25 <= dte <= 55:
+                diff = abs(dte - 37)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_exp  = exp
+
+        # Fallback: nearest expiry with at least 25 DTE
+        if not best_exp:
+            for exp in expirations:
+                exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
+                if (exp_date - today).days >= 25:
+                    best_exp = exp
+                    break
+
+        if not best_exp:
+            return JSONResponse(
+                {'error': 'No expiration found in 30-45 DTE range. Try a more liquid ticker.'},
+                status_code=400
+            )
+
+        chain        = stock.option_chain(best_exp)
+        exp_d        = datetime.strptime(best_exp, '%Y-%m-%d').date()
+        dte          = max((exp_d - today).days, 0)
+        T            = max(dte / 365.0, 0.001)
+        r_f          = 0.05
+        contracts_df = chain.calls if direction == 'call' else chain.puts
+
+        candidates = []
+        for _, row in contracts_df.iterrows():
+            try:
+                strike = float(row['strike'])
+                iv     = float(row['impliedVolatility']) if not pd.isna(row['impliedVolatility']) else 0.3
+                bid    = float(row['bid'] or 0)
+                ask    = float(row['ask'] or 0)
+                mid    = (bid + ask) / 2 if ask > 0 else float(row.get('lastPrice', 0) or 0)
+
+                # Skip illiquid or very expensive contracts
+                if mid < 0.05 or mid > 20.0:
+                    continue
+
+                greeks = calculate_greeks(price, strike, T, r_f, iv, direction)
+                delta  = abs(greeks['delta'])
+
+                # Only consider 0.30-0.65 delta for swing trades
+                if not (0.30 <= delta <= 0.65):
+                    continue
+
+                score, grade, reasons = score_option(row.to_dict(), greeks, dte)
+
+                candidates.append({
+                    'type':         direction.upper(),
+                    'strike':       strike,
+                    'expiration':   best_exp,
+                    'dte':          dte,
+                    'bid':          round(bid, 2),
+                    'ask':          round(ask, 2),
+                    'mid':          round(mid, 2),
+                    'cost':         round(mid * 100, 2),
+                    'delta':        greeks['delta'],
+                    'theta':        greeks['theta'],
+                    'gamma':        greeks['gamma'],
+                    'vega':         greeks['vega'],
+                    'iv':           round(iv * 100, 1),
+                    'volume':       int(row['volume'])       if not pd.isna(row.get('volume'))       else 0,
+                    'openInterest': int(row['openInterest']) if not pd.isna(row.get('openInterest')) else 0,
+                    'breakeven':    round(strike + mid, 2)   if direction == 'call' else round(strike - mid, 2),
+                    'inTheMoney':   bool(row.get('inTheMoney', False)),
+                    'score':        score,
+                    'grade':        grade,
+                    'reasons':      reasons,
+                    'rank':         0,
+                })
+            except Exception:
+                continue
+
+        candidates.sort(key=lambda x: x['score'], reverse=True)
+        for i, c in enumerate(candidates):
+            c['rank'] = i + 1
+
+        if not candidates:
+            return JSONResponse(
+                {'error': 'No contracts in the target delta range (0.30-0.65). The options chain may be illiquid.'},
+                status_code=400
+            )
+
+        out = {
+            'ticker':        ticker,
+            'price':         round(price, 2),
+            'direction':     direction.upper(),
+            'expiration':    best_exp,
+            'dte':           dte,
+            'top_contracts': candidates[:5],
+        }
+        cache_set(cache_key, out)
+        return out
+
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=400)
 
