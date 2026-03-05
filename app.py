@@ -1245,6 +1245,23 @@ def estimate_price_target(ticker_obj, price, direction):
         return round(price + move if direction == 'call' else price - move, 2)
 
 
+def _fv(v, default=0.0):
+    """Float value safe for NaN — returns default if v is NaN or non-numeric."""
+    try:
+        f = float(v)
+        return default if pd.isna(f) else f
+    except (TypeError, ValueError):
+        return default
+
+def _iv(v, default=0):
+    """Int value safe for NaN — returns default if v is NaN or non-numeric."""
+    try:
+        f = float(v)
+        return default if pd.isna(f) else int(f)
+    except (TypeError, ValueError):
+        return default
+
+
 def find_best_spreads(chain_df, price, price_target, direction, expiration, dte):
     """
     Build and rank debit spread combos per trading strategy rules:
@@ -1252,6 +1269,8 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
       Short leg — at/near price target, width $2–5 (<$100 stock) or $5–10 (≥$100)
     """
     strikes  = sorted(chain_df['strike'].unique())
+    if not strikes:
+        return []
     min_w, max_w = (2, 5) if price < 100 else (5, 10)
     T   = max(dte / 365.0, 0.001)
     r_f = 0.05
@@ -1268,14 +1287,15 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
         lr = chain_lu.get(long_strike)
         if lr is None:
             continue
-        lb, la = float(lr.get('bid', 0) or 0), float(lr.get('ask', 0) or 0)
-        lm     = (lb + la) / 2 if la > 0 else float(lr.get('lastPrice', 0) or 0)
+        lb = _fv(lr.get('bid'))
+        la = _fv(lr.get('ask'))
+        lm = (lb + la) / 2 if la > 0 else _fv(lr.get('lastPrice'))
         if lm <= 0:
             continue
         l_iv  = float(lr['impliedVolatility']) if not pd.isna(lr['impliedVolatility']) else 0.3
         l_g   = calculate_greeks(price, long_strike, T, r_f, l_iv, direction)
-        l_vol = int(lr.get('volume', 0) or 0)
-        l_oi  = int(lr.get('openInterest', 0) or 0)
+        l_vol = _iv(lr.get('volume'))
+        l_oi  = _iv(lr.get('openInterest'))
 
         if direction == 'call':
             valid_sh = [s for s in strikes if min_w <= s - long_strike <= max_w]
@@ -1293,14 +1313,15 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
             sr = chain_lu.get(short_strike)
             if sr is None:
                 continue
-            sb, sa = float(sr.get('bid', 0) or 0), float(sr.get('ask', 0) or 0)
-            sm     = (sb + sa) / 2 if sa > 0 else float(sr.get('lastPrice', 0) or 0)
+            sb = _fv(sr.get('bid'))
+            sa = _fv(sr.get('ask'))
+            sm = (sb + sa) / 2 if sa > 0 else _fv(sr.get('lastPrice'))
             if sm <= 0:
                 continue
             s_iv  = float(sr['impliedVolatility']) if not pd.isna(sr['impliedVolatility']) else 0.3
             s_g   = calculate_greeks(price, short_strike, T, r_f, s_iv, direction)
-            s_vol = int(sr.get('volume', 0) or 0)
-            s_oi  = int(sr.get('openInterest', 0) or 0)
+            s_vol = _iv(sr.get('volume'))
+            s_oi  = _iv(sr.get('openInterest'))
 
             net_deb = lm - sm
             if net_deb <= 0.01:
@@ -2322,6 +2343,8 @@ def spread_recommend(request: Request, ticker: str, direction: str = 'call', set
             hist  = stock.history(period='1d')
             price = float(hist['Close'].iloc[-1]) if not hist.empty else 0
         price = float(price)
+        if not price:
+            return JSONResponse({'error': 'Could not determine current price for this ticker.'}, status_code=400)
 
         expirations = stock.options
         if not expirations:
@@ -2364,6 +2387,9 @@ def spread_recommend(request: Request, ticker: str, direction: str = 'call', set
             (contracts_df['strike'] >= price - atm_range) &
             (contracts_df['strike'] <= price + atm_range)
         ].copy()
+
+        if filtered_df.empty:
+            return JSONResponse({'error': 'No options found in strike range. Try a more liquid ticker.'}, status_code=400)
 
         # Get ATM IV for IVR estimate
         dist_series = (filtered_df['strike'] - price).abs()
