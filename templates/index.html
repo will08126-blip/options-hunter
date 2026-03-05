@@ -2127,6 +2127,13 @@ function closeContractSection() {
   document.getElementById('setupsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function fmtDate(d) {
+  if (!d) return '';
+  const parts  = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(parts[1], 10) - 1]} ${parseInt(parts[2], 10)} '${parts[0].slice(2)}`;
+}
+
 function handleSetupClick(ticker, direction, score) {
   if (_tradeMode === 'spread') {
     openSpreadView(ticker, direction, score);
