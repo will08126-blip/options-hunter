@@ -513,6 +513,38 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
 ════════════════════════════════════════════════════════════════════════════ -->
 <div class="tab-content-oh" id="content-options">
 
+  <!-- ── TRADE MODE TOGGLE ────────────────────────────────────────────────── -->
+  <div style="max-width:1100px;margin:0 auto;padding:16px 20px 0">
+    <div style="background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px">Trade Structure</div>
+        <div style="display:flex;gap:6px">
+          <button id="mode-spread" onclick="setTradeMode('spread')"
+            style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s">
+            📊 Debit Spread
+          </button>
+          <button id="mode-long" onclick="setTradeMode('long')"
+            style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">
+            📈 Long Options
+          </button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div id="modeDescText" style="font-size:12px;color:var(--text);line-height:1.5">
+          <span style="color:var(--blue);font-weight:600">DEFAULT</span> — Lower cost · Defined risk · Works in any IV environment
+        </div>
+        <div id="modeDescSub" style="font-size:11px;color:var(--muted);margin-top:2px">
+          Short leg offsets premium cost. Cap on max profit is acceptable since you always exit early at 65–75% of max value.
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--border);padding-left:16px;font-size:11px;color:var(--muted);line-height:1.6;min-width:180px">
+        <div id="modeDteTag" style="color:var(--blue);font-weight:600;margin-bottom:2px">21–35 DTE</div>
+        <div>Exit at 65–75% of max value</div>
+        <div>Never hold through earnings</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── SECTOR SCANNER ─────────────────────────────────────────────────── -->
   <div class="scanner-bar">
     <div class="scanner-bar-inner">
@@ -596,12 +628,31 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
 
         <!-- Contract Rules -->
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Contract Selection Rules</div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Debit Spread Rules (Default)</div>
           <div style="font-size:11px;color:var(--text);line-height:1.7">
-            <b style="color:var(--text)">DTE:</b> 30–45 days to expiration is the sweet spot — enough time for the thesis to play out without paying for excess theta.<br>
-            <b style="color:var(--text)">Delta:</b> Target 0.35–0.60. In-the-money enough to move, but not so deep that premium is wasted.<br>
-            <b style="color:var(--text)">IV Warning:</b> IV above 60% means premium is expensive — the stock must move more just to break even. Size down.<br>
-            <b style="color:var(--text)">Stop loss:</b> Exit when the bullish structure breaks — price closes below EMA20 or MACD crosses back down on the daily.
+            <b style="color:var(--text)">DTE:</b> 21–35 days. Enough time for the thesis without paying for excess theta. Exit early — never hold to expiration.<br>
+            <b style="color:var(--text)">Long leg:</b> ATM or 1 strike ITM (delta ~0.50–0.70). Responds well to price movement.<br>
+            <b style="color:var(--text)">Short leg:</b> At or just beyond your price target. $2–5 wide (&lt;$100 stocks) / $5–10 wide (≥$100 stocks).<br>
+            <b style="color:var(--text)">Exit:</b> Take profit at 65–75% of max value. Cut loss at 50% of premium paid. Exit if 21 EMA breaks or MACD rolls over.
+          </div>
+        </div>
+
+        <!-- IVR Guide -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">IV Rank (IVR) Guide</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--green)">Below 30% — Low</span><span style="color:var(--muted)">Cheap IV — can go wider for more potential</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--blue)">30–50% — Normal</span><span style="color:var(--muted)">Standard debit spread sizing</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--yellow)">50–70% — Elevated</span><span style="color:var(--muted)">Short leg sells expensive premium — spread costs less</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="color:var(--red)">70%+ — High</span><span style="color:var(--muted)">Spread only. Avoid long options entirely.</span>
+            </div>
           </div>
         </div>
 
@@ -609,18 +660,18 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
         <div style="grid-column:1/-1;background:#0d1829;border-radius:6px;padding:12px 14px">
           <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">The Workflow</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--muted)">
-            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">1. Scan Sectors</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">1. Set trade mode (top toggle)</span>
             <span style="color:var(--blue)">→</span>
-            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">2. Click hot sectors/themes</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">2. Scan Sectors</span>
             <span style="color:var(--blue)">→</span>
-            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">3. Review ranked watchlist</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">3. Click hot sectors/themes</span>
             <span style="color:var(--blue)">→</span>
-            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">4. Click a setup → get contract recs</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">4. Review ranked watchlist</span>
             <span style="color:var(--blue)">→</span>
-            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">5. Confirm on chart before trading</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">5. Get Spread (or Contracts) → confirm on chart</span>
           </div>
           <div style="margin-top:8px;font-size:11px;color:var(--muted)">
-            <b style="color:#e67e22">Remember:</b> This tool surfaces setups — always confirm on your own chart before entering a trade. High score + strong sector alignment + volume = highest-conviction plays.
+            <b style="color:#e67e22">Remember:</b> This tool surfaces setups — always confirm on your own chart before entering. Look for reversal, breakout, or dip setups with 21 EMA + MACD + VMC Cipher B all aligned across 1H, 4H, and Daily.
           </div>
         </div>
 
@@ -1686,6 +1737,42 @@ let _selectedSectors = new Set();
 let _allSetups = [];
 let _setupFilter = 'all';
 let _scanData = null;
+let _tradeMode = 'spread'; // 'spread' | 'long'
+
+function setTradeMode(mode) {
+  _tradeMode = mode;
+  const spreadBtn = document.getElementById('mode-spread');
+  const longBtn   = document.getElementById('mode-long');
+  const descText  = document.getElementById('modeDescText');
+  const descSub   = document.getElementById('modeDescSub');
+  const dteTag    = document.getElementById('modeDteTag');
+
+  if (mode === 'spread') {
+    spreadBtn.style.background  = 'var(--blue)';
+    spreadBtn.style.borderColor = 'var(--blue)';
+    spreadBtn.style.color       = '#fff';
+    longBtn.style.background    = 'transparent';
+    longBtn.style.borderColor   = 'var(--border)';
+    longBtn.style.color         = 'var(--muted)';
+    descText.innerHTML = '<span style="color:var(--blue);font-weight:600">DEFAULT</span> — Lower cost · Defined risk · Works in any IV environment';
+    descSub.textContent = 'Short leg offsets premium cost. Cap on max profit is fine since you always exit early at 65–75% of max value.';
+    dteTag.textContent  = '21–35 DTE';
+  } else {
+    longBtn.style.background    = 'var(--green)';
+    longBtn.style.borderColor   = 'var(--green)';
+    longBtn.style.color         = '#fff';
+    spreadBtn.style.background  = 'transparent';
+    spreadBtn.style.borderColor = 'var(--border)';
+    spreadBtn.style.color       = 'var(--muted)';
+    descText.innerHTML = '<span style="color:var(--green);font-weight:600">HIGH CONVICTION ONLY</span> — Use when: low IVR + very strong setup + large expected move';
+    descSub.textContent = 'No profit cap but full premium at risk. Best when IV is cheap and the thesis is exceptionally strong.';
+    dteTag.textContent  = '30–45 DTE';
+  }
+  // Re-render watchlist if visible so buttons update
+  if (document.getElementById('setupsSection').style.display !== 'none') {
+    renderSetupsList();
+  }
+}
 
 async function runSectorScan() {
   const btn = document.getElementById('scanBtn');
@@ -1894,8 +1981,8 @@ function renderSetupsList() {
         ${c.momentum    ? `<div class="setup-comp-row"><span class="setup-comp-label">Momentum</span><span class="setup-comp-val">${c.momentum.label}</span></div>` : ''}
         ${pos3m         ? `<div class="setup-comp-row"><span class="setup-comp-label">3m Range</span><span class="setup-comp-val">${pos3m}</span></div>` : ''}
       </div>
-      <button class="setup-btn ${btnClass}" onclick="openContractView('${r.ticker}','${r.direction.toLowerCase()}',${r.score})">
-        ${isBull ? '📈 View Best Calls' : '📉 View Best Puts'}
+      <button class="setup-btn ${btnClass}" onclick="handleSetupClick('${r.ticker}','${r.direction.toLowerCase()}',${r.score})">
+        ${_tradeMode === 'spread' ? (isBull ? '📊 Get Call Spread' : '📊 Get Put Spread') : (isBull ? '📈 View Best Calls' : '📉 View Best Puts')}
       </button>
     </div>`;
   }).join('')}</div>`;
@@ -1913,7 +2000,7 @@ async function openContractView(ticker, direction, setupScore) {
   contractTitle.textContent = `${ticker} — Best ${direction.toUpperCase()}S`;
   contractMeta.textContent  = `Setup score: ${setupScore > 0 ? '+' : ''}${setupScore}`;
   contractResults.innerHTML =
-    '<div class="state-box" style="padding:30px"><div class="spinner"></div><p>Finding best 30-45 DTE contracts...</p></div>';
+    '<div class="state-box" style="padding:30px"><div class="spinner"></div><p>Finding best 30–45 DTE contracts...</p></div>';
 
   // Scroll to contract section
   contractSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2036,6 +2123,208 @@ function renderContracts(data) {
 function closeContractSection() {
   document.getElementById('contractSection').style.display = 'none';
   document.getElementById('setupsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function handleSetupClick(ticker, direction, score) {
+  if (_tradeMode === 'spread') {
+    openSpreadView(ticker, direction, score);
+  } else {
+    openContractView(ticker, direction, score);
+  }
+}
+
+async function openSpreadView(ticker, direction, setupScore) {
+  const contractSection = document.getElementById('contractSection');
+  const contractResults = document.getElementById('contractResults');
+  const contractTitle   = document.getElementById('contractTitle');
+  const contractMeta    = document.getElementById('contractMeta');
+
+  const isBull = direction === 'call';
+  contractSection.style.display = 'block';
+  contractTitle.textContent = `${ticker} — ${isBull ? 'Call' : 'Put'} Debit Spread`;
+  contractMeta.textContent  = `Setup score: ${setupScore > 0 ? '+' : ''}${setupScore}`;
+  contractResults.innerHTML =
+    '<div class="state-box" style="padding:30px"><div class="spinner"></div><p>Finding best 21–35 DTE debit spreads...</p></div>';
+  contractSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res  = await fetch(`/api/spread-recommend/${ticker}?direction=${direction}&setup_score=${setupScore}`);
+    const data = await res.json();
+    if (data.error) {
+      contractResults.innerHTML = `<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>${data.error}</p></div>`;
+      return;
+    }
+    renderSpreads(data);
+  } catch(e) {
+    contractResults.innerHTML =
+      '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Failed to load spreads. Try again.</p></div>';
+  }
+}
+
+function renderSpreads(data) {
+  const spreads  = data.top_spreads || [];
+  const isBull   = data.direction === 'CALL';
+  const accentCol = isBull ? 'var(--green)' : 'var(--red)';
+
+  // ── IVR badge ───────────────────────────────────────────────────────────
+  const ivr     = data.ivr || {};
+  const ivrVal  = ivr.ivr != null ? ivr.ivr : '?';
+  const ivrLbl  = ivr.label || 'Unknown';
+  const ivrCol  = ivr.color === 'green'  ? 'var(--green)'  :
+                  ivr.color === 'yellow' ? 'var(--yellow)' :
+                  ivr.color === 'red'    ? 'var(--red)'    :
+                  ivr.color === 'blue'   ? 'var(--blue)'   : 'var(--muted)';
+  const ivrBg   = ivr.color === 'green'  ? 'rgba(0,208,132,.12)'  :
+                  ivr.color === 'yellow' ? 'rgba(255,193,7,.12)'  :
+                  ivr.color === 'red'    ? 'rgba(255,77,106,.12)' :
+                  ivr.color === 'blue'   ? 'rgba(77,159,255,.12)' : 'rgba(255,255,255,.05)';
+
+  const ivrHtml = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <div style="background:${ivrBg};border:1px solid ${ivrCol};border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:${ivrCol}">
+      IVR ${ivrVal}% — ${ivrLbl}
+    </div>
+    <span style="font-size:11px;color:var(--muted)">${ivr.action || ''}</span>
+  </div>`;
+
+  // ── Earnings warning ────────────────────────────────────────────────────
+  const earn = data.earnings || {};
+  const earnHtml = earn.warning
+    ? `<div style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.35);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--yellow)">
+        ⚠️ <b>Earnings in ${earn.dte} days (${earn.date})</b> — Never hold options through earnings. Use a spread only, or skip this trade entirely.
+      </div>` : '';
+
+  // ── Structure recommendation ────────────────────────────────────────────
+  const rec   = data.structure_rec || {};
+  const recFlagColor = rec.flag === 'warning' ? 'var(--yellow)' :
+                       rec.flag === 'green'   ? 'var(--green)'  : 'var(--blue)';
+  const recFlagBg    = rec.flag === 'warning' ? 'rgba(255,193,7,.1)'   :
+                       rec.flag === 'green'   ? 'rgba(0,208,132,.1)'  : 'rgba(77,159,255,.1)';
+  const recHtml = `<div style="background:${recFlagBg};border:1px solid ${recFlagColor};border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:${recFlagColor};text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Recommended Structure: ${rec.structure || 'DEBIT SPREAD'}</div>
+      <div style="font-size:11px;color:var(--muted)">${rec.reasoning || ''}</div>
+    </div>
+  </div>`;
+
+  // ── Summary bar ─────────────────────────────────────────────────────────
+  const summaryHtml = `
+    <div style="padding:12px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--muted)">Ticker: <b style="color:#fff">${data.ticker}</b></span>
+      <span style="font-size:12px;color:var(--muted)">Price: <b class="mono" style="color:#fff">$${data.price}</b></span>
+      <span style="font-size:12px;color:var(--muted)">Expiry: <b style="color:#fff">${fmtDate(data.expiration)}</b></span>
+      <span style="font-size:12px;color:var(--muted)">DTE: <b style="color:#fff">${data.dte} days</b></span>
+      <span style="font-size:12px;color:var(--muted)">Direction: <b style="color:${accentCol}">${data.direction}</b></span>
+      <span style="font-size:12px;color:var(--muted)">ATM IV: <b style="color:#fff">${data.atm_iv}%</b></span>
+      <span style="font-size:12px;color:var(--muted)">Est. Target: <b class="mono" style="color:${accentCol}">$${data.price_target}</b></span>
+    </div>
+    <div style="padding:12px 20px 0">
+      ${ivrHtml}${earnHtml}${recHtml}
+    </div>`;
+
+  // ── Exit rules reminder ─────────────────────────────────────────────────
+  const exitRulesHtml = `<div style="background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:16px 20px 4px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
+    <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;grid-column:1/-1;margin-bottom:4px">Exit Rules</div>
+    <div style="font-size:11px;color:var(--text)"><span style="color:var(--green);font-weight:600">✓ Take profit</span> — spread reaches 65–75% of max value. Don't get greedy.</div>
+    <div style="font-size:11px;color:var(--text)"><span style="color:var(--red);font-weight:600">✗ Stop loss</span> — position loses 50% of premium paid. Cut it.</div>
+    <div style="font-size:11px;color:var(--text)"><span style="color:var(--yellow);font-weight:600">⚠ Invalidated</span> — 21 EMA breaks on 4H/Daily or MACD rolls over. Close immediately.</div>
+    <div style="font-size:11px;color:var(--text)"><span style="color:var(--yellow);font-weight:600">⚠ Earnings</span> — close before the event. Never hold through.</div>
+  </div>`;
+
+  // ── Grade colors ────────────────────────────────────────────────────────
+  const gradeColors = {
+    'A+': {bg:'rgba(0,208,132,.2)',color:'var(--green)',border:'rgba(0,208,132,.4)'},
+    'A':  {bg:'rgba(0,208,132,.12)',color:'#00b870',border:'rgba(0,208,132,.2)'},
+    'B+': {bg:'rgba(77,159,255,.15)',color:'var(--blue)',border:'rgba(77,159,255,.3)'},
+    'B':  {bg:'rgba(77,159,255,.1)',color:'#4d99cc',border:'rgba(77,159,255,.2)'},
+    'C':  {bg:'rgba(255,193,7,.15)',color:'var(--yellow)',border:'rgba(255,193,7,.3)'},
+    'D':  {bg:'rgba(255,77,106,.12)',color:'var(--red)',border:'rgba(255,77,106,.3)'},
+  };
+
+  const gradeForScore = s => s >= 85 ? 'A+' : s >= 70 ? 'A' : s >= 55 ? 'B+' : s >= 40 ? 'B' : s >= 25 ? 'C' : 'D';
+
+  const cardsHtml = spreads.map((sp, i) => {
+    const isTop    = i === 0;
+    const grade    = gradeForScore(sp.score);
+    const gc       = gradeColors[grade] || gradeColors['C'];
+    const topLabel = isTop ? '<span style="font-size:10px;background:rgba(0,208,132,.15);color:var(--green);border-radius:10px;padding:1px 8px;font-weight:700;margin-left:6px">TOP PICK</span>' : '';
+
+    const reasons = (sp.reasons || []).map(([type, txt]) => {
+      const col  = type === 'good' ? 'var(--green)' : type === 'ok' ? 'var(--text)' : type === 'warn' ? '#ff944d' : 'var(--red)';
+      const icon = type === 'good' ? '✓' : type === 'ok' ? '◎' : '✗';
+      return `<div class="cr-reason-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:var(--muted)">${txt}</span></div>`;
+    }).join('');
+
+    const beDir = data.direction === 'CALL' ? `+${sp.breakeven_pct}%` : `-${sp.breakeven_pct}%`;
+    const rrColor = sp.rr_ratio >= 1.5 ? 'var(--green)' : sp.rr_ratio >= 1.0 ? 'var(--text)' : 'var(--yellow)';
+    const debitPctColor = sp.debit_pct_width <= 40 ? 'var(--green)' : sp.debit_pct_width <= 55 ? 'var(--text)' : 'var(--yellow)';
+
+    return `<div class="contract-rec${isTop ? ' top-pick' : ''}">
+      <div class="cr-header">
+        <div class="cr-rank">#${sp.rank} Pick ${topLabel}</div>
+        <span class="cr-grade-badge" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.border}">${grade}</span>
+      </div>
+
+      <div style="margin:10px 0 6px">
+        <div style="font-size:13px;font-weight:700;color:#fff">
+          BUY $${sp.long_strike} ${data.direction} &nbsp;/&nbsp; SELL $${sp.short_strike} ${data.direction}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">
+          ${fmtDate(sp.expiration)} · ${sp.dte} DTE · $${sp.spread_width} wide spread · Net delta ${sp.net_delta}
+        </div>
+      </div>
+
+      <div class="cr-stats" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
+        <div class="cr-stat">
+          <div class="cr-stat-label">Net Debit (Max Loss)</div>
+          <div class="cr-stat-val" style="color:var(--red)">$${sp.net_debit} <span style="font-size:10px;color:var(--muted)">($${sp.max_loss} total)</span></div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Max Profit</div>
+          <div class="cr-stat-val" style="color:var(--green)">$${sp.max_profit}</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Risk / Reward</div>
+          <div class="cr-stat-val" style="color:${rrColor}">${sp.rr_ratio}:1</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Debit % of Width</div>
+          <div class="cr-stat-val" style="color:${debitPctColor}">${sp.debit_pct_width}%</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">Breakeven at Expiry</div>
+          <div class="cr-stat-val" style="color:var(--yellow)">$${sp.breakeven} <span style="font-size:10px;color:var(--muted)">(${beDir})</span></div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">65% Target ($${sp.val_65})</div>
+          <div class="cr-stat-val" style="color:var(--green)">+$${sp.profit_at_65} profit</div>
+        </div>
+        <div class="cr-stat">
+          <div class="cr-stat-label">75% Target ($${sp.val_75})</div>
+          <div class="cr-stat-val" style="color:var(--green)">+$${sp.profit_at_75} profit</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted)">
+          <span style="color:var(--green);font-weight:600">LONG (BUY)</span> $${sp.long_strike} ${data.direction}<br>
+          $${sp.long_bid}/$${sp.long_ask} mid · <b style="color:#fff">$${sp.long_mid}</b> · δ${sp.long_delta} · IV ${sp.long_iv}%<br>
+          Vol ${sp.long_volume.toLocaleString()} / OI ${sp.long_oi.toLocaleString()}
+        </div>
+        <div style="font-size:11px;color:var(--muted)">
+          <span style="color:var(--red);font-weight:600">SHORT (SELL)</span> $${sp.short_strike} ${data.direction}<br>
+          $${sp.short_bid}/$${sp.short_ask} mid · <b style="color:#fff">$${sp.short_mid}</b> · δ${sp.short_delta} · IV ${sp.short_iv}%<br>
+          Vol ${sp.short_volume.toLocaleString()} / OI ${sp.short_oi.toLocaleString()}
+        </div>
+      </div>
+
+      <div class="cr-reasons">${reasons}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('contractResults').innerHTML = `
+    ${summaryHtml}
+    <div class="contract-rec-grid" style="padding-bottom:4px">${cardsHtml}</div>
+    ${exitRulesHtml}`;
 }
 
 async function loadFullChain(ticker) {
