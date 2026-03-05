@@ -536,6 +536,98 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
     </div>
   </div>
 
+  <!-- ── HOW IT WORKS LEGEND ─────────────────────────────────────────── -->
+  <div style="max-width:1100px;margin:14px auto 0;padding:0 20px">
+    <details style="background:#0b1220;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <summary style="padding:11px 16px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+        <span style="color:var(--blue)">📖</span> How It Works — Scoring Legend
+        <span style="margin-left:auto;font-size:10px;color:var(--muted);font-weight:400">click to expand</span>
+      </summary>
+      <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;border-top:1px solid var(--border)">
+
+        <!-- Composite Score -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Composite Score (−100 → +100)</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.6">
+            Every stock and ETF gets one number that summarizes its technical posture right now. Higher = more bullish, lower = more bearish.
+          </div>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:11px">
+            <div style="display:flex;justify-content:space-between"><span style="color:#2ecc71">+40 to +100</span><span style="color:var(--muted)">Strong bull — prime call territory</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#2ecc71">+15 to +39</span><span style="color:var(--muted)">Mild bull — worth watching</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">−14 to +14</span><span style="color:var(--muted)">Mixed — stay out</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:#e67e22">−15 to −39</span><span style="color:var(--muted)">Mild bear — put candidate</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--red)">−40 to −100</span><span style="color:var(--muted)">Strong bear — prime put territory</span></div>
+          </div>
+        </div>
+
+        <!-- Score Breakdown -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Score Breakdown (100 pts total)</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:11px">
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--text)">Trend — EMA20 vs EMA50</span><span style="color:var(--blue);font-weight:600">30 pts</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--text)">MACD Daily</span><span style="color:var(--blue);font-weight:600">25 pts</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--text)">MACD Weekly</span><span style="color:var(--blue);font-weight:600">20 pts</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px solid #1a2540;padding-bottom:4px">
+              <span style="color:var(--text)">5-Day Momentum</span><span style="color:var(--blue);font-weight:600">15 pts</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span style="color:var(--text)">Volume Confirmation</span><span style="color:var(--blue);font-weight:600">10 pts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Indicator Details -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">What Each Indicator Means</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.7">
+            <b style="color:var(--text)">Trend (EMA20/50):</b> Price above both EMAs in the right order = strong bull structure. The most important signal.<br>
+            <b style="color:var(--text)">MACD Daily:</b> Histogram crossing up = momentum turning bullish. Building = momentum accelerating.<br>
+            <b style="color:var(--text)">MACD Weekly:</b> Weekly MACD agreeing with daily = higher-conviction setup. Disagreement = caution.<br>
+            <b style="color:var(--text)">Momentum:</b> Raw 5-day % move. Confirms recent price action is following the signal.<br>
+            <b style="color:var(--text)">Volume:</b> High volume on bullish days = institutional conviction. Low volume = weak move.
+          </div>
+        </div>
+
+        <!-- Contract Rules -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Contract Selection Rules</div>
+          <div style="font-size:11px;color:var(--text);line-height:1.7">
+            <b style="color:var(--text)">DTE:</b> 30–45 days to expiration is the sweet spot — enough time for the thesis to play out without paying for excess theta.<br>
+            <b style="color:var(--text)">Delta:</b> Target 0.35–0.60. In-the-money enough to move, but not so deep that premium is wasted.<br>
+            <b style="color:var(--text)">IV Warning:</b> IV above 60% means premium is expensive — the stock must move more just to break even. Size down.<br>
+            <b style="color:var(--text)">Stop loss:</b> Exit when the bullish structure breaks — price closes below EMA20 or MACD crosses back down on the daily.
+          </div>
+        </div>
+
+        <!-- Workflow -->
+        <div style="grid-column:1/-1;background:#0d1829;border-radius:6px;padding:12px 14px">
+          <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">The Workflow</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--muted)">
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">1. Scan Sectors</span>
+            <span style="color:var(--blue)">→</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">2. Click hot sectors/themes</span>
+            <span style="color:var(--blue)">→</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">3. Review ranked watchlist</span>
+            <span style="color:var(--blue)">→</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">4. Click a setup → get contract recs</span>
+            <span style="color:var(--blue)">→</span>
+            <span style="background:#112035;border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--text)">5. Confirm on chart before trading</span>
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+            <b style="color:#e67e22">Remember:</b> This tool surfaces setups — always confirm on your own chart before entering a trade. High score + strong sector alignment + volume = highest-conviction plays.
+          </div>
+        </div>
+
+      </div>
+    </details>
+  </div>
+
   <!-- ── RANKED WATCHLIST ──────────────────────────────────────────────── -->
   <div id="setupsSection" style="display:none">
     <div class="setups-bar">
