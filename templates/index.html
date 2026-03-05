@@ -304,6 +304,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 .sc-score{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:800;line-height:1;margin-bottom:3px;}
 .sc-dir{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
 .sc-bar-wrap{margin-top:7px;height:3px;background:#1a1f2e;border-radius:2px;overflow:hidden;}
+.sc-range{font-size:9px;color:var(--muted);margin-top:2px;}
 .sc-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
 
 /* Setups section */
@@ -1824,6 +1825,7 @@ function _buildCard(s) {
     <div class="sc-score" style="color:${scoreColor}">${score > 0 ? '+' : ''}${score}</div>
     <div class="sc-dir" style="color:${dirColor}">${s.dir_label}</div>
     <div style="font-size:9px;color:var(--muted);margin-top:3px">${trend}</div>
+    ${s.price_pos_3m != null ? `<div class="sc-range">${Math.round(s.price_pos_3m)}% of range</div>` : ''}
     <div class="sc-bar-wrap">
       <div class="sc-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
     </div>
