@@ -1625,39 +1625,52 @@ async function runSectorScan() {
   }
 }
 
+function _buildCard(s) {
+  const score = s.score;
+  const isBull = score > 0;
+  const isStrong = Math.abs(score) >= 40;
+  const cardClass = isStrong && isBull ? 'bull-card' : isStrong && !isBull ? 'bear-card' : '';
+  const scoreColor = score >= 40 ? 'var(--green)' : score >= 15 ? '#2ecc71' :
+                     score >= -15 ? 'var(--muted)' : score >= -40 ? '#e67e22' : 'var(--red)';
+  const dirColor = isBull ? 'var(--green)' : score < 0 ? 'var(--red)' : 'var(--muted)';
+  const barPct = Math.min(100, Math.abs(score));
+  const barColor = isBull ? 'var(--green)' : 'var(--red)';
+  const trend = s.components && s.components.trend ? s.components.trend.label.split('(')[0].trim() : '—';
+  const themeTag = s.is_theme ? `<div style="font-size:9px;color:var(--blue);margin-bottom:1px;font-weight:600">THEME</div>` : '';
+
+  return `<div class="sector-card ${cardClass}" id="sc-${s.etf}" onclick="toggleSector('${s.etf}')">
+    ${themeTag}
+    <div class="sc-etf">${s.etf}</div>
+    <div class="sc-name">${s.name}</div>
+    <div class="sc-score" style="color:${scoreColor}">${score > 0 ? '+' : ''}${score}</div>
+    <div class="sc-dir" style="color:${dirColor}">${s.dir_label}</div>
+    <div style="font-size:9px;color:var(--muted);margin-top:3px">${trend}</div>
+    <div class="sc-bar-wrap">
+      <div class="sc-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
+    </div>
+  </div>`;
+}
+
 function renderSectorGrid(data) {
   const sectors = data.sectors || [];
-  if (!sectors.length) {
+  const themes  = data.themes  || [];
+  if (!sectors.length && !themes.length) {
     document.getElementById('sectorGrid').innerHTML =
       '<div class="state-box" style="padding:20px"><p>No sector data returned.</p></div>';
     return;
   }
 
-  const html = `<div class="sector-grid">${sectors.map(s => {
-    const score = s.score;
-    const isBull = score > 0;
-    const isStrong = Math.abs(score) >= 40;
-    const cardClass = isStrong && isBull ? 'bull-card' : isStrong && !isBull ? 'bear-card' : '';
-    const scoreColor = score >= 40 ? 'var(--green)' : score >= 15 ? '#2ecc71' :
-                       score >= -15 ? 'var(--muted)' : score >= -40 ? '#e67e22' : 'var(--red)';
-    const dirColor = isBull ? 'var(--green)' : score < 0 ? 'var(--red)' : 'var(--muted)';
-    const barPct = Math.min(100, Math.abs(score));
-    const barColor = isBull ? 'var(--green)' : 'var(--red)';
-    const trend = s.components && s.components.trend ? s.components.trend.label.split('(')[0].trim() : '—';
-
-    return `<div class="sector-card ${cardClass}" id="sc-${s.etf}" onclick="toggleSector('${s.etf}')">
-      <div class="sc-etf">${s.etf}</div>
-      <div class="sc-name">${s.name}</div>
-      <div class="sc-score" style="color:${scoreColor}">${score > 0 ? '+' : ''}${score}</div>
-      <div class="sc-dir" style="color:${dirColor}">${s.dir_label}</div>
-      <div style="font-size:9px;color:var(--muted);margin-top:3px">${trend}</div>
-      <div class="sc-bar-wrap">
-        <div class="sc-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
-      </div>
-    </div>`;
-  }).join('')}</div>
-  <div style="padding:6px 20px 10px;font-size:11px;color:var(--muted)">
-    Click one or more sectors to load a ranked watchlist for those sectors.
+  let html = '';
+  if (sectors.length) {
+    html += `<div style="padding:8px 20px 4px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase">SPDR Sectors &amp; Broad Market</div>
+    <div class="sector-grid">${sectors.map(_buildCard).join('')}</div>`;
+  }
+  if (themes.length) {
+    html += `<div style="padding:10px 20px 4px;font-size:11px;font-weight:600;color:var(--blue);letter-spacing:.06em;text-transform:uppercase">Theme Buckets</div>
+    <div class="sector-grid">${themes.map(_buildCard).join('')}</div>`;
+  }
+  html += `<div style="padding:6px 20px 10px;font-size:11px;color:var(--muted)">
+    Click one or more cards to load a ranked watchlist.
     <span id="sectorHint" style="color:var(--blue);margin-left:6px"></span>
   </div>`;
 

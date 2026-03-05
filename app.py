@@ -127,66 +127,117 @@ POPULAR_STOCKS = [
     'COIN','JPM','XOM','HOOD','SOFI'
 ]
 
-# ─── SECTOR STOCK UNIVERSE ─────────────────────────────────────────────────────
-# 30-45 liquid stocks per sector ETF for the options screener.
-# Mix of large-cap leaders + mid-cap momentum names. Emphasis on sub-$100 stocks
-# for cheaper premiums, but higher-priced names included when setups are strong.
+# ─── SECTOR & THEME STOCK UNIVERSE ────────────────────────────────────────────
+# 50-60 stocks per bucket. Two types:
+#   SPDR sectors  — map to the standard ETF (XLK, XLF, etc.)
+#   Theme buckets — focused sub-sectors (SEMI, CLOUD, CYBER, BIOTECH, EV, FINTECH, MOMO)
+# The screener pulls from whichever buckets the user selects.
 SECTOR_STOCKS = {
+    # ── SPDR Sector ETFs ──────────────────────────────────────────────────────
     'XLK':  ['AMD','INTC','AVGO','QCOM','TXN','MU','AMAT','KLAC','LRCX','ADI',
               'MRVL','ON','HPQ','DELL','STX','WDC','CSCO','PLTR','NET','DDOG',
               'PANW','CRWD','ZS','FTNT','KEYS','SWKS','MPWR','MCHP','TER','ENTG',
-              'WOLF','AMBA','SLAB','ACLS','SITM','NXPI','MTSI','ALGM','COHR','FORM'],
+              'WOLF','AMBA','SLAB','ACLS','SITM','NXPI','MTSI','ALGM','COHR','FORM',
+              'CRUS','POWI','DIOD','SMTC','LFUS','RMBS','AEHR','CRDO','NVEC','IOSP'],
     'QQQ':  ['NFLX','PYPL','COST','PEP','MDLZ','REGN','BIIB','GILD','VRTX',
               'IDXX','DXCM','FAST','PAYX','CDNS','ANSS','MNST','TEAM','WDAY',
               'OKTA','VEEV','ZI','GTLB','BILL','HUBS','DOCN','TTD','ROKU','EXAS',
-              'PODD','NTRA','BMRN','SGEN','RARE','FOLD','ALKS','CSGP','LCID','JOBY'],
+              'PODD','NTRA','BMRN','RARE','FOLD','ALKS','CSGP','FANG','LULU','ODFL',
+              'PCAR','CTSH','VRSK','GEHC','GFS','CCEP','TTWO','ADSK','MELI','BIDU'],
     'XLF':  ['JPM','BAC','WFC','C','MS','GS','BLK','SCHW','COF','AXP',
               'USB','PNC','TFC','FITB','HBAN','RF','CFG','KEY','MTB','ZION',
               'HOOD','SOFI','SQ','AFRM','UPST','NU','LC','ALLY','SYF','DFS',
-              'NAVI','NMIH','MCO','SPGI','ICE','CME','CBOE','MKTX','VIRT','LPLA'],
+              'NAVI','NMIH','MCO','SPGI','ICE','CME','CBOE','MKTX','VIRT','LPLA',
+              'RJF','SF','COWN','MARA','COIN','SI','BFIN','IBOC','FFIN','BOKF'],
     'XLV':  ['LLY','PFE','ABBV','MRK','BMY','AMGN','GILD','BIIB','REGN',
               'VRTX','HCA','CVS','CI','HUM','MOH','CNC','ISRG','SYK','BAX',
               'BDX','EW','ZBH','RMD','DXCM','PODD','ALGN','HOLX','WAT','TECH',
-              'IRTC','NVCR','TNDM','INSP','GKOS','ACCD','PHR','PRVA','AMED','ENSG'],
-    'XLE':  ['COP','EOG','SLB','HAL','BKR','MPC','PSX','VLO','DVN','FANG',
-              'OXY','APA','HES','MRO','AR','EQT','RRC','OKE','KMI','WMB',
-              'LNG','CTRA','SM','NOG','MTDR','MGY','VTLE','ROCC','KNTK','TRGP',
-              'HES','MMP','AM','SBOW','CIVI','BTU','ARCH','DKL','HESM','GPRE'],
+              'IRTC','NVCR','TNDM','INSP','GKOS','ACCD','PHR','PRVA','AMED','ENSG',
+              'OMCL','IART','MMSI','NVCR','SWAV','ITGR','LNTH','PRCT','HALO','ICUI'],
+    'XLE':  ['XOM','CVX','COP','EOG','SLB','HAL','BKR','MPC','PSX','VLO',
+              'DVN','FANG','OXY','APA','HES','MRO','AR','EQT','RRC','OKE',
+              'KMI','WMB','LNG','CTRA','SM','NOG','MTDR','MGY','VTLE','ROCC',
+              'TRGP','AM','SBOW','CIVI','BTU','ARCH','GPRE','REX','SUN','HESM',
+              'DINO','PARR','CLMT','CAPL','DKL','ARGO','FLNG','GLNG','GLOG','KNOP'],
     'XLI':  ['CAT','DE','HON','GE','RTX','LMT','NOC','GD','EMR','ETN',
               'PH','ROK','AME','XYL','IR','TT','CARR','OTIS','WM','RSG',
               'CTAS','FAST','GWW','JBHT','UPS','FDX','AXON','TDY','LDOS','SAIC',
-              'KTOS','RCAT','JOBY','ACHR','EH','UAL','DAL','AAL','SKYW','MESA'],
+              'KTOS','RCAT','JOBY','ACHR','UAL','DAL','AAL','SKYW','ALGT','SAVE',
+              'GEO','CXW','ACCO','AYI','GNRC','HUBB','ITRI','LII','MAS','PRIM'],
     'XLY':  ['HD','LOW','TGT','BKNG','MAR','HLT','MGM','LVS','WYNN','RCL',
               'CCL','NCLH','NKE','LULU','TPR','RL','GM','F','RIVN','SBUX',
               'MCD','CMG','DPZ','YUM','QSR','DKNG','PENN','GENI','CZR','BYD',
-              'BLNK','CHPT','EVGO','LAZR','GOEV','RIDE','PLBY','NKLA','VLTA','PTRA'],
+              'BLNK','CHPT','EVGO','TSLA','LCID','NIO','XPEV','LI','FSR','NKLA',
+              'WING','FAT','ARCO','JACK','EAT','DRI','TXRH','BJRI','CAKE','DENN'],
     'XLP':  ['PG','KO','PEP','WMT','COST','MDLZ','GIS','K','CPB','SJM',
               'MKC','CAG','HRL','TSN','KHC','STZ','CLX','CL','CHD','KR',
               'MNST','PM','MO','BTI','TAP','SAM','ELF','OLLI','PRGO','HAIN',
-              'FRPT','SMPL','BYND','OTLY','CELH','FIZZ','REED','NAPA','COKE','SFM'],
+              'FRPT','SMPL','BYND','CELH','FIZZ','COKE','SFM','GO','SPTN','CHEF',
+              'FARM','JJSF','LANC','SAFM','CALM','DOLE','POST','THS','UNFI','SYY'],
     'XLB':  ['LIN','APD','SHW','FCX','NEM','AA','ALB','CF','MOS','NUE',
               'STLD','RS','CMC','ATI','MP','LAC','LTHM','CC','HUN','RPM',
               'PPG','EMN','CE','OLN','WLK','LYB','DD','AXTA','VMC','MLM',
-              'CRS','MTRN','KALU','CENX','CSTM','HBM','AG','PAAS','EXK','MAG'],
+              'CRS','MTRN','KALU','CENX','CSTM','HBM','AG','PAAS','EXK','MAG',
+              'GOLD','KGC','AEM','WPM','FNV','RGLD','SSRM','CDE','HL','USA'],
     'XLU':  ['NEE','DUK','SO','AEP','EXC','SRE','XEL','ED','WEC','ETR',
               'FE','PPL','CNP','NI','AES','CMS','LNT','EVRG','POR','AVA',
-              'BEPC','CWEN','NOVA','SHLS','ARRY','FSLR','ENPH','SPWR','RUN','SEDG'],
+              'BEPC','CWEN','NOVA','SHLS','ARRY','FSLR','ENPH','SPWR','RUN','SEDG',
+              'BE','PLUG','FCEL','BLDP','HYLN','CLNE','AMRC','GPRE','REX','HASI'],
     'XLRE': ['PLD','CCI','EQIX','PSA','DLR','O','SPG','VTR','WELL','AVB',
               'EQR','ESS','MAA','NNN','STAG','COLD','REXR','EXR','CUBE','LSI',
               'AMH','INVH','SUI','ELS','UDR','CPT','NLY','AGNC','RITM','KREF',
-              'LADR','GPMT','PMT','MFA','TWO','IVR','NYMT','AOMR','EARN','BXMT'],
+              'LADR','GPMT','PMT','MFA','TWO','IVR','NYMT','AOMR','EARN','BXMT',
+              'VICI','GLPI','IIPR','PINE','ADC','EPRT','GTY','NTST','SAFE','LAND'],
     'XLC':  ['META','GOOGL','NFLX','DIS','CMCSA','T','VZ','TMUS','EA','TTWO',
               'RBLX','MTCH','ZM','SNAP','PINS','RDDT','SPOT','WBD','LYV','MSGS',
-              'CHTR','FOXA','NYT','IPG','OMC','NWSA','PARA','AMC','IACI','CARG',
-              'TKO','FUBO','SIRI','LUMN','ATUS','DISH','CNXC','GSAT','LILM','VZIO'],
+              'CHTR','FOXA','NYT','IPG','OMC','NWSA','PARA','AMC','CARG','TKO',
+              'FUBO','SIRI','LUMN','ATUS','DISH','CNXC','GSAT','IACI','NWSA','IAC',
+              'MGNI','PUBM','TTD','IAS','DV','VIANT','APPS','IRBT','U','APP'],
     'SPY':  ['AAPL','MSFT','NVDA','AMZN','META','GOOGL','TSLA','AVGO','JPM',
               'V','UNH','MA','HD','ORCL','COST','XOM','CVX','LLY','JNJ','PG',
-              'ABBV','MRK','WMT','BAC','KO','PEP','NFLX','AMD','CRM','ABT'],
+              'ABBV','MRK','WMT','BAC','KO','PEP','NFLX','AMD','CRM','ABT',
+              'ACN','TMO','QCOM','TXN','INTU','AMGN','RTX','HON','CAT','GE'],
     'IWM':  ['SMCI','INSP','EXAS','QLYS','BJ','HIMS','GKOS','IMAX','RMBS',
               'CORT','IRTC','KRYS','CALX','CAKE','BOOT','BLFS','ARCB','ACVA',
               'PRCT','PCVX','NVRI','HCC','SLAB','PCRX','SMPL','IONQ','ARQT',
-              'RXRX','JOBY','ACHR','CLOV','SKIN','TPVG','AEIS','OSIS','AVAV',
-              'KTOS','DRS','VSCO','DLHC','TASK','NTRA','ALEC','JANX','SPCE'],
+              'RXRX','JOBY','ACHR','SKIN','AEIS','OSIS','AVAV','KTOS','DRS',
+              'VSCO','TASK','NTRA','ALEC','JANX','SPCE','RKLB','LUNR','ASTS','SATL'],
+
+    # ── Theme Buckets ─────────────────────────────────────────────────────────
+    'SEMI':    ['NVDA','AMD','INTC','AVGO','QCOM','TXN','MU','AMAT','KLAC','LRCX',
+                'ADI','MRVL','ON','SWKS','MPWR','MCHP','TER','ENTG','WOLF','AMBA',
+                'SLAB','ACLS','SITM','NXPI','MTSI','ALGM','COHR','FORM','CRUS','POWI',
+                'DIOD','SMTC','LFUS','RMBS','AEHR','CRDO','NVEC','IOSP','OLED','IMOS',
+                'AMKR','IPHI','SITM','AOSL','SIMO','DRAM','QUIK','SIFY','SMTC','GFS'],
+    'CLOUD':   ['NOW','CRM','ADBE','INTU','SNOW','DDOG','NET','ZS','CRWD','PANW',
+                'FTNT','OKTA','VEEV','WDAY','TEAM','MDB','HUBS','GTLB','ZI','DOCN',
+                'TTD','BILL','COUP','CFLT','BRZE','APPN','FIVN','NCNO','PCTY','PAYC',
+                'CVLT','ESTC','TENB','QLYS','VRNS','RPD','S','SAIL','SMAR','BOX',
+                'ALRM','SUMO','DOMO','SPSC','FOUR','JAMF','WEAVE','RAMP','ALKT','BAND'],
+    'CYBER':   ['CRWD','PANW','ZS','FTNT','OKTA','NET','S','SAIL','QLYS','TENB',
+                'RPD','VRNS','CYBR','ITGR','SMAR','CHKP','MIME','LDOS','MSFT','CSCO',
+                'PFPT','OSPN','QLYS','SCWX','NTCT','ATEN','CACI','MANT','SAIC','BAH',
+                'FEYE','RDWR','ACLS','RILY','SFNC','ESNT','MGIC','RDN','MTG','NMIH'],
+    'BIOTECH': ['MRNA','BNTX','REGN','BIIB','VRTX','BMRN','RARE','FOLD','ALKS','INCY',
+                'EXEL','PTCT','IONS','ARWR','RCKT','BEAM','EDIT','NTLA','CRSP','BLUE',
+                'FATE','NKTR','ACAD','SAGE','AVXL','SRRK','PRAX','KYMR','IMVT','RXDX',
+                'ACMR','AGEN','AGIO','ALDX','ALLO','ALNY','ALPN','ALTO','AMRX','ANAB',
+                'ANIP','ANNX','APLS','APRE','ARDX','ARQT','ASMB','ASND','ATHA','ATRC'],
+    'EV':      ['TSLA','RIVN','LCID','NIO','XPEV','LI','FSR','GOEV','NKLA','BLNK',
+                'CHPT','EVGO','VLTA','PTRA','FCEL','PLUG','BLDP','BE','HYLN','SPCE',
+                'JOBY','ACHR','EH','LILM','WKHS','SOLO','KNDI','AYRO','IDEX','HYZN',
+                'FREY','MVST','AMPX','NXTP','ZEV','ATLIS','MKFG','AMPS','ACJMF','ARVL',
+                'REE','GreenPower','EVTV','ELMS','XOS','PPSI','AYALA','MULN','SOLO','FFIE'],
+    'FINTECH': ['SQ','PYPL','AFRM','UPST','NU','HOOD','SOFI','LC','ALLY','COIN',
+                'MARA','RIOT','CLSK','BTBT','HIVE','HUT','MSTR','APP','TOST','RELY',
+                'FLYW','COUR','BILL','LPLA','VIRT','MKTX','NDAQ','ICE','CME','CBOE',
+                'OPEN','UWMC','PFSI','IMM','GHLD','HMPT','UWM','RKT','TREE','LDI',
+                'COOP','OCN','MR','AMRZ','HFBL','WNEB','ESSA','CLBK','RIVR','BSVN'],
+    'MOMO':    ['PLTR','SMCI','HIMS','CELH','ELF','ASTS','RKLB','IONQ','AXON','RDDT',
+                'APP','SPOT','COIN','MSTR','MARA','RIOT','HOOD','SOFI','NU','AFRM',
+                'UPST','CRDO','AEHR','AMBA','SLAB','KRYS','INSP','GKOS','NVRI','PRCT',
+                'ACHR','JOBY','LUNR','SPCE','RCAT','KTOS','AVAV','DRS','OSIS','ARQT',
+                'RXRX','NTRA','ALEC','JANX','IRTC','TNDM','DXCM','PODD','ALGN','HALO'],
 }
 
 # ─── TRADINGVIEW SYMBOL / EXCHANGE MAP ───────────────────────────────────────
@@ -447,22 +498,18 @@ def calc_volume_analysis(df):
 #  QUICK COMPOSITE SCORE  (yfinance only — no tvDatafeed, runs fast in parallel)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def quick_score_ticker(ticker):
+def _score_from_df(ticker, df_d, df_w):
     """
-    Fast composite technical score using yfinance daily + weekly data.
-    Returns score -100 to +100, direction (CALL/PUT/NEUTRAL), and breakdown.
+    Core scoring logic. Takes pre-fetched DataFrames and returns a score dict.
+    Called by both quick_score_ticker (single) and batch_score_tickers (bulk).
     Components:
-      Trend alignment  — price vs EMA20 vs EMA50      (30 pts)
-      MACD daily       — histogram direction + crossover (25 pts)
-      MACD weekly      — confirms or contradicts daily   (20 pts)
-      Volume           — confirmation of direction       (10 pts)
-      Price momentum   — 5-day and 10-day % change       (15 pts)
+      Trend alignment  — price vs EMA20 vs EMA50       (30 pts)
+      MACD daily       — histogram direction/crossover  (25 pts)
+      MACD weekly      — confirms or contradicts daily  (20 pts)
+      Volume           — confirmation of direction      (10 pts)
+      Price momentum   — 5-day % change                 (15 pts)
     """
     try:
-        t    = yf.Ticker(ticker)
-        df_d = t.history(period='3mo')
-        df_w = t.history(period='1y', interval='1wk')
-
         if df_d is None or len(df_d) < 25:
             return None
 
@@ -499,10 +546,10 @@ def quick_score_ticker(ticker):
         }
 
         # ── 2. MACD Daily (25 pts) ────────────────────────────────────────────
-        macd_d  = calc_macd(df_d, bars=30)
+        macd_d    = calc_macd(df_d, bars=30)
         m_d_score = 0; m_d_label = 'No data'
         if macd_d:
-            hvals = macd_d['hist_values']
+            hvals    = macd_d['hist_values']
             building = len(hvals) >= 2 and (
                 (hvals[-1] > hvals[-2]) if macd_d['bullish'] else (hvals[-1] < hvals[-2])
             )
@@ -542,16 +589,15 @@ def quick_score_ticker(ticker):
         # ── 4. Volume (10 pts) ────────────────────────────────────────────────
         v_score = 0; v_label = 'No data'
         if len(vol_d) >= 20:
-            vol_now = float(vol_d.iloc[-1])
-            vol_avg = float(vol_d.rolling(20).mean().iloc[-1])
-            ratio   = vol_now / vol_avg if vol_avg > 0 else 1.0
-            bullish_move = t_score > 0
-
+            vol_now     = float(vol_d.iloc[-1])
+            vol_avg     = float(vol_d.rolling(20).mean().iloc[-1])
+            ratio       = vol_now / vol_avg if vol_avg > 0 else 1.0
+            bullish_dir = t_score > 0
             if ratio >= 1.5:
-                v_score = 10 if bullish_move else -10
+                v_score = 10 if bullish_dir else -10
                 v_label = f'{ratio:.1f}x avg — strong conviction'
             elif ratio >= 1.0:
-                v_score = 5 if bullish_move else -3
+                v_score = 5 if bullish_dir else -3
                 v_label = f'{ratio:.1f}x avg — normal'
             elif ratio >= 0.6:
                 v_score = 0; v_label = f'{ratio:.1f}x avg — quiet'
@@ -564,8 +610,7 @@ def quick_score_ticker(ticker):
         # ── 5. Price momentum (15 pts) ────────────────────────────────────────
         mom_score = 0; mom_label = 'No data'
         if len(close_d) >= 10:
-            mom5  = (close_d.iloc[-1] / close_d.iloc[-5]  - 1) * 100
-            mom10 = (close_d.iloc[-1] / close_d.iloc[-10] - 1) * 100
+            mom5 = (close_d.iloc[-1] / close_d.iloc[-5] - 1) * 100
             if mom5 > 4:
                 mom_score = 15; mom_label = f'+{mom5:.1f}% (5d) — strong'
             elif mom5 > 1.5:
@@ -592,9 +637,8 @@ def quick_score_ticker(ticker):
         else:
             direction = 'NEUTRAL'; dir_label = 'Mixed Signals'
 
-        # Price position in 3-month range (proxy for overbought/oversold)
-        high_3m = float(df_d['High'].max())
-        low_3m  = float(df_d['Low'].min())
+        high_3m      = float(df_d['High'].max())
+        low_3m       = float(df_d['Low'].min())
         price_pos_3m = round(
             (price - low_3m) / (high_3m - low_3m) * 100, 1
         ) if high_3m > low_3m else 50.0
@@ -608,7 +652,81 @@ def quick_score_ticker(ticker):
             'components':   components,
             'price_pos_3m': price_pos_3m,
         }
+    except Exception as e:
+        print(f"Score error ({ticker}): {e}")
+        return None
 
+
+def batch_score_tickers(tickers):
+    """
+    Batch-fetch OHLCV for all tickers via yf.download() then score each.
+    2 HTTP calls instead of len(tickers)*2 — dramatically faster for large lists.
+    Falls back to individual calls if batch download fails.
+    """
+    if not tickers:
+        return []
+
+    tickers_str = ' '.join(tickers)
+    try:
+        df_d_all = yf.download(tickers_str, period='3mo',
+                               auto_adjust=True, progress=False, threads=True)
+        df_w_all = yf.download(tickers_str, period='1y', interval='1wk',
+                               auto_adjust=True, progress=False, threads=True)
+    except Exception as e:
+        print(f"Batch download failed ({e}), falling back to individual calls")
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=15) as ex:
+            futures = {ex.submit(quick_score_ticker, t): t for t in tickers}
+            for f in concurrent.futures.as_completed(futures, timeout=120):
+                try:
+                    r = f.result()
+                    if r:
+                        results.append(r)
+                except Exception:
+                    pass
+        return results
+
+    results = []
+    multi = isinstance(df_d_all.columns, pd.MultiIndex)
+
+    for ticker in tickers:
+        try:
+            if multi:
+                # yfinance 1.x: top level = Ticker, second = Price field
+                if ticker in df_d_all.columns.get_level_values(0):
+                    df_d = df_d_all[ticker].dropna(how='all')
+                elif ticker in df_d_all.columns.get_level_values(1):
+                    df_d = df_d_all.xs(ticker, axis=1, level=1).dropna(how='all')
+                else:
+                    continue
+
+                if ticker in df_w_all.columns.get_level_values(0):
+                    df_w = df_w_all[ticker].dropna(how='all')
+                elif ticker in df_w_all.columns.get_level_values(1):
+                    df_w = df_w_all.xs(ticker, axis=1, level=1).dropna(how='all')
+                else:
+                    df_w = None
+            else:
+                # Single ticker returned as flat DataFrame
+                df_d = df_d_all.dropna(how='all')
+                df_w = df_w_all.dropna(how='all')
+
+            r = _score_from_df(ticker, df_d, df_w)
+            if r:
+                results.append(r)
+        except Exception as e:
+            print(f"Batch score error ({ticker}): {e}")
+
+    return results
+
+
+def quick_score_ticker(ticker):
+    """Single-ticker score — used for sector ETF scan and contract recommend flow."""
+    try:
+        t    = yf.Ticker(ticker)
+        df_d = t.history(period='3mo')
+        df_w = t.history(period='1y', interval='1wk')
+        return _score_from_df(ticker, df_d, df_w)
     except Exception as e:
         print(f"Quick score error ({ticker}): {e}")
         return None
@@ -1543,6 +1661,7 @@ def analyze(request: Request, body: AnalyzeBody):
 
 
 # ── Sector Scanner ────────────────────────────────────────────────────────────
+# SPDR ETFs + broad market
 _SCAN_ETFS = {
     'SPY': 'S&P 500',    'QQQ': 'NASDAQ 100', 'IWM': 'Russell 2000',
     'XLK': 'Technology', 'XLF': 'Financials', 'XLV': 'Healthcare',
@@ -1550,42 +1669,71 @@ _SCAN_ETFS = {
     'XLP': 'Cons. Defensive', 'XLB': 'Materials', 'XLU': 'Utilities',
     'XLRE':'Real Estate', 'XLC': 'Comm. Svcs',
 }
+# Theme buckets (scan these too, but render separately in the UI)
+_SCAN_THEMES = {
+    'SEMI':   'Semiconductors',
+    'CLOUD':  'Cloud / SaaS',
+    'CYBER':  'Cybersecurity',
+    'BIOTECH':'Biotech',
+    'EV':     'EV / Clean Energy',
+    'FINTECH':'Fintech',
+    'MOMO':   'Momentum',
+}
+# Combined for sector-scan endpoint (ETFs scored by their ETF ticker;
+# themes scored by a representative ETF or the basket average)
+_THEME_PROXY = {
+    'SEMI':   'SOXX', 'CLOUD': 'WCLD', 'CYBER': 'HACK',
+    'BIOTECH':'XBI',  'EV':    'ICLN', 'FINTECH':'ARKF',
+    'MOMO':   'MTUM',
+}
 
 @app.get('/api/sector-scan')
 @limiter.limit("5/minute")
 def sector_scan(request: Request):
-    """Score all 14 sector ETFs. Returns ranked list + top bullish/bearish."""
+    """Score all 14 sector ETFs + 7 theme buckets. Returns ranked lists."""
     cached = cache_get('sector_scan', ttl=300)
     if cached:
         return cached
 
-    results = []
+    sector_results = []
+    theme_results  = []
 
-    def _score_etf(item):
-        sym, name = item
-        r = quick_score_ticker(sym)
+    def _score_etf(sym, name, is_theme=False, theme_key=None):
+        proxy = _THEME_PROXY.get(sym, sym) if is_theme else sym
+        r = quick_score_ticker(proxy)
         if r:
-            r['name'] = name
-            r['etf']  = sym
+            r['name']     = name
+            r['etf']      = sym          # always use the bucket key (e.g. 'SEMI')
+            r['proxy']    = proxy        # actual ticker scored
+            r['is_theme'] = is_theme
         return r
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
-        futures = [ex.submit(_score_etf, item) for item in _SCAN_ETFS.items()]
+    items = [(sym, name, False, None) for sym, name in _SCAN_ETFS.items()] + \
+            [(sym, name, True,  sym)  for sym, name in _SCAN_THEMES.items()]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as ex:
+        futures = [ex.submit(_score_etf, *item) for item in items]
         for f in concurrent.futures.as_completed(futures, timeout=60):
             try:
                 r = f.result()
                 if r:
-                    results.append(r)
+                    if r['is_theme']:
+                        theme_results.append(r)
+                    else:
+                        sector_results.append(r)
             except Exception as e:
                 print(f"Sector scan worker error: {e}")
 
-    results.sort(key=lambda x: x['score'], reverse=True)
+    sector_results.sort(key=lambda x: x['score'], reverse=True)
+    theme_results.sort(key=lambda x:  x['score'], reverse=True)
+    all_results = sector_results + theme_results
 
     out = {
-        'sectors':      results,
+        'sectors':      sector_results,
+        'themes':       theme_results,
         'updated':      datetime.now(ZoneInfo('America/New_York')).strftime('%-I:%M %p ET'),
-        'top_bullish':  [r['etf'] for r in results if r['score'] >= 20][:5],
-        'top_bearish':  [r['etf'] for r in results if r['score'] <= -20][:5],
+        'top_bullish':  [r['etf'] for r in all_results if r['score'] >= 20][:5],
+        'top_bearish':  [r['etf'] for r in all_results if r['score'] <= -20][:5],
     }
     cache_set('sector_scan', out)
     return out
@@ -1614,28 +1762,22 @@ def stock_screener(request: Request, sectors: str = ''):
     if cached:
         return cached
 
-    # Build deduplicated stock list from selected sectors
+    # Build deduplicated stock list from selected sectors/themes (cap 150)
     stock_set = []
     seen = set()
     for etf in sector_list:
-        for s in SECTOR_STOCKS.get(etf, [])[:35]:
+        for s in SECTOR_STOCKS.get(etf, []):
             if s not in seen:
                 seen.add(s)
                 stock_set.append(s)
-        if len(stock_set) >= 70:
+            if len(stock_set) >= 150:
+                break
+        if len(stock_set) >= 150:
             break
 
-    results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as ex:
-        futures = {ex.submit(quick_score_ticker, s): s for s in stock_set}
-        for f in concurrent.futures.as_completed(futures, timeout=120):
-            try:
-                r = f.result()
-                if r and r['direction'] != 'NEUTRAL':
-                    results.append(r)
-            except Exception as e:
-                print(f"Screener worker error: {e}")
-
+    # Batch-fetch + score (2 yf.download calls regardless of stock count)
+    results = batch_score_tickers(stock_set)
+    results = [r for r in results if r and r.get('direction') != 'NEUTRAL']
     results.sort(key=lambda x: abs(x['score']), reverse=True)
 
     out = {
