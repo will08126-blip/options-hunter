@@ -74,7 +74,10 @@ app       = FastAPI(title="Options Hunter v2.0", docs_url=None)
 templates = Jinja2Templates(directory="templates")
 app.add_middleware(_AuthMiddleware)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+def _json_rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse({'error': f'Rate limit exceeded. Please wait a moment and try again.'}, status_code=429)
+
+app.add_exception_handler(RateLimitExceeded, _json_rate_limit_handler)
 try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
 except Exception:
@@ -1185,13 +1188,15 @@ def get_earnings_info(ticker_obj):
         return {'has_earnings': False, 'date': None, 'dte': None, 'warning': False}
 
 
-def estimate_ivr(ticker_obj, current_atm_iv):
+def estimate_ivr(ticker_obj, current_atm_iv, hist=None):
     """
     Estimate IV Rank (IVR) using 1-year rolling 25-day HV as a proxy for
     historical IV. IVR = (current_IV - HV_min) / (HV_max - HV_min) × 100.
+    Accepts pre-fetched hist DataFrame to avoid redundant yfinance calls.
     """
     try:
-        hist = ticker_obj.history(period='1y')
+        if hist is None:
+            hist = ticker_obj.history(period='1y')
         if hist.empty or len(hist) < 30:
             ivr = 50
         else:
@@ -1226,10 +1231,14 @@ def estimate_ivr(ticker_obj, current_atm_iv):
         return {'ivr': None, 'label': 'Unknown', 'action': 'Check IV before entering', 'color': 'muted'}
 
 
-def estimate_price_target(ticker_obj, price, direction):
-    """Estimate a 1–5 day swing trade price target using 1.5× the 14-day ATR."""
+def estimate_price_target(ticker_obj, price, direction, hist=None):
+    """Estimate a 1–5 day swing trade price target using 1.5× the 14-day ATR.
+    Accepts pre-fetched hist DataFrame (1y) to avoid redundant yfinance calls."""
     try:
-        hist = ticker_obj.history(period='3mo')
+        if hist is None:
+            hist = ticker_obj.history(period='3mo')
+        elif not hist.empty:
+            hist = hist.tail(66)   # last ~3 months of trading days from 1y frame
         if hist.empty or len(hist) < 15:
             pct  = 0.05 if price < 50 else 0.04 if price < 100 else 0.03 if price < 200 else 0.025
             move = price * pct
@@ -1417,7 +1426,7 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
                 'short_volume':     s_vol,
                 'short_oi':         s_oi,
                 'net_delta':        round(abs(l_g['delta']) - abs(s_g['delta']), 3),
-                'is_target_aligned': abs(short_strike - price_target) <= width,
+                'is_target_aligned': bool(abs(short_strike - price_target) <= width),
                 'score':            score,
                 'reasons':          reasons,
             })
@@ -2338,8 +2347,19 @@ def spread_recommend(request: Request, ticker: str, direction: str = 'call', set
 
     try:
         stock = yf.Ticker(ticker)
-        info  = stock.info
-        price = float(info.get('currentPrice') or info.get('regularMarketPrice') or 0)
+        # Use fast_info first (single lightweight call), fall back to .info, then history
+        price = 0.0
+        try:
+            fi    = stock.fast_info
+            price = float(fi.last_price or 0)
+        except Exception:
+            pass
+        if not price:
+            try:
+                info  = stock.info
+                price = float(info.get('currentPrice') or info.get('regularMarketPrice') or 0)
+            except Exception:
+                pass
         if not price:
             hist  = stock.history(period='1d')
             price = float(hist['Close'].iloc[-1]) if not hist.empty else 0
@@ -2397,10 +2417,16 @@ def spread_recommend(request: Request, ticker: str, direction: str = 'call', set
         atm_row     = filtered_df.loc[dist_series.idxmin()] if not filtered_df.empty else None
         atm_iv      = float(atm_row['impliedVolatility']) if atm_row is not None and not pd.isna(atm_row['impliedVolatility']) else 0.3
 
+        # Pre-fetch 1y history once — shared by IVR + price-target to avoid 2 extra HTTP calls
+        try:
+            shared_hist = stock.history(period='1y')
+        except Exception:
+            shared_hist = pd.DataFrame()
+
         # Gather context data
         earnings_info  = get_earnings_info(stock)
-        ivr_data       = estimate_ivr(stock, atm_iv)
-        price_target   = estimate_price_target(stock, price, direction)
+        ivr_data       = estimate_ivr(stock, atm_iv, hist=shared_hist)
+        price_target   = estimate_price_target(stock, price, direction, hist=shared_hist)
         structure_rec  = recommend_structure(ivr_data, setup_score, earnings_info)
 
         # Build spreads

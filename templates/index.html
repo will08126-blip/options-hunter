@@ -2168,10 +2168,20 @@ async function openSpreadView(ticker, direction, setupScore) {
       contractResults.innerHTML = '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Unexpected response. Please try again.</p></div>';
       return;
     }
-    renderSpreads(data);
+    try {
+      renderSpreads(data);
+    } catch(renderErr) {
+      console.error('renderSpreads error:', renderErr);
+      contractResults.innerHTML =
+        '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Spreads loaded but failed to display. Please try again.</p></div>';
+    }
   } catch(e) {
+    console.error('openSpreadView error:', e);
+    const msg = (e && e.message === 'invalid_json')
+      ? 'Server returned an unexpected response. Please try again.'
+      : 'Failed to load spreads. Try again.';
     contractResults.innerHTML =
-      '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Failed to load spreads. Try again.</p></div>';
+      `<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>${msg}</p></div>`;
   }
 }
 
@@ -2322,12 +2332,12 @@ function renderSpreads(data) {
         <div style="font-size:11px;color:var(--muted)">
           <span style="color:var(--green);font-weight:600">LONG (BUY)</span> $${sp.long_strike} ${data.direction}<br>
           $${sp.long_bid}/$${sp.long_ask} mid · <b style="color:#fff">$${sp.long_mid}</b> · δ${sp.long_delta} · IV ${sp.long_iv}%<br>
-          Vol ${sp.long_volume.toLocaleString()} / OI ${sp.long_oi.toLocaleString()}
+          Vol ${(sp.long_volume ?? 0).toLocaleString()} / OI ${(sp.long_oi ?? 0).toLocaleString()}
         </div>
         <div style="font-size:11px;color:var(--muted)">
           <span style="color:var(--red);font-weight:600">SHORT (SELL)</span> $${sp.short_strike} ${data.direction}<br>
           $${sp.short_bid}/$${sp.short_ask} mid · <b style="color:#fff">$${sp.short_mid}</b> · δ${sp.short_delta} · IV ${sp.short_iv}%<br>
-          Vol ${sp.short_volume.toLocaleString()} / OI ${sp.short_oi.toLocaleString()}
+          Vol ${(sp.short_volume ?? 0).toLocaleString()} / OI ${(sp.short_oi ?? 0).toLocaleString()}
         </div>
       </div>
 
