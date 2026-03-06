@@ -527,17 +527,19 @@ def calc_volume_analysis(df):
 #  QUICK COMPOSITE SCORE  (yfinance only — no tvDatafeed, runs fast in parallel)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _score_from_df(ticker, df_d, df_w):
+def _score_from_df(ticker, df_d, df_w, df_m=None, spy_df=None):
     """
     Core scoring logic. Takes pre-fetched DataFrames and returns a score dict.
     Called by both quick_score_ticker (single) and batch_score_tickers (bulk).
     Components:
-      Trend alignment  — price vs EMA20 vs EMA50       (30 pts)
-      MACD daily       — histogram direction/crossover  (25 pts)
-      MACD weekly      — confirms or contradicts daily  (20 pts)
-      Volume           — confirmation of direction      (10 pts)
-      Price momentum   — 5-day % change                 (15 pts)
-      RSI-14 modifier  — overbought/oversold filter     (±12 pts)
+      Trend alignment      — price vs EMA20/50/200         (±40 pts)
+      MACD daily           — histogram direction/crossover  (±25 pts)
+      MACD weekly          — confirms or contradicts daily  (±20 pts)
+      MACD monthly         — macro momentum confirmation    (±15 pts)
+      Volume               — confirmation of direction      (±10 pts)
+      Price momentum       — 5-day % change                 (±15 pts)
+      RSI-14 modifier      — overbought/oversold filter     (±18 pts)
+      Relative strength    — sector vs SPY 1-month return   (±12 pts)
     """
     try:
         if df_d is None or len(df_d) < 25:
@@ -549,30 +551,37 @@ def _score_from_df(ticker, df_d, df_w):
         score   = 0
         components = {}
 
-        # ── 1. Trend alignment (30 pts) ──────────────────────────────────────
-        n50    = min(50, len(close_d) - 1)
-        ema20  = float(close_d.ewm(span=20, adjust=False).mean().iloc[-1])
+        # ── 1. Trend alignment (±40 pts) — EMA20 / EMA50 / EMA200 ───────────
+        n50    = min(50,  len(close_d) - 1)
+        n200   = min(200, len(close_d) - 1)
+        ema20  = float(close_d.ewm(span=20,   adjust=False).mean().iloc[-1])
         ema50  = float(close_d.ewm(span=n50,  adjust=False).mean().iloc[-1])
+        ema200 = float(close_d.ewm(span=n200, adjust=False).mean().iloc[-1])
+        above_200 = price > ema200
 
-        if price > ema20 > ema50:
-            t_score = 30; t_label = 'Strong Bull (P > EMA20 > EMA50)'
-        elif price > ema50 and ema20 < ema50:
-            t_score = 15; t_label = 'Bull (above EMA50, EMA20 recovering)'
+        if price > ema20 > ema50 and above_200:
+            t_score = 40; t_label = 'Full Alignment (P>EMA20>EMA50>EMA200)'
+        elif price > ema20 > ema50:
+            t_score = 22; t_label = 'Short Bull, Below EMA200'
+        elif price > ema50 and above_200:
+            t_score = 18; t_label = 'Bull Above All MAs'
         elif price > ema50:
-            t_score = 10; t_label = 'Slight Bull (above EMA50)'
+            t_score = 10; t_label = 'Recovering, Below EMA200'
+        elif price < ema20 < ema50 and not above_200:
+            t_score = -40; t_label = 'Full Bear (P<EMA20<EMA50<EMA200)'
         elif price < ema20 < ema50:
-            t_score = -30; t_label = 'Strong Bear (P < EMA20 < EMA50)'
-        elif price < ema50 and ema20 > ema50:
-            t_score = -15; t_label = 'Bear (below EMA50, EMA20 weakening)'
+            t_score = -22; t_label = 'Short Bear, Above EMA200'
+        elif price < ema50 and not above_200:
+            t_score = -18; t_label = 'Bear Below All MAs'
         elif price < ema50:
-            t_score = -10; t_label = 'Slight Bear (below EMA50)'
+            t_score = -10; t_label = 'Weak, Above EMA200'
         else:
             t_score = 0; t_label = 'Neutral'
 
         score += t_score
         components['trend'] = {
             'score': t_score, 'label': t_label,
-            'ema20': round(ema20, 2), 'ema50': round(ema50, 2)
+            'ema20': round(ema20, 2), 'ema50': round(ema50, 2), 'ema200': round(ema200, 2)
         }
 
         # ── 2. MACD Daily (25 pts) ────────────────────────────────────────────
@@ -616,7 +625,24 @@ def _score_from_df(ticker, df_d, df_w):
         score += m_w_score
         components['macd_weekly'] = {'score': m_w_score, 'label': m_w_label}
 
-        # ── 4. Volume (10 pts) ────────────────────────────────────────────────
+        # ── 4. MACD Monthly (15 pts) ──────────────────────────────────────────
+        m_mo_score = 0; m_mo_label = 'No data'
+        if df_m is not None and len(df_m) >= 26:
+            macd_mo = calc_macd(df_m, bars=24)
+            if macd_mo:
+                if macd_mo['crossing_up']:
+                    m_mo_score = 15; m_mo_label = 'Crossing Up'
+                elif macd_mo['bullish']:
+                    m_mo_score = 10; m_mo_label = 'Bullish'
+                elif macd_mo['crossing_down']:
+                    m_mo_score = -15; m_mo_label = 'Crossing Down'
+                else:
+                    m_mo_score = -10; m_mo_label = 'Bearish'
+
+        score += m_mo_score
+        components['macd_monthly'] = {'score': m_mo_score, 'label': m_mo_label}
+
+        # ── 5. Volume (10 pts) ────────────────────────────────────────────────
         v_score = 0; v_label = 'No data'
         if len(vol_d) >= 20:
             vol_now     = float(vol_d.iloc[-1])
@@ -637,7 +663,7 @@ def _score_from_df(ticker, df_d, df_w):
         score += v_score
         components['volume'] = {'score': v_score, 'label': v_label}
 
-        # ── 5. Price momentum (15 pts) ────────────────────────────────────────
+        # ── 6. Price momentum (15 pts) ────────────────────────────────────────
         mom_score = 0; mom_label = 'No data'
         if len(close_d) >= 10:
             mom5 = (close_d.iloc[-1] / close_d.iloc[-5] - 1) * 100
@@ -657,28 +683,49 @@ def _score_from_df(ticker, df_d, df_w):
         score += mom_score
         components['momentum'] = {'score': mom_score, 'label': mom_label}
 
-        # ── 6. RSI-14 modifier (max ±12 pts) ─────────────────────────────────
-        # Used as a conviction filter: penalise overbought bullish setups and
-        # attenuate oversold bearish ones so extended sectors score lower.
+        # ── 7. RSI-14 modifier (±18 pts) ─────────────────────────────────────
+        # Conviction filter: penalise overbought bullish setups and attenuate
+        # oversold bearish ones so extended sectors score more conservatively.
         rsi_mod = 0; rsi_label = 'No data'
         if len(close_d) >= 20:
             rsi_val = float(_calc_rsi(close_d).iloc[-1])
             if score > 0:          # bullish context — penalise if extended
-                if rsi_val > 80:   rsi_mod = -12; rsi_label = f'{rsi_val:.0f} — overbought (heavy)'
-                elif rsi_val > 70: rsi_mod = -7;  rsi_label = f'{rsi_val:.0f} — overbought'
-                elif rsi_val > 65: rsi_mod = -3;  rsi_label = f'{rsi_val:.0f} — slightly extended'
-                elif rsi_val > 50: rsi_mod = +3;  rsi_label = f'{rsi_val:.0f} — bullish zone'
+                if rsi_val > 80:   rsi_mod = -18; rsi_label = f'{rsi_val:.0f} — overbought (heavy)'
+                elif rsi_val > 70: rsi_mod = -10; rsi_label = f'{rsi_val:.0f} — overbought'
+                elif rsi_val > 65: rsi_mod = -4;  rsi_label = f'{rsi_val:.0f} — slightly extended'
+                elif rsi_val > 50: rsi_mod = +4;  rsi_label = f'{rsi_val:.0f} — bullish zone'
                 else:              rsi_mod = 0;   rsi_label = f'{rsi_val:.0f} — neutral'
             elif score < 0:        # bearish context — attenuate if oversold
-                if rsi_val < 20:   rsi_mod = +12; rsi_label = f'{rsi_val:.0f} — oversold (heavy)'
-                elif rsi_val < 30: rsi_mod = +7;  rsi_label = f'{rsi_val:.0f} — oversold'
-                elif rsi_val < 35: rsi_mod = +3;  rsi_label = f'{rsi_val:.0f} — slightly oversold'
-                elif rsi_val < 50: rsi_mod = -3;  rsi_label = f'{rsi_val:.0f} — bearish zone'
+                if rsi_val < 20:   rsi_mod = +18; rsi_label = f'{rsi_val:.0f} — oversold (heavy)'
+                elif rsi_val < 30: rsi_mod = +10; rsi_label = f'{rsi_val:.0f} — oversold'
+                elif rsi_val < 35: rsi_mod = +4;  rsi_label = f'{rsi_val:.0f} — slightly oversold'
+                elif rsi_val < 50: rsi_mod = -4;  rsi_label = f'{rsi_val:.0f} — bearish zone'
                 else:              rsi_mod = 0;   rsi_label = f'{rsi_val:.0f} — neutral'
             else:
                 rsi_label = f'{rsi_val:.0f} — neutral'
             score += rsi_mod
             components['rsi'] = {'score': rsi_mod, 'label': rsi_label, 'value': round(rsi_val, 1)}
+
+        # ── 8. Relative Strength vs SPY (±12 pts) ────────────────────────────
+        rs_score = 0; rs_label = 'No data'
+        if spy_df is not None and ticker != 'SPY' and len(close_d) >= 22:
+            spy_close = spy_df['Close'].dropna()
+            if len(spy_close) >= 22:
+                sec_ret = (float(close_d.iloc[-1]) / float(close_d.iloc[-22]) - 1) * 100
+                spy_ret = (float(spy_close.iloc[-1]) / float(spy_close.iloc[-22]) - 1) * 100
+                rs = sec_ret - spy_ret
+                if rs >= 3:
+                    rs_score = 12;  rs_label = f'+{rs:.1f}% vs SPY (outperforming)'
+                elif rs >= 1:
+                    rs_score = 7;   rs_label = f'+{rs:.1f}% vs SPY (slight edge)'
+                elif rs > -1:
+                    rs_score = 0;   rs_label = f'{rs:+.1f}% vs SPY (in-line)'
+                elif rs > -3:
+                    rs_score = -5;  rs_label = f'{rs:.1f}% vs SPY (lagging)'
+                else:
+                    rs_score = -10; rs_label = f'{rs:.1f}% vs SPY (underperforming)'
+        score += rs_score
+        components['rel_strength'] = {'score': rs_score, 'label': rs_label}
 
         # ── Normalize & direction ─────────────────────────────────────────────
         normalized = max(-100, min(100, score))
@@ -713,17 +760,22 @@ def _score_from_df(ticker, df_d, df_w):
 def batch_score_tickers(tickers):
     """
     Batch-fetch OHLCV for all tickers via yf.download() then score each.
-    2 HTTP calls instead of len(tickers)*2 — dramatically faster for large lists.
+    3 HTTP calls (daily/weekly/monthly) instead of len(tickers)*3 — much faster.
+    SPY is included in every batch for relative-strength comparison.
     Falls back to individual calls if batch download fails.
     """
     if not tickers:
         return []
 
-    tickers_str = ' '.join(tickers)
+    # Always include SPY for relative strength; deduplicate
+    tickers_with_spy = list(dict.fromkeys(list(tickers) + ['SPY']))
+    tickers_str = ' '.join(tickers_with_spy)
     try:
-        df_d_all = yf.download(tickers_str, period='3mo',
+        df_d_all = yf.download(tickers_str, period='1y',
                                auto_adjust=True, progress=False, threads=True)
-        df_w_all = yf.download(tickers_str, period='1y', interval='1wk',
+        df_w_all = yf.download(tickers_str, period='1y',  interval='1wk',
+                               auto_adjust=True, progress=False, threads=True)
+        df_m_all = yf.download(tickers_str, period='3y',  interval='1mo',
                                auto_adjust=True, progress=False, threads=True)
     except Exception as e:
         print(f"Batch download failed ({e}), falling back to individual calls")
@@ -739,52 +791,60 @@ def batch_score_tickers(tickers):
                     pass
         return results
 
-    results = []
     multi = isinstance(df_d_all.columns, pd.MultiIndex)
 
-    for ticker in tickers:
-        df_d = df_w = None
+    def _extract(df_all, sym):
+        """Pull a single-ticker slice from a potentially multi-index batch df."""
         try:
             if multi:
-                # yfinance 1.x: top level = Ticker, second = Price field
-                if ticker in df_d_all.columns.get_level_values(0):
-                    df_d = df_d_all[ticker].dropna(how='all')
-                elif ticker in df_d_all.columns.get_level_values(1):
-                    df_d = df_d_all.xs(ticker, axis=1, level=1).dropna(how='all')
-                else:
-                    continue
+                if sym in df_all.columns.get_level_values(0):
+                    return df_all[sym].dropna(how='all')
+                if sym in df_all.columns.get_level_values(1):
+                    return df_all.xs(sym, axis=1, level=1).dropna(how='all')
+                return None
+            return df_all.dropna(how='all')
+        except Exception:
+            return None
 
-                if ticker in df_w_all.columns.get_level_values(0):
-                    df_w = df_w_all[ticker].dropna(how='all')
-                elif ticker in df_w_all.columns.get_level_values(1):
-                    df_w = df_w_all.xs(ticker, axis=1, level=1).dropna(how='all')
-                else:
-                    df_w = None
-            else:
-                # Single ticker returned as flat DataFrame
-                df_d = df_d_all.dropna(how='all')
-                df_w = df_w_all.dropna(how='all')
+    # Extract SPY daily once for relative strength
+    spy_df = _extract(df_d_all, 'SPY')
 
-            r = _score_from_df(ticker, df_d, df_w)
+    results = []
+    for ticker in tickers:
+        df_d = df_w = df_m = None
+        try:
+            df_d = _extract(df_d_all, ticker)
+            if df_d is None:
+                continue
+            df_w = _extract(df_w_all, ticker)
+            df_m = _extract(df_m_all, ticker)
+            r = _score_from_df(ticker, df_d, df_w, df_m=df_m,
+                               spy_df=(spy_df if ticker != 'SPY' else None))
             if r:
                 results.append(r)
         except Exception as e:
             print(f"Batch score error ({ticker}): {e}")
         finally:
-            del df_d, df_w
+            del df_d, df_w, df_m
 
-    del df_d_all, df_w_all
+    del df_d_all, df_w_all, df_m_all
     gc.collect()
     return results
 
 
-def quick_score_ticker(ticker):
+def quick_score_ticker(ticker, spy_df=None):
     """Single-ticker score — used for sector ETF scan and contract recommend flow."""
     try:
         t    = yf.Ticker(ticker)
-        df_d = t.history(period='3mo')
-        df_w = t.history(period='1y', interval='1wk')
-        return _score_from_df(ticker, df_d, df_w)
+        df_d = t.history(period='1y')                        # 1yr for valid EMA200
+        df_w = t.history(period='1y',  interval='1wk')
+        df_m = t.history(period='3y',  interval='1mo')       # 3yr monthly for MACD
+        if spy_df is None and ticker != 'SPY':
+            try:
+                spy_df = yf.Ticker('SPY').history(period='1y')
+            except Exception:
+                pass
+        return _score_from_df(ticker, df_d, df_w, df_m=df_m, spy_df=spy_df)
     except Exception as e:
         print(f"Quick score error ({ticker}): {e}")
         return None
@@ -2099,12 +2159,20 @@ def sector_scan(request: Request):
     if cached:
         return cached
 
+    # Pre-fetch SPY once so all workers share it for relative-strength scoring
+    spy_df_shared = None
+    try:
+        spy_df_shared = yf.Ticker('SPY').history(period='1y')
+    except Exception as e:
+        print(f"SPY pre-fetch failed: {e}")
+
     sector_results = []
     theme_results  = []
 
     def _score_etf(sym, name, is_theme=False, theme_key=None):
         proxy = _THEME_PROXY.get(sym, sym) if is_theme else sym
-        r = quick_score_ticker(proxy)
+        spy   = None if proxy == 'SPY' else spy_df_shared
+        r = quick_score_ticker(proxy, spy_df=spy)
         if r:
             r['name']     = name
             r['etf']      = sym          # always use the bucket key (e.g. 'SEMI')
