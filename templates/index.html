@@ -935,7 +935,11 @@ async function loadBriefing() {
     updateBriefingHeader(data);
     renderBriefing(data);
   } catch(e) {
-    showToast('Failed to load briefing. Check your connection.');
+    document.getElementById('briefingContent').innerHTML =
+      '<div class="state-box"><div class="icon">⚠️</div>' +
+      '<p>Could not load briefing. Check your connection.</p>' +
+      '<button class="btn-primary" onclick="loadBriefing()" style="margin-top:12px">↻ Retry</button></div>';
+    briefingLoaded = false;
   } finally {
     btn.textContent = '↻ Refresh'; btn.disabled = false;
   }
