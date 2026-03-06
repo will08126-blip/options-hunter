@@ -1805,10 +1805,10 @@ async function runSectorScan() {
   const status = document.getElementById('scanStatus');
   btn.disabled = true;
   btn.textContent = '⏳ Scanning...';
-  status.textContent = 'Scoring 14 ETFs...';
+  status.textContent = 'Scoring 21 instruments...';
 
   document.getElementById('sectorGrid').innerHTML =
-    '<div class="state-box" style="padding:24px"><div class="spinner"></div><p>Scoring all 14 sector ETFs — takes ~15 seconds...</p></div>';
+    '<div class="state-box" style="padding:24px"><div class="spinner"></div><p>Scoring 21 instruments across 4 timeframes (daily · weekly · monthly · vs SPY)...</p></div>';
 
   try {
     const res  = await fetch('/api/sector-scan');
@@ -1842,6 +1842,13 @@ function _buildCard(s) {
   const barColor = isBull ? 'var(--green)' : 'var(--red)';
   const trend = s.components && s.components.trend ? s.components.trend.label.split('(')[0].trim() : '—';
   const themeTag = s.is_theme ? `<div style="font-size:9px;color:var(--blue);margin-bottom:1px;font-weight:600">THEME</div>` : '';
+  const c = s.components || {};
+  const moMacd = c.macd_monthly && c.macd_monthly.label !== 'No data'
+    ? `<span style="color:${c.macd_monthly.score > 0 ? 'var(--green)' : c.macd_monthly.score < 0 ? 'var(--red)' : 'var(--muted)'}">M:${c.macd_monthly.label}</span>`
+    : '';
+  const rs = c.rel_strength && c.rel_strength.label !== 'No data'
+    ? `<span style="color:${c.rel_strength.score > 0 ? 'var(--green)' : c.rel_strength.score < 0 ? 'var(--red)' : 'var(--muted)'}">${c.rel_strength.label}</span>`
+    : '';
 
   return `<div class="sector-card ${cardClass}" id="sc-${s.etf}" onclick="toggleSector('${s.etf}')">
     ${themeTag}
@@ -1850,6 +1857,8 @@ function _buildCard(s) {
     <div class="sc-score" style="color:${scoreColor}">${score > 0 ? '+' : ''}${score}</div>
     <div class="sc-dir" style="color:${dirColor}">${s.dir_label}</div>
     <div style="font-size:9px;color:var(--muted);margin-top:3px">${trend}</div>
+    ${moMacd ? `<div style="font-size:9px;margin-top:2px">${moMacd}</div>` : ''}
+    ${rs      ? `<div style="font-size:9px;margin-top:1px">${rs}</div>`      : ''}
     ${s.price_pos_3m != null ? `<div class="sc-range">${Math.round(s.price_pos_3m)}% of range</div>` : ''}
     <div class="sc-bar-wrap">
       <div class="sc-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
