@@ -1798,19 +1798,28 @@ def index(request: Request):
 def market_briefing(request: Request, crypto: str = ','.join(DEFAULT_CRYPTO)):
     crypto_symbols = [s.strip() for s in crypto.split(',') if s.strip()]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-        fi  = ex.submit(get_market_indices)
-        fc  = ex.submit(get_crypto_prices, crypto_symbols)
-        fci = ex.submit(get_crypto_indices)
-        fm  = ex.submit(get_top_movers)
-        fn  = ex.submit(get_market_news)
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+    fi  = ex.submit(get_market_indices)
+    fc  = ex.submit(get_crypto_prices, crypto_symbols)
+    fci = ex.submit(get_crypto_indices)
+    fm  = ex.submit(get_top_movers)
+    fn  = ex.submit(get_market_news)
+    ex.shutdown(wait=False)
+
+    concurrent.futures.wait([fi, fc, fci, fm, fn], timeout=15)
+
+    def _safe(future, default):
+        if future.done() and not future.cancelled():
+            try: return future.result()
+            except Exception: pass
+        return default
 
     return {
-        'indices':        fi.result(),
-        'crypto':         fc.result(),
-        'crypto_indices': fci.result(),
-        'movers':         fm.result(),
-        'news':           fn.result(),
+        'indices':        _safe(fi,  []),
+        'crypto':         _safe(fc,  []),
+        'crypto_indices': _safe(fci, {}),
+        'movers':         _safe(fm,  {}),
+        'news':           _safe(fn,  []),
         'updated':        datetime.now(ZoneInfo('America/New_York')).strftime('%-I:%M %p ET'),
     }
 
