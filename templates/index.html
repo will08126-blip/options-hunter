@@ -2272,7 +2272,64 @@ function renderSpreads(data) {
     const gc       = gradeColors[grade] || gradeColors['C'];
     const topLabel = isTop ? '<span style="font-size:10px;background:rgba(0,208,132,.15);color:var(--green);border-radius:10px;padding:1px 8px;font-weight:700;margin-left:6px">TOP PICK</span>' : '';
 
-    const reasons = (sp.reasons || []).map(([type, txt]) => {
+    // P&L scenario precompute
+    const pnlTotal    = sp.max_loss + sp.max_profit;
+    const redPct      = (sp.max_loss   / pnlTotal * 100).toFixed(1);
+    const greenPct    = (sp.max_profit / pnlTotal * 100).toFixed(1);
+    const stopLossAmt = +(sp.max_loss  * 0.5).toFixed(2);
+    const fmtPnl = (n, mul) => {
+      const abs = Math.abs(n) * mul;
+      const s   = abs >= 10 ? Math.round(abs) : abs.toFixed(2);
+      return n < 0 ? `−$${(+s).toLocaleString()}` : `+$${(+s).toLocaleString()}`;
+    };
+    const pnlRows = [
+      { label: '✗ Max loss (expires worthless)',  val: -sp.max_loss,    color: 'var(--red)',    bold: false },
+      { label: '⚡ Stop loss (−50% debit paid)',   val: -stopLossAmt,    color: '#ff944d',       bold: false },
+      { label: '⚖ Breakeven at expiry',           val: 0,               color: 'var(--muted)',  bold: false },
+      { label: `✓ Take profit 65% ($${sp.val_65})`,  val: sp.profit_at_65, color: 'var(--green)',  bold: false },
+      { label: `✓ Take profit 75% ($${sp.val_75})`,  val: sp.profit_at_75, color: 'var(--green)',  bold: false },
+      { label: '★ Max profit (full width captured)', val: sp.max_profit,   color: 'var(--green)',  bold: true  },
+    ].map(r => {
+      const cells = [1, 2, 5, 10].map(n =>
+        r.val === 0
+          ? `<td style="color:var(--muted);text-align:right;padding:3px 6px;font-family:monospace;white-space:nowrap">$0</td>`
+          : `<td style="color:${r.color};text-align:right;padding:3px 6px;font-family:monospace;white-space:nowrap${r.bold ? ';font-weight:700' : ''}">${fmtPnl(r.val, n)}</td>`
+      ).join('');
+      return `<tr>
+        <td style="color:${r.color};padding:3px 0;white-space:nowrap;font-size:11px${r.bold ? ';font-weight:700' : ''}">${r.label}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    const pnlSectionHtml = `
+      <div style="margin:8px 0;padding:10px 12px;background:rgba(255,77,106,.04);border-radius:8px;border:1px solid rgba(255,77,106,.18)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+          Real P&L — Max Loss Per Contract (100 shares)
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:10px;color:var(--muted)">
+          <span style="color:var(--red)">−$${sp.max_loss}</span>
+          <div style="flex:1;height:6px;border-radius:3px;overflow:hidden;display:flex">
+            <div style="width:${redPct}%;background:linear-gradient(90deg,var(--red),#ff6b3d)"></div>
+            <div style="width:${greenPct}%;background:linear-gradient(90deg,#00b870,var(--green))"></div>
+          </div>
+          <span style="color:var(--green)">+$${sp.max_profit}</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr>
+                <th style="text-align:left;color:var(--muted);font-weight:600;padding:2px 0;white-space:nowrap;font-size:10px">Scenario</th>
+                <th style="text-align:right;color:var(--muted);font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px">1 contract</th>
+                <th style="text-align:right;color:var(--muted);font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px">2 contracts</th>
+                <th style="text-align:right;color:var(--muted);font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px">5 contracts</th>
+                <th style="text-align:right;color:var(--muted);font-weight:600;padding:2px 6px;white-space:nowrap;font-size:10px">10 contracts</th>
+              </tr>
+            </thead>
+            <tbody>${pnlRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+
       const col  = type === 'good' ? 'var(--green)' : type === 'ok' ? 'var(--text)' : type === 'warn' ? '#ff944d' : 'var(--red)';
       const icon = type === 'good' ? '✓' : type === 'ok' ? '◎' : '✗';
       return `<div class="cr-reason-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:var(--muted)">${txt}</span></div>`;
@@ -2327,6 +2384,8 @@ function renderSpreads(data) {
           <div class="cr-stat-val" style="color:var(--green)">+$${sp.profit_at_75} profit</div>
         </div>
       </div>
+
+      ${pnlSectionHtml}
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
         <div style="font-size:11px;color:var(--muted)">
