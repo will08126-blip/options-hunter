@@ -928,12 +928,13 @@ async function loadBriefing() {
   try {
     const watchlist = getWatchlist().join(',');
     const res  = await fetch(`/api/market?crypto=${encodeURIComponent(watchlist)}`);
-    if (res.status === 401) { window.location.href = '/login'; return; }
     const data = await res.json();
     if (data.error) {
+      const loginLink = res.status === 401
+        ? ' <a href="/login" style="color:var(--blue)">Log in</a>' : '';
       document.getElementById('briefingContent').innerHTML =
         '<div class="state-box"><div class="icon">⚠️</div>' +
-        '<p>' + data.error + '</p>' +
+        '<p>' + data.error + loginLink + '</p>' +
         '<button class="btn-primary" onclick="loadBriefing()" style="margin-top:12px">↻ Retry</button></div>';
       briefingLoaded = false;
       return;
@@ -1093,12 +1094,13 @@ async function loadTechnical() {
 
   try {
     const res  = await fetch(`/api/technical/${ticker}`);
-    if (res.status === 401) { window.location.href = '/login'; return; }
     const data = await res.json();
     if (data.error) {
+      const loginLink = res.status === 401
+        ? ' <a href="/login" style="color:var(--blue)">Log in</a>' : '';
       document.getElementById('technicalContent').innerHTML =
         '<div class="state-box" style="margin-top:20px"><div class="icon">⚠️</div>' +
-        '<p>' + data.error + '</p>' +
+        '<p>' + data.error + loginLink + '</p>' +
         '<button class="btn-primary" onclick="loadTechnical()" style="margin-top:12px">↻ Retry</button></div>';
       return;
     }
