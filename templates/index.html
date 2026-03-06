@@ -425,6 +425,80 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
   /* Movers side-by-side stays but shrinks */
   .mover-ticker { font-size: 12px; }
   .mover-chg    { font-size: 12px; }
+
+  /* Sector/setups/contract grids — full-width on mobile */
+  .sector-grid, .setups-grid, .contract-rec-grid { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .scanner-bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .setups-bar, .contract-bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .filter-bar { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .sentiment-bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .search-panel { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .briefing-header { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+}
+
+/* ── Very small phones (iPhone SE: 375px, older: 320px) ── */
+@media(max-width:390px){
+  /* Crypto strip: 2 cols instead of 3 to avoid cramping */
+  .ci-strip { grid-template-columns: repeat(2,1fr) !important; }
+  /* Cipher dot grid: fewer columns */
+  .cipher-grid { grid-template-columns: repeat(4,1fr) !important; }
+  /* Sector cards: 2 per row max */
+  .sector-grid { grid-template-columns: repeat(2,1fr) !important; }
+  /* Setup / contract cards: single col */
+  .setups-grid { grid-template-columns: 1fr !important; }
+  .contract-rec-grid { grid-template-columns: 1fr !important; }
+  /* Index cards: 2 per row (already set but be explicit) */
+  .index-cards { grid-template-columns: repeat(2,1fr) !important; }
+  /* Smaller heading */
+  .bh-greeting { font-size: 1.1rem; }
+  .scanner-title { font-size: 13px; }
+}
+
+/* ── Nav tabs: icon-only on small phones ── */
+@media(max-width:480px){
+  .tab-text { display: none; }
+  .tab-icon { margin-right: 0; font-size: 18px; }
+  .nav-tab  { padding: 0 16px; }
+  .logo     { font-size: 0.9rem; }
+}
+
+/* ── Touch :active states (iOS doesn't fire :hover) ── */
+.btn-primary-oh:active  { background: #2a7fff; transform: scale(0.98); }
+.btn-outline-oh:active  { background: var(--blue); color: #fff; }
+.filter-btn:active      { border-color: var(--blue); color: var(--blue); }
+.bh-refresh:active      { border-color: var(--blue); color: var(--blue); }
+.nav-tab:active         { color: var(--text); }
+.setup-card:active      { border-color: var(--blue); background: #0d1525; }
+.sector-card:active     { border-color: var(--blue); transform: translateY(-1px); }
+.setup-btn:active       { background: var(--blue); color: #fff; }
+.osc-tf-btn:active      { background: var(--blue); border-color: var(--blue); color: #fff; }
+.news-card:active       { border-color: var(--blue); border-left-color: var(--blue); }
+.oh-table tbody tr:active { background: #131a2a; }
+
+/* ── Oscillator TF buttons — bigger touch target ── */
+.osc-tf-btn { min-height: 44px; padding: 5px 14px; }
+
+/* ── Remove iOS default input styling ── */
+.oh-input, .oh-select, .wl-input, .btn-primary-oh, .btn-outline-oh, .btn-sm-oh, .bh-refresh, .osc-tf-btn, .filter-btn, .setup-btn {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ── Toast — respect iPhone home bar ── */
+.toast-wrap { bottom: max(20px, calc(env(safe-area-inset-bottom) + 10px)); }
+
+/* ── Prevent overscroll bounce from misaligning sticky nav ── */
+body { overscroll-behavior-y: none; }
+
+/* ── Sticky table header: offset by nav height so it's not hidden ── */
+.oh-table thead th { top: 50px; }
+
+/* ── Prevent text selection flicker on tap in data cells ── */
+.oh-table td, .metric-pill, .index-card, .mover-item, .sector-card, .setup-card { -webkit-user-select: none; user-select: none; }
+
+/* ── Full-width select on mobile for better tap ergonomics ── */
+@media(max-width:600px){
+  .oh-select { width: 100%; }
 }
 </style>
 </head>
@@ -434,9 +508,9 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
 <nav class="app-nav">
   <div class="logo">🎯 Options <span>Hunter</span></div>
   <div class="nav-tabs-oh">
-    <div class="nav-tab active" onclick="switchTab('briefing')"  id="tab-briefing"><span class="tab-icon">🌅</span>Morning Briefing</div>
-    <div class="nav-tab"       onclick="switchTab('technical')" id="tab-technical"><span class="tab-icon">📊</span>Technical</div>
-    <div class="nav-tab"       onclick="switchTab('options')"   id="tab-options"><span class="tab-icon">🎯</span>Options Hunter</div>
+    <div class="nav-tab active" onclick="switchTab('briefing')"  id="tab-briefing"><span class="tab-icon">🌅</span><span class="tab-text">Morning Briefing</span></div>
+    <div class="nav-tab"       onclick="switchTab('technical')" id="tab-technical"><span class="tab-icon">📊</span><span class="tab-text">Technical</span></div>
+    <div class="nav-tab"       onclick="switchTab('options')"   id="tab-options"><span class="tab-icon">🎯</span><span class="tab-text">Options Hunter</span></div>
   </div>
 </nav>
 
