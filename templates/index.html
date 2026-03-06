@@ -2131,12 +2131,7 @@ function closeContractSection() {
   document.getElementById('setupsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function fmtDate(d) {
-  if (!d) return '';
-  const parts  = d.split('-');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[parseInt(parts[1], 10) - 1]} ${parseInt(parts[2], 10)} '${parts[0].slice(2)}`;
-}
+/* fmtDate defined below — single canonical definition */
 
 function handleSetupClick(ticker, direction, score) {
   if (_tradeMode === 'spread') {
@@ -2162,9 +2157,15 @@ async function openSpreadView(ticker, direction, setupScore) {
 
   try {
     const res  = await fetch(`/api/spread-recommend/${ticker}?direction=${direction}&setup_score=${setupScore}`);
-    const data = await res.json();
-    if (data.error) {
-      contractResults.innerHTML = `<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>${data.error}</p></div>`;
+    let data;
+    try { data = await res.json(); } catch(_) { throw new Error('invalid_json'); }
+    const errMsg = data.error || data.detail;
+    if (errMsg) {
+      contractResults.innerHTML = `<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>${errMsg}</p></div>`;
+      return;
+    }
+    if (!data.top_spreads || !data.expiration) {
+      contractResults.innerHTML = '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Unexpected response. Please try again.</p></div>';
       return;
     }
     renderSpreads(data);
@@ -2496,7 +2497,8 @@ function setFilter(f) {
 }
 
 function fmtDate(d) {
-  const [y,m,day] = d.split('-');
+  if (!d) return '';
+  const [y,m,day] = String(d).split('-');
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1] + ` ${parseInt(day)}, ${y}`;
 }
 
