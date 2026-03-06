@@ -18,10 +18,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-
 
 /* ── NAV ── */
 .app-nav{background:#0d1018;border-bottom:2px solid var(--border);display:flex;align-items:center;padding:0 16px;position:sticky;top:0;z-index:100;}
-.logo{font-size:1.1rem;font-weight:700;color:#fff;padding:14px 20px 14px 0;border-right:1px solid var(--border);margin-right:8px;white-space:nowrap;}
+.logo{font-size:1.1rem;font-weight:700;color:#fff;padding:14px 20px 14px 0;border-right:1px solid var(--border);margin-right:8px;white-space:nowrap;flex-shrink:0;}
 .logo span{color:var(--blue);}
-.nav-tabs-oh{display:flex;gap:2px;flex:1;}
-.nav-tab{padding:14px 18px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:13px;font-weight:500;transition:all .2s;white-space:nowrap;}
+.nav-tabs-oh{display:flex;gap:2px;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none;}
+.nav-tabs-oh::-webkit-scrollbar{display:none;}
+.nav-tab{padding:14px 18px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:13px;font-weight:500;transition:all .2s;white-space:nowrap;flex-shrink:0;user-select:none;-webkit-user-select:none;}
 .nav-tab:hover{color:var(--text);}
 .nav-tab.active{color:#fff;border-bottom-color:var(--blue);}
 .nav-tab .tab-icon{margin-right:6px;}
@@ -390,10 +391,40 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
   border-radius: 10px;     /* iOS likes rounded inputs */
 }
 
+/* ── iPad: give tabs more breathing room ── */
+@media(min-width:601px) and (max-width:1024px){
+  .nav-tab { padding: 14px 22px; font-size: 14px; }
+  .logo    { font-size: 1.15rem; }
+}
+
 @media(max-width:600px){
-  /* Nav */
-  .nav-tab { padding: 0 10px; font-size: 11px; }
-  .logo    { font-size: 1rem; padding: 0 12px 0 0; }
+  /* Two-row nav: logo on top row, tabs below full-width */
+  .app-nav {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    padding-top: env(safe-area-inset-top);
+  }
+  .logo {
+    font-size: 1rem;
+    padding: 10px max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    margin-right: 0;
+  }
+  .nav-tabs-oh {
+    width: 100%;
+    gap: 0;
+    padding: 0 max(4px, env(safe-area-inset-left)) 0 max(4px, env(safe-area-inset-right));
+  }
+  .nav-tab {
+    padding: 12px 14px;
+    font-size: 12px;
+    flex: 1;
+    min-width: max-content;
+    justify-content: center;
+  }
 
   /* Grids */
   .metric-grid  { grid-template-columns: repeat(2,1fr); }
@@ -769,13 +800,48 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
 // ═════════════════════════════════════════════════════════════════════════════
 let briefingLoaded = false;
 
+const TAB_ORDER = ['briefing', 'technical', 'options'];
+
 function switchTab(name) {
   document.querySelectorAll('.tab-content-oh').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
   document.getElementById('content-' + name).classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
+  const activeTab = document.getElementById('tab-' + name);
+  activeTab.classList.add('active');
+  // Scroll active tab into view in the scrollable tab bar
+  activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   if (name === 'briefing' && !briefingLoaded) loadBriefing();
 }
+
+// ── Swipe left/right on tab content to navigate tabs (iOS/iPadOS) ──
+(function() {
+  let touchStartX = 0, touchStartY = 0;
+  const SWIPE_THRESHOLD = 60;   // min horizontal px
+  const ANGLE_LIMIT = 35;       // max degrees from horizontal
+
+  document.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    // Reject vertical scrolls
+    if (Math.abs(dy) > Math.abs(dx) * Math.tan(ANGLE_LIMIT * Math.PI / 180)) return;
+    if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+    // Don't hijack swipes inside scrollable/canvas elements
+    if (e.target.closest('.nav-tabs-oh, .table-wrap, canvas')) return;
+
+    const activeEl = document.querySelector('.tab-content-oh.active');
+    if (!activeEl) return;
+    const idx = TAB_ORDER.indexOf(activeEl.id.replace('content-', ''));
+    if (dx < 0 && idx < TAB_ORDER.length - 1) switchTab(TAB_ORDER[idx + 1]);
+    if (dx > 0 && idx > 0)                    switchTab(TAB_ORDER[idx - 1]);
+  }, { passive: true });
+})();
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  MORNING BRIEFING
