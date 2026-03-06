@@ -2351,6 +2351,7 @@ function renderSpreads(data) {
         </div>
       </div>`;
 
+    const reasons = (sp.reasons || []).map(([type, txt]) => {
       const col  = type === 'good' ? 'var(--green)' : type === 'ok' ? 'var(--text)' : type === 'warn' ? '#ff944d' : 'var(--red)';
       const icon = type === 'good' ? '✓' : type === 'ok' ? '◎' : '✗';
       return `<div class="cr-reason-item"><span style="color:${col};flex-shrink:0">${icon}</span><span style="color:var(--muted)">${txt}</span></div>`;
