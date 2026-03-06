@@ -490,6 +490,36 @@ body, .table-wrap { -webkit-overflow-scrolling: touch; }
 /* ── Prevent overscroll bounce from misaligning sticky nav ── */
 body { overscroll-behavior-y: none; }
 
+/* ── Paper Trades: Simulate button ── */
+.btn-simulate{display:block;width:100%;margin-top:12px;padding:10px 16px;background:rgba(77,159,255,.12);border:1.5px solid rgba(77,159,255,.35);border-radius:8px;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.02em;}
+.btn-simulate:hover{background:rgba(77,159,255,.22);border-color:var(--blue);}
+
+/* ── Paper Trades: nav badge ── */
+.pt-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:0 5px;margin-left:5px;vertical-align:middle;}
+
+/* ── Paper Trades: trade cards ── */
+.pt-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;transition:border-color .2s;}
+.pt-card.status-active{border-left:3px solid var(--blue);}
+.pt-card.status-closed{border-left:3px solid var(--muted);opacity:.75;}
+.pt-card.status-expired{border-left:3px solid var(--red);opacity:.75;}
+.pt-card-header{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.pt-ticker{font-size:16px;font-weight:700;color:#fff;}
+.pt-type-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.05em;}
+.pt-status-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;}
+.pt-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:10px 0;}
+.pt-stat{background:#0b0e14;border:1px solid var(--border);border-radius:7px;padding:8px 10px;}
+.pt-stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+.pt-stat-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;}
+.pt-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.pt-btn-refresh{padding:7px 14px;background:rgba(77,159,255,.1);border:1px solid rgba(77,159,255,.3);border-radius:7px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.pt-btn-refresh:hover{background:rgba(77,159,255,.2);}
+.pt-btn-close{padding:7px 14px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:7px;color:var(--yellow);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.pt-btn-close:hover{background:rgba(255,193,7,.16);}
+.pt-btn-delete{padding:7px 14px;background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.2);border-radius:7px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.pt-btn-delete:hover{background:rgba(255,77,106,.16);}
+.pt-section-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.pt-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+
 /* ── Sticky table header: offset by nav height so it's not hidden ── */
 .oh-table thead th { top: 50px; }
 
@@ -511,6 +541,7 @@ body { overscroll-behavior-y: none; }
     <div class="nav-tab active" onclick="switchTab('briefing')"  id="tab-briefing"><span class="tab-icon">🌅</span><span class="tab-text">Morning Briefing</span></div>
     <div class="nav-tab"       onclick="switchTab('technical')" id="tab-technical"><span class="tab-icon">📊</span><span class="tab-text">Technical</span></div>
     <div class="nav-tab"       onclick="switchTab('options')"   id="tab-options"><span class="tab-icon">🎯</span><span class="tab-text">Options Hunter</span></div>
+    <div class="nav-tab"       onclick="switchTab('paper')"     id="tab-paper"><span class="tab-icon">📋</span><span class="tab-text">Paper Trades</span><span class="pt-badge" id="ptBadge" style="display:none"></span></div>
   </div>
 </nav>
 
@@ -834,6 +865,64 @@ body { overscroll-behavior-y: none; }
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     TAB 4 — PAPER TRADES
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-oh" id="content-paper">
+  <div style="max-width:1100px;margin:0 auto;padding:20px">
+
+    <!-- Header bar -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#fff">Paper Trades</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Simulated positions — 1 contract each · PnL updates on manual refresh</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
+        <select id="ptFilter" onchange="renderPaperTrades()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:12px;cursor:pointer">
+          <option value="all">All Trades</option>
+          <option value="active">Active</option>
+          <option value="closed">Closed</option>
+          <option value="expired">Expired</option>
+        </select>
+        <button class="btn-primary-oh" onclick="refreshAllTrades()" id="ptRefreshAllBtn" style="font-size:12px;padding:8px 16px">
+          ↻ Refresh All PnL
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary strip (shown when there are trades) -->
+    <div id="ptSummaryStrip" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:20px">
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Active Trades</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:#fff" id="ptCountActive">0</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Total Invested</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:var(--blue)" id="ptTotalInvested">$0</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Unrealized PnL</div>
+          <div class="mono" style="font-size:18px;font-weight:700" id="ptTotalPnl">—</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Win Rate</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:#fff" id="ptWinRate">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade list -->
+    <div id="ptTradeList">
+      <div class="state-box" style="margin-top:30px">
+        <div class="spinner"></div>
+        <p>Loading paper trades...</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ── TOAST ── -->
 <div class="toast-wrap" id="toastWrap" style="display:none"><div class="toast-msg" id="toastMsg"></div></div>
 
@@ -849,6 +938,7 @@ function switchTab(name) {
   document.getElementById('content-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'briefing' && !briefingLoaded) loadBriefing();
+  if (name === 'paper') loadPaperTrades();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2183,6 +2273,14 @@ function renderContracts(data) {
       ? `+${((c.breakeven / data.price - 1) * 100).toFixed(1)}% to breakeven`
       : `-${((1 - c.breakeven / data.price) * 100).toFixed(1)}% to breakeven`;
 
+    const simPayloadContract = JSON.stringify({
+      trade_type: 'long_contract', ticker: data.ticker, direction: data.direction,
+      strike: c.strike, expiration: c.expiration, dte_at_entry: c.dte,
+      entry_price: c.mid, entry_total_cost: c.cost, entry_stock_price: data.price,
+      breakeven: c.breakeven, entry_score: c.score, entry_grade: c.grade,
+      entry_delta: c.delta, entry_iv: c.iv
+    }).replace(/'/g, "&#39;");
+
     return `<div class="contract-rec${isTop ? ' top-pick' : ''}">
       <div class="cr-header">
         <div class="cr-rank">#${c.rank} Pick &nbsp; ${topLabel}</div>
@@ -2221,6 +2319,9 @@ function renderContracts(data) {
         </div>
       </div>
       <div class="cr-reasons">${reasons}</div>
+      <button class="btn-simulate" onclick='simulateTrade(${simPayloadContract})'>
+        📋 Simulate Trade (Paper)
+      </button>
     </div>`;
   }).join('');
 
@@ -2506,6 +2607,17 @@ function renderSpreads(data) {
       </div>
 
       <div class="cr-reasons">${reasons}</div>
+      <button class="btn-simulate" onclick='simulateTrade(${JSON.stringify({
+        trade_type: "debit_spread", ticker: data.ticker, direction: data.direction,
+        long_strike: sp.long_strike, short_strike: sp.short_strike,
+        spread_width: sp.spread_width, max_profit: sp.max_profit,
+        expiration: sp.expiration, dte_at_entry: sp.dte,
+        entry_price: sp.net_debit, entry_total_cost: sp.net_debit_total,
+        entry_stock_price: data.price, breakeven: sp.breakeven,
+        entry_score: sp.score
+      }).replace(/'/g,"&#39;")})'>
+        📋 Simulate Trade (Paper)
+      </button>
     </div>`;
   }).join('');
 
@@ -2688,6 +2800,292 @@ function showToast(msg) {
 document.getElementById('tickerInput').addEventListener('keydown', e => { if(e.key==='Enter') loadStock(); });
 document.getElementById('techTicker').addEventListener('keydown', e => { if(e.key==='Enter') loadTechnical(); });
 document.getElementById('wlInput').addEventListener('keydown',    e => { if(e.key==='Enter') addToWatchlist(); });
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  PAPER TRADES
+// ═════════════════════════════════════════════════════════════════════════════
+let _ptTrades = [];
+
+async function simulateTrade(payload) {
+  try {
+    const res  = await fetch('/api/trades/simulate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.detail || data.error) {
+      showToast('Failed to simulate: ' + (data.detail || data.error));
+      return;
+    }
+    showToast(`✅ Trade simulated! View it in the Paper Trades tab.`);
+    _ptTrades = []; // clear cache so next load is fresh
+    updatePtBadge();
+  } catch(e) {
+    showToast('Could not save trade. Try again.');
+  }
+}
+
+async function loadPaperTrades() {
+  document.getElementById('ptTradeList').innerHTML =
+    '<div class="state-box" style="margin-top:30px"><div class="spinner"></div><p>Loading paper trades...</p></div>';
+  try {
+    const res  = await fetch('/api/trades');
+    const data = await res.json();
+    _ptTrades  = data.trades || [];
+    renderPaperTrades();
+    updatePtBadge();
+  } catch(e) {
+    document.getElementById('ptTradeList').innerHTML =
+      '<div class="state-box" style="margin-top:30px"><div class="icon">⚠️</div><p>Could not load trades. Try again.</p></div>';
+  }
+}
+
+function renderPaperTrades() {
+  const filter = document.getElementById('ptFilter').value;
+  const trades = filter === 'all' ? _ptTrades : _ptTrades.filter(t => t.status === filter);
+  const list   = document.getElementById('ptTradeList');
+
+  // ── Summary strip ──────────────────────────────────────────────────────────
+  const active  = _ptTrades.filter(t => t.status === 'active');
+  const strip   = document.getElementById('ptSummaryStrip');
+  if (_ptTrades.length > 0) {
+    strip.style.display = 'block';
+    document.getElementById('ptCountActive').textContent = active.length;
+    const totalInvested = active.reduce((s, t) => s + (t.entry_total_cost || 0), 0);
+    document.getElementById('ptTotalInvested').textContent = '$' + totalInvested.toFixed(0);
+
+    const withPnl = active.filter(t => t.pnl_dollars != null);
+    if (withPnl.length) {
+      const totalPnl = withPnl.reduce((s, t) => s + t.pnl_dollars, 0);
+      const pnlEl    = document.getElementById('ptTotalPnl');
+      pnlEl.textContent = (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(0);
+      pnlEl.style.color  = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      document.getElementById('ptTotalPnl').textContent = '—';
+    }
+
+    const closed  = _ptTrades.filter(t => t.status === 'closed' && t.pnl_dollars != null);
+    const expired = _ptTrades.filter(t => t.status === 'expired' && t.pnl_dollars != null);
+    const resolved = [...closed, ...expired];
+    if (resolved.length) {
+      const wins    = resolved.filter(t => t.pnl_dollars > 0).length;
+      document.getElementById('ptWinRate').textContent = Math.round(wins / resolved.length * 100) + '%';
+    } else {
+      document.getElementById('ptWinRate').textContent = '—';
+    }
+  } else {
+    strip.style.display = 'none';
+  }
+
+  if (!trades.length) {
+    list.innerHTML = `<div class="pt-empty">
+      ${filter === 'all'
+        ? '<div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-weight:600;color:var(--text);margin-bottom:6px">No paper trades yet</div><div>Find a contract in the Options Hunter tab and click <b style="color:var(--blue)">Simulate Trade</b> to get started.</div>'
+        : `<div style="font-size:28px;margin-bottom:10px">🔍</div><div>No ${filter} trades.</div>`
+      }
+    </div>`;
+    return;
+  }
+
+  // Group by status for "All" view
+  const groups = filter === 'all'
+    ? [
+        { label: `Active (${_ptTrades.filter(t=>t.status==='active').length})`,  items: trades.filter(t=>t.status==='active')  },
+        { label: `Closed (${_ptTrades.filter(t=>t.status==='closed').length})`,  items: trades.filter(t=>t.status==='closed')  },
+        { label: `Expired (${_ptTrades.filter(t=>t.status==='expired').length})`, items: trades.filter(t=>t.status==='expired') },
+      ].filter(g => g.items.length)
+    : [{ label: null, items: trades }];
+
+  list.innerHTML = groups.map(g => `
+    ${g.label ? `<div class="pt-section-label">${g.label}</div>` : ''}
+    ${g.items.map(t => ptCardHtml(t)).join('')}
+  `).join('');
+}
+
+function ptCardHtml(t) {
+  const isActive  = t.status === 'active';
+  const isClosed  = t.status === 'closed';
+  const isExpired = t.status === 'expired';
+
+  const isSpread  = t.trade_type === 'debit_spread';
+  const typeColor = isSpread ? 'rgba(77,159,255,.2)' : 'rgba(0,208,132,.12)';
+  const typeText  = isSpread ? 'Debit Spread' : 'Long Option';
+
+  const statusColor = isActive ? 'rgba(77,159,255,.15)' : isClosed ? 'rgba(90,100,128,.15)' : 'rgba(255,77,106,.12)';
+  const statusTextColor = isActive ? 'var(--blue)' : isClosed ? 'var(--muted)' : 'var(--red)';
+  const statusLabel = isActive ? 'Active' : isClosed ? 'Closed' : 'Expired';
+
+  const dirColor = t.direction === 'CALL' ? 'var(--green)' : 'var(--red)';
+
+  // Strike / description
+  let descLine = '';
+  if (isSpread) {
+    descLine = `$${t.long_strike} / $${t.short_strike} ${t.direction} Spread`;
+  } else {
+    descLine = `$${t.strike} ${t.direction}`;
+  }
+
+  const expLine = t.expiration ? `${fmtDate(t.expiration)}` : '';
+  const dteEntry = t.dte_at_entry != null ? `${t.dte_at_entry} DTE at entry` : '';
+  const dteCur   = t.current_dte  != null ? ` · ${t.current_dte} DTE now`   : '';
+
+  // PnL display
+  let pnlHtml = '<span style="color:var(--muted)">—</span>';
+  if (t.pnl_dollars != null) {
+    const pos     = t.pnl_dollars >= 0;
+    const col     = pos ? 'var(--green)' : 'var(--red)';
+    const sign    = pos ? '+' : '';
+    const pnlPct  = t.pnl_pct != null ? ` (${pos ? '+' : ''}${t.pnl_pct.toFixed(1)}%)` : '';
+    pnlHtml = `<span style="color:${col};font-weight:700">${sign}$${Math.abs(t.pnl_dollars).toFixed(2)}${pnlPct}</span>`;
+  }
+
+  const refreshedLine = t.last_refreshed
+    ? `<div style="font-size:10px;color:var(--muted);margin-top:6px">Last refreshed: ${new Date(t.last_refreshed + 'Z').toLocaleString()}</div>`
+    : `<div style="font-size:10px;color:var(--muted);margin-top:6px">Not yet refreshed — click Refresh PnL to see current value</div>`;
+
+  const entryDate = new Date(t.created_at + 'Z').toLocaleString();
+
+  const actionsHtml = isActive
+    ? `<button class="pt-btn-refresh" onclick="refreshOneTrade(${t.id})">↻ Refresh PnL</button>
+       <button class="pt-btn-close"   onclick="closeTrade(${t.id})">✓ Close Position</button>
+       <button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`
+    : `<button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`;
+
+  const scoreHtml = t.entry_score != null
+    ? `<div class="pt-stat"><div class="pt-stat-label">Entry Score</div><div class="pt-stat-val" style="color:var(--blue)">${t.entry_score}/100 ${t.entry_grade ? `(${t.entry_grade})` : ''}</div></div>`
+    : '';
+
+  const deltaHtml = t.entry_delta != null
+    ? `<div class="pt-stat"><div class="pt-stat-label">Entry Delta</div><div class="pt-stat-val">${t.entry_delta}</div></div>`
+    : '';
+
+  const spreadMaxProfitHtml = isSpread && t.max_profit != null
+    ? `<div class="pt-stat"><div class="pt-stat-label">Max Profit</div><div class="pt-stat-val" style="color:var(--green)">$${t.max_profit}</div></div>`
+    : '';
+
+  return `<div class="pt-card status-${t.status}">
+    <div class="pt-card-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="pt-ticker">${t.ticker}</span>
+          <span class="pt-type-badge" style="background:${typeColor};color:var(--blue)">${typeText}</span>
+          <span class="pt-type-badge" style="background:${t.direction==='CALL'?'rgba(0,208,132,.12)':'rgba(255,77,106,.12)'};color:${dirColor}">${t.direction}</span>
+          <span class="pt-status-badge" style="background:${statusColor};color:${statusTextColor}">${statusLabel}</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;color:#fff;margin-top:5px">${descLine}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${expLine} · ${dteEntry}${dteCur}</div>
+        <div style="font-size:11px;color:var(--muted)">Entered: ${entryDate} · Entry stock: $${t.entry_stock_price}</div>
+      </div>
+    </div>
+
+    <div class="pt-stats">
+      <div class="pt-stat">
+        <div class="pt-stat-label">Entry Price</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_price} <span style="font-size:10px;font-weight:400;color:var(--muted)">(mid)</span></div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Cost (1 contract)</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_total_cost}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Current Price</div>
+        <div class="pt-stat-val">${t.current_price != null ? '$' + t.current_price : '—'}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">PnL</div>
+        <div class="pt-stat-val">${pnlHtml}</div>
+      </div>
+      ${scoreHtml}
+      ${deltaHtml}
+      ${spreadMaxProfitHtml}
+      ${t.breakeven != null ? `<div class="pt-stat"><div class="pt-stat-label">Breakeven</div><div class="pt-stat-val" style="color:var(--yellow)">$${t.breakeven}</div></div>` : ''}
+    </div>
+    ${refreshedLine}
+    <div class="pt-actions">${actionsHtml}</div>
+  </div>`;
+}
+
+async function refreshOneTrade(id) {
+  showToast('Refreshing…');
+  try {
+    const res  = await fetch(`/api/trades/${id}/refresh`, { method: 'POST' });
+    const data = await res.json();
+    if (data.detail) { showToast('Refresh failed: ' + data.detail); return; }
+    const idx = _ptTrades.findIndex(t => t.id === id);
+    if (idx !== -1) _ptTrades[idx] = data;
+    renderPaperTrades();
+    showToast('✅ PnL updated');
+  } catch(e) {
+    showToast('Refresh failed. Check connection.');
+  }
+}
+
+async function refreshAllTrades() {
+  const active = _ptTrades.filter(t => t.status === 'active');
+  if (!active.length) { showToast('No active trades to refresh'); return; }
+  const btn = document.getElementById('ptRefreshAllBtn');
+  btn.disabled = true;
+  btn.textContent = `↻ Refreshing (0/${active.length})…`;
+  let done = 0;
+  for (const t of active) {
+    try {
+      const res = await fetch(`/api/trades/${t.id}/refresh`, { method: 'POST' });
+      const data = await res.json();
+      if (!data.detail) {
+        const idx = _ptTrades.findIndex(x => x.id === t.id);
+        if (idx !== -1) _ptTrades[idx] = data;
+      }
+    } catch(_) {}
+    done++;
+    btn.textContent = `↻ Refreshing (${done}/${active.length})…`;
+    if (done < active.length) await new Promise(r => setTimeout(r, 600));
+  }
+  btn.disabled = false;
+  btn.textContent = '↻ Refresh All PnL';
+  renderPaperTrades();
+  showToast(`✅ Refreshed ${active.length} trade${active.length > 1 ? 's' : ''}`);
+}
+
+async function closeTrade(id) {
+  if (!confirm('Mark this position as manually closed?')) return;
+  try {
+    const res  = await fetch(`/api/trades/${id}/close`, { method: 'POST' });
+    const data = await res.json();
+    if (data.detail) { showToast('Failed: ' + data.detail); return; }
+    const idx = _ptTrades.findIndex(t => t.id === id);
+    if (idx !== -1) _ptTrades[idx] = data;
+    renderPaperTrades();
+    updatePtBadge();
+    showToast('Position closed');
+  } catch(e) {
+    showToast('Failed to close. Try again.');
+  }
+}
+
+async function deleteTrade(id) {
+  if (!confirm('Delete this trade record permanently?')) return;
+  try {
+    await fetch(`/api/trades/${id}`, { method: 'DELETE' });
+    _ptTrades = _ptTrades.filter(t => t.id !== id);
+    renderPaperTrades();
+    updatePtBadge();
+    showToast('Trade deleted');
+  } catch(e) {
+    showToast('Failed to delete. Try again.');
+  }
+}
+
+function updatePtBadge() {
+  const badge  = document.getElementById('ptBadge');
+  const active = _ptTrades.filter(t => t.status === 'active').length;
+  if (active > 0) {
+    badge.textContent = active;
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderWatchlistTags();

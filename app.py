@@ -14,6 +14,7 @@ import time
 import threading
 import webbrowser
 import socket
+import sqlite3
 import requests
 import concurrent.futures
 import xml.etree.ElementTree as ET
@@ -1792,9 +1793,81 @@ def get_sentiment(ticker_symbol):
 #  FASTAPI ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ─── SQLITE PAPER TRADES DB ───────────────────────────────────────────────────
+# On Render: set DATA_DIR=/data env var and attach a 1GB Persistent Disk at /data
+_DB_PATH = os.path.join(os.environ.get('DATA_DIR', '.'), 'trades.db')
+_db_lock = threading.Lock()
+
+def _get_db():
+    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def _init_db():
+    with _db_lock:
+        conn = _get_db()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS simulated_trades (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at          TEXT NOT NULL,
+                closed_at           TEXT,
+                status              TEXT NOT NULL DEFAULT 'active',
+                trade_type          TEXT NOT NULL,
+                ticker              TEXT NOT NULL,
+                direction           TEXT NOT NULL,
+                strike              REAL,
+                expiration          TEXT,
+                long_strike         REAL,
+                short_strike        REAL,
+                spread_width        REAL,
+                max_profit          REAL,
+                dte_at_entry        INTEGER,
+                entry_price         REAL,
+                entry_total_cost    REAL,
+                entry_stock_price   REAL,
+                breakeven           REAL,
+                entry_score         INTEGER,
+                entry_grade         TEXT,
+                entry_delta         REAL,
+                entry_iv            REAL,
+                current_price       REAL,
+                current_stock_price REAL,
+                current_dte         INTEGER,
+                last_refreshed      TEXT,
+                pnl_dollars         REAL,
+                pnl_pct             REAL
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+_init_db()
+
+
 class AnalyzeBody(BaseModel):
     ticker:     str
     expiration: str
+
+
+class SimulateTradeBody(BaseModel):
+    trade_type:         str    # 'long_contract' | 'debit_spread'
+    ticker:             str
+    direction:          str    # 'CALL' | 'PUT'
+    strike:             float | None = None
+    expiration:         str   | None = None
+    long_strike:        float | None = None
+    short_strike:       float | None = None
+    spread_width:       float | None = None
+    max_profit:         float | None = None
+    dte_at_entry:       int   | None = None
+    entry_price:        float
+    entry_total_cost:   float
+    entry_stock_price:  float
+    breakeven:          float | None = None
+    entry_score:        int   | None = None
+    entry_grade:        str   | None = None
+    entry_delta:        float | None = None
+    entry_iv:           float | None = None
 
 
 @app.get('/login', response_class=HTMLResponse)
@@ -2536,6 +2609,186 @@ def spread_recommend(request: Request, ticker: str, direction: str = 'call', set
 
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=400)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  PAPER TRADES API
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post('/api/trades/simulate')
+@limiter.limit("30/minute")
+def simulate_trade(body: SimulateTradeBody, request: Request):
+    now = datetime.utcnow().isoformat()
+    with _db_lock:
+        conn = _get_db()
+        cur = conn.execute("""
+            INSERT INTO simulated_trades
+                (created_at, status, trade_type, ticker, direction,
+                 strike, expiration, long_strike, short_strike, spread_width, max_profit,
+                 dte_at_entry, entry_price, entry_total_cost, entry_stock_price,
+                 breakeven, entry_score, entry_grade, entry_delta, entry_iv)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (now, 'active', body.trade_type, body.ticker.upper(), body.direction.upper(),
+              body.strike, body.expiration, body.long_strike, body.short_strike,
+              body.spread_width, body.max_profit, body.dte_at_entry,
+              body.entry_price, body.entry_total_cost, body.entry_stock_price,
+              body.breakeven, body.entry_score, body.entry_grade,
+              body.entry_delta, body.entry_iv))
+        trade_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+    return {'id': trade_id, 'created_at': now}
+
+
+@app.get('/api/trades')
+@limiter.limit("60/minute")
+def get_trades(request: Request):
+    with _db_lock:
+        conn = _get_db()
+        rows = conn.execute(
+            "SELECT * FROM simulated_trades ORDER BY created_at DESC"
+        ).fetchall()
+        conn.close()
+    return {'trades': [dict(r) for r in rows]}
+
+
+@app.post('/api/trades/{trade_id}/refresh')
+@limiter.limit("20/minute")
+def refresh_trade(trade_id: int, request: Request):
+    with _db_lock:
+        conn = _get_db()
+        row = conn.execute(
+            "SELECT * FROM simulated_trades WHERE id=?", (trade_id,)
+        ).fetchone()
+        conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail='Trade not found')
+
+    trade = dict(row)
+    if trade['status'] != 'active':
+        return trade
+
+    now = datetime.utcnow().isoformat()
+    today = date.today()
+
+    try:
+        stock = yf.Ticker(trade['ticker'])
+        info  = stock.fast_info
+        current_stock = round(float(info.last_price), 2)
+
+        current_price = None
+        current_dte   = None
+        pnl_dollars   = None
+        pnl_pct       = None
+        new_status    = 'active'
+
+        if trade['trade_type'] == 'long_contract':
+            exp_date = datetime.strptime(trade['expiration'], '%Y-%m-%d').date()
+            current_dte = max((exp_date - today).days, 0)
+
+            if current_dte == 0:
+                current_price = 0.0
+                pnl_dollars   = round(-trade['entry_total_cost'], 2)
+                pnl_pct       = -100.0
+                new_status    = 'expired'
+            else:
+                chain = stock.option_chain(trade['expiration'])
+                df    = chain.calls if trade['direction'] == 'CALL' else chain.puts
+                row_match = df[df['strike'] == trade['strike']]
+                if not row_match.empty:
+                    r = row_match.iloc[0]
+                    bid = float(r['bid']) if not pd.isna(r['bid']) else 0.0
+                    ask = float(r['ask']) if not pd.isna(r['ask']) else 0.0
+                    current_price = round((bid + ask) / 2, 4)
+                    pnl_dollars   = round((current_price - trade['entry_price']) * 100, 2)
+                    pnl_pct       = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
+
+        else:  # debit_spread
+            exp_date = datetime.strptime(trade['expiration'], '%Y-%m-%d').date()
+            current_dte = max((exp_date - today).days, 0)
+
+            if current_dte == 0:
+                # At expiry: intrinsic value of spread
+                s = current_stock
+                if trade['direction'] == 'CALL':
+                    long_val  = max(s - trade['long_strike'],  0)
+                    short_val = max(s - trade['short_strike'], 0)
+                else:
+                    long_val  = max(trade['long_strike']  - s, 0)
+                    short_val = max(trade['short_strike'] - s, 0)
+                spread_val    = round(long_val - short_val, 4)
+                current_price = spread_val
+                pnl_dollars   = round((spread_val - trade['entry_price']) * 100, 2)
+                pnl_pct       = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
+                new_status    = 'expired'
+            else:
+                chain = stock.option_chain(trade['expiration'])
+                df    = chain.calls if trade['direction'] == 'CALL' else chain.puts
+
+                def _mid(df, strike):
+                    r = df[df['strike'] == strike]
+                    if r.empty:
+                        return None
+                    bid = float(r.iloc[0]['bid']) if not pd.isna(r.iloc[0]['bid']) else 0.0
+                    ask = float(r.iloc[0]['ask']) if not pd.isna(r.iloc[0]['ask']) else 0.0
+                    return (bid + ask) / 2
+
+                long_mid  = _mid(df, trade['long_strike'])
+                short_mid = _mid(df, trade['short_strike'])
+                if long_mid is not None and short_mid is not None:
+                    current_price = round(long_mid - short_mid, 4)
+                    pnl_dollars   = round((current_price - trade['entry_price']) * 100, 2)
+                    pnl_pct       = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
+
+        with _db_lock:
+            conn = _get_db()
+            conn.execute("""
+                UPDATE simulated_trades
+                SET current_price=?, current_stock_price=?, current_dte=?,
+                    last_refreshed=?, pnl_dollars=?, pnl_pct=?, status=?
+                WHERE id=?
+            """, (current_price, current_stock, current_dte,
+                  now, pnl_dollars, pnl_pct, new_status, trade_id))
+            conn.commit()
+            row2 = conn.execute(
+                "SELECT * FROM simulated_trades WHERE id=?", (trade_id,)
+            ).fetchone()
+            conn.close()
+        return dict(row2)
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post('/api/trades/{trade_id}/close')
+@limiter.limit("30/minute")
+def close_trade(trade_id: int, request: Request):
+    now = datetime.utcnow().isoformat()
+    with _db_lock:
+        conn = _get_db()
+        conn.execute(
+            "UPDATE simulated_trades SET status='closed', closed_at=? WHERE id=? AND status='active'",
+            (now, trade_id)
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM simulated_trades WHERE id=?", (trade_id,)
+        ).fetchone()
+        conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail='Trade not found')
+    return dict(row)
+
+
+@app.delete('/api/trades/{trade_id}')
+@limiter.limit("30/minute")
+def delete_trade(trade_id: int, request: Request):
+    with _db_lock:
+        conn = _get_db()
+        conn.execute("DELETE FROM simulated_trades WHERE id=?", (trade_id,))
+        conn.commit()
+        conn.close()
+    return {'deleted': trade_id}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
