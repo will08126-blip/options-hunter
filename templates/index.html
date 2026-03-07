@@ -493,6 +493,12 @@ body { overscroll-behavior-y: none; }
 /* ── Paper Trades: Simulate button ── */
 .btn-simulate{display:block;width:100%;margin-top:12px;padding:10px 16px;background:rgba(77,159,255,.12);border:1.5px solid rgba(77,159,255,.35);border-radius:8px;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:.02em;}
 .btn-simulate:hover{background:rgba(77,159,255,.22);border-color:var(--blue);}
+.btn-sim-mini{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid;white-space:nowrap;background:transparent;transition:background .15s,color .15s;}
+.bsm-long{color:var(--green);border-color:var(--green);}
+.bsm-long:hover{background:var(--green);color:#000;}
+.bsm-spread{color:var(--blue);border-color:var(--blue);}
+.bsm-spread:hover{background:var(--blue);color:#fff;}
+.btn-sim-mini:disabled{opacity:.45;cursor:default;}
 
 /* ── Paper Trades: nav badge ── */
 .pt-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:0 5px;margin-left:5px;vertical-align:middle;}
@@ -2650,6 +2656,9 @@ async function loadFullChain(ticker) {
 //  OPTIONS HUNTER  (manual search — unchanged)
 // ═════════════════════════════════════════════════════════════════════════════
 let allResults = [], currentFilter = 'all', openRow = null;
+let _manualTicker = '';       // ticker from last loadStock() call
+let _manualStockPrice = 0;    // stock price from last loadStock() call
+let _renderedRows = [];       // filtered rows currently visible in the table
 
 async function loadStock() {
   const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
@@ -2659,6 +2668,8 @@ async function loadStock() {
     const res  = await fetch(`/api/stock/${ticker}`);
     const data = await res.json();
     if (data.error) return showToast(data.error);
+    _manualTicker = ticker;
+    _manualStockPrice = data.stock.price;
     updateSentiment(data);
     document.getElementById('stockName').textContent  = data.stock.name;
     document.getElementById('stockPrice').textContent = `$${data.stock.price}`;
@@ -2702,10 +2713,11 @@ function renderTable(filter) {
   document.getElementById('resultsCount').textContent = `${rows.length} contracts`;
   if (!rows.length) { document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="icon">🔍</div><p>No contracts match this filter</p></div>'; return; }
 
+  _renderedRows = rows;
   let html = `<div class="table-wrap"><table class="oh-table"><thead><tr>
     <th>#</th><th>Type</th><th>Strike</th><th>Bid</th><th>Ask</th><th>Cost</th>
     <th>Breakeven</th><th>Delta</th><th>Theta/day</th><th>IV%</th>
-    <th>Volume</th><th>OI</th><th>DTE</th><th>Score</th><th>Grade</th>
+    <th>Volume</th><th>OI</th><th>DTE</th><th>Score</th><th>Grade</th><th>Paper Trade</th>
   </tr></thead><tbody>`;
 
   rows.forEach((r,idx) => {
@@ -2730,9 +2742,10 @@ function renderTable(filter) {
         <td class="mono">${r.dte}d</td>
         <td><div class="score-cell"><span class="mono" style="font-weight:700;min-width:24px">${r.score}</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:${r.score}%;background:${bc}"></div></div></div></td>
         <td><span class="grade ${gc}">${r.grade}</span></td>
+        <td onclick="event.stopPropagation()"><button class="btn-sim-mini ${_tradeMode==='spread'?'bsm-spread':'bsm-long'}" onclick="addManualTrade(event,${idx})">${_tradeMode==='spread'?'Spread':'Long'}</button></td>
       </tr>
       <tr class="detail-row" id="detail-${idx}" style="display:none">
-        <td colspan="15">${buildDetail(r)}</td>
+        <td colspan="16">${buildDetail(r)}</td>
       </tr>`;
   });
   html += '</tbody></table></div>';
@@ -2774,6 +2787,66 @@ function toggleDetail(idx) {
   const d = document.getElementById(`detail-${idx}`);
   d.style.display = d.style.display==='none' ? 'table-row' : 'none';
   openRow = d.style.display==='none' ? null : idx;
+}
+
+async function addManualTrade(event, idx) {
+  event.stopPropagation();
+  const r = _renderedRows[idx];
+  if (!r) return;
+  const btn = event.currentTarget;
+
+  if (_tradeMode === 'long') {
+    await simulateTrade({
+      trade_type: 'long_contract',
+      ticker: _manualTicker,
+      direction: r.type,
+      strike: r.strike,
+      expiration: r.expiration,
+      dte_at_entry: r.dte,
+      entry_price: r.ask,
+      entry_total_cost: r.cost,
+      entry_stock_price: _manualStockPrice,
+      breakeven: r.breakeven,
+      entry_score: r.score,
+      entry_grade: r.grade,
+      entry_delta: r.delta,
+      entry_iv: r.iv
+    });
+  } else {
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = '\u2026';
+    try {
+      const res = await fetch(`/api/spread-recommend/${_manualTicker}?direction=${r.type}&setup_score=${r.score}`);
+      const data = await res.json();
+      if (data.error || !data.top_spreads?.length) {
+        showToast('No spreads found for this contract');
+        return;
+      }
+      const sp = data.top_spreads[0];
+      await simulateTrade({
+        trade_type: 'debit_spread',
+        ticker: _manualTicker,
+        direction: r.type,
+        long_strike: sp.long_strike,
+        short_strike: sp.short_strike,
+        spread_width: sp.spread_width,
+        max_profit: sp.max_profit,
+        expiration: sp.expiration,
+        dte_at_entry: sp.dte,
+        entry_price: sp.net_debit,
+        entry_total_cost: sp.net_debit_total,
+        entry_stock_price: _manualStockPrice,
+        breakeven: sp.breakeven,
+        entry_score: sp.score
+      });
+    } catch(e) {
+      showToast('Could not fetch spread. Try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
 }
 
 function updateSentiment(data) {
