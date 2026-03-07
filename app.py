@@ -1812,6 +1812,7 @@ def _init_db():
                 created_at          TEXT NOT NULL,
                 closed_at           TEXT,
                 status              TEXT NOT NULL DEFAULT 'active',
+                user_token          TEXT NOT NULL DEFAULT 'anonymous',
                 trade_type          TEXT NOT NULL,
                 ticker              TEXT NOT NULL,
                 direction           TEXT NOT NULL,
@@ -1838,10 +1839,20 @@ def _init_db():
                 pnl_pct             REAL
             )
         """)
+        # Migrate existing DBs that predate the user_token column
+        try:
+            conn.execute("ALTER TABLE simulated_trades ADD COLUMN user_token TEXT NOT NULL DEFAULT 'anonymous'")
+        except Exception:
+            pass  # column already exists
         conn.commit()
         conn.close()
 
 _init_db()
+
+
+def _get_user_token(request: Request) -> str:
+    token = request.cookies.get('oh_auth', '')
+    return token if token else 'anonymous'
 
 
 class AnalyzeBody(BaseModel):
@@ -2623,12 +2634,13 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
         conn = _get_db()
         cur = conn.execute("""
             INSERT INTO simulated_trades
-                (created_at, status, trade_type, ticker, direction,
+                (created_at, status, user_token, trade_type, ticker, direction,
                  strike, expiration, long_strike, short_strike, spread_width, max_profit,
                  dte_at_entry, entry_price, entry_total_cost, entry_stock_price,
                  breakeven, entry_score, entry_grade, entry_delta, entry_iv)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, (now, 'active', body.trade_type, body.ticker.upper(), body.direction.upper(),
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (now, 'active', _get_user_token(request),
+              body.trade_type, body.ticker.upper(), body.direction.upper(),
               body.strike, body.expiration, body.long_strike, body.short_strike,
               body.spread_width, body.max_profit, body.dte_at_entry,
               body.entry_price, body.entry_total_cost, body.entry_stock_price,
@@ -2643,10 +2655,12 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
 @app.get('/api/trades')
 @limiter.limit("60/minute")
 def get_trades(request: Request):
+    user_token = _get_user_token(request)
     with _db_lock:
         conn = _get_db()
         rows = conn.execute(
-            "SELECT * FROM simulated_trades ORDER BY created_at DESC"
+            "SELECT * FROM simulated_trades WHERE user_token=? ORDER BY created_at DESC",
+            (user_token,)
         ).fetchall()
         conn.close()
     return {'trades': [dict(r) for r in rows]}
@@ -2655,10 +2669,12 @@ def get_trades(request: Request):
 @app.post('/api/trades/{trade_id}/refresh')
 @limiter.limit("20/minute")
 def refresh_trade(trade_id: int, request: Request):
+    user_token = _get_user_token(request)
     with _db_lock:
         conn = _get_db()
         row = conn.execute(
-            "SELECT * FROM simulated_trades WHERE id=?", (trade_id,)
+            "SELECT * FROM simulated_trades WHERE id=? AND user_token=?",
+            (trade_id, user_token)
         ).fetchone()
         conn.close()
     if not row:
@@ -2746,12 +2762,13 @@ def refresh_trade(trade_id: int, request: Request):
                 UPDATE simulated_trades
                 SET current_price=?, current_stock_price=?, current_dte=?,
                     last_refreshed=?, pnl_dollars=?, pnl_pct=?, status=?
-                WHERE id=?
+                WHERE id=? AND user_token=?
             """, (current_price, current_stock, current_dte,
-                  now, pnl_dollars, pnl_pct, new_status, trade_id))
+                  now, pnl_dollars, pnl_pct, new_status, trade_id, user_token))
             conn.commit()
             row2 = conn.execute(
-                "SELECT * FROM simulated_trades WHERE id=?", (trade_id,)
+                "SELECT * FROM simulated_trades WHERE id=? AND user_token=?",
+                (trade_id, user_token)
             ).fetchone()
             conn.close()
         return dict(row2)
@@ -2763,16 +2780,18 @@ def refresh_trade(trade_id: int, request: Request):
 @app.post('/api/trades/{trade_id}/close')
 @limiter.limit("30/minute")
 def close_trade(trade_id: int, request: Request):
+    user_token = _get_user_token(request)
     now = datetime.utcnow().isoformat()
     with _db_lock:
         conn = _get_db()
         conn.execute(
-            "UPDATE simulated_trades SET status='closed', closed_at=? WHERE id=? AND status='active'",
-            (now, trade_id)
+            "UPDATE simulated_trades SET status='closed', closed_at=? WHERE id=? AND status='active' AND user_token=?",
+            (now, trade_id, user_token)
         )
         conn.commit()
         row = conn.execute(
-            "SELECT * FROM simulated_trades WHERE id=?", (trade_id,)
+            "SELECT * FROM simulated_trades WHERE id=? AND user_token=?",
+            (trade_id, user_token)
         ).fetchone()
         conn.close()
     if not row:
@@ -2783,9 +2802,13 @@ def close_trade(trade_id: int, request: Request):
 @app.delete('/api/trades/{trade_id}')
 @limiter.limit("30/minute")
 def delete_trade(trade_id: int, request: Request):
+    user_token = _get_user_token(request)
     with _db_lock:
         conn = _get_db()
-        conn.execute("DELETE FROM simulated_trades WHERE id=?", (trade_id,))
+        conn.execute(
+            "DELETE FROM simulated_trades WHERE id=? AND user_token=?",
+            (trade_id, user_token)
+        )
         conn.commit()
         conn.close()
     return {'deleted': trade_id}
