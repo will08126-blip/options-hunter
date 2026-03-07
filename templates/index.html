@@ -497,6 +497,12 @@ body { overscroll-behavior-y: none; }
 /* ── Paper Trades: nav badge ── */
 .pt-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:0 5px;margin-left:5px;vertical-align:middle;}
 
+/* ── Paper Trades: portfolio entry card ── */
+.pt-entry-card{max-width:440px;margin:60px auto 0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:36px 32px;text-align:center;}
+.pt-entry-input{width:100%;padding:12px 14px;background:#0b0e14;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s;margin:16px 0;letter-spacing:.04em;}
+.pt-entry-input:focus{border-color:var(--blue);}
+.pt-entry-input::placeholder{color:var(--muted);letter-spacing:normal;}
+
 /* ── Paper Trades: trade cards ── */
 .pt-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;transition:border-color .2s;}
 .pt-card.status-active{border-left:3px solid var(--blue);}
@@ -875,9 +881,9 @@ body { overscroll-behavior-y: none; }
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
       <div>
         <div style="font-size:18px;font-weight:700;color:#fff">Paper Trades</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">Simulated positions — 1 contract each · PnL updates on manual refresh</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="ptSubtitle">Simulated positions — 1 contract each · PnL updates on manual refresh</div>
       </div>
-      <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
+      <div id="ptControls" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
         <select id="ptFilter" onchange="renderPaperTrades()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:12px;cursor:pointer">
           <option value="all">All Trades</option>
           <option value="active">Active</option>
@@ -886,6 +892,9 @@ body { overscroll-behavior-y: none; }
         </select>
         <button class="btn-primary-oh" onclick="refreshAllTrades()" id="ptRefreshAllBtn" style="font-size:12px;padding:8px 16px">
           ↻ Refresh All PnL
+        </button>
+        <button onclick="changePtPortfolio()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
+          ⊘ Change Portfolio
         </button>
       </div>
     </div>
@@ -938,7 +947,10 @@ function switchTab(name) {
   document.getElementById('content-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'briefing' && !briefingLoaded) loadBriefing();
-  if (name === 'paper') loadPaperTrades();
+  if (name === 'paper') {
+    if (_ptPortfolioCode) loadPaperTrades();
+    else showPortfolioEntry();
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2805,12 +2817,17 @@ document.getElementById('wlInput').addEventListener('keydown',    e => { if(e.ke
 //  PAPER TRADES
 // ═════════════════════════════════════════════════════════════════════════════
 let _ptTrades = [];
+let _ptPortfolioCode = localStorage.getItem('pt_portfolio_code') || null;
 
 async function simulateTrade(payload) {
+  if (!_ptPortfolioCode) {
+    showToast('⚠️ Open the Paper Trades tab and set a portfolio code first');
+    return;
+  }
   try {
     const res  = await fetch('/api/trades/simulate', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', 'X-Portfolio-Code': _ptPortfolioCode},
       body: JSON.stringify(payload)
     });
     const data = await res.json();
@@ -2826,11 +2843,59 @@ async function simulateTrade(payload) {
   }
 }
 
+function showPortfolioEntry() {
+  document.getElementById('ptControls').style.display = 'none';
+  document.getElementById('ptSummaryStrip').style.display = 'none';
+  const masked = _ptPortfolioCode ? _ptPortfolioCode.slice(0,4) + '***' : '';
+  document.getElementById('ptSubtitle').textContent = 'Enter your portfolio code to load your trade history';
+  document.getElementById('ptTradeList').innerHTML = `
+    <div class="pt-entry-card">
+      <div style="font-size:32px;margin-bottom:12px">📋</div>
+      <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:8px">Paper Trading Portfolio</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:4px">
+        Enter your unique portfolio code to load your trade history.<br>
+        <span style="color:var(--text)">New code = fresh portfolio. Same code anywhere = same history.</span>
+      </div>
+      <input class="pt-entry-input" id="ptCodeInput" type="text" placeholder="e.g. will-trades-2024" maxlength="60"
+        onkeydown="if(event.key==='Enter') setPtPortfolioCode(this.value)"/>
+      <button class="btn-primary-oh" onclick="setPtPortfolioCode(document.getElementById('ptCodeInput').value)"
+        style="width:100%;padding:11px;font-size:13px">
+        Load Portfolio →
+      </button>
+      <div style="margin-top:16px;font-size:11px;color:var(--muted);line-height:1.6">
+        Keep this code private — anyone who knows it can view your paper trades.<br>
+        There are no passwords or accounts. The code <em>is</em> your portfolio.
+      </div>
+    </div>`;
+}
+
+function setPtPortfolioCode(code) {
+  code = (code || '').trim();
+  if (!code) return showToast('Enter a portfolio code');
+  if (code.length < 4) return showToast('Code must be at least 4 characters');
+  _ptPortfolioCode = code;
+  localStorage.setItem('pt_portfolio_code', code);
+  document.getElementById('ptControls').style.display = 'flex';
+  document.getElementById('ptSubtitle').textContent = `Portfolio: ${code.slice(0,4)}${'*'.repeat(Math.min(code.length-4,8))} · Simulated positions — PnL updates on manual refresh`;
+  loadPaperTrades();
+}
+
+function changePtPortfolio() {
+  _ptPortfolioCode = null;
+  localStorage.removeItem('pt_portfolio_code');
+  _ptTrades = [];
+  updatePtBadge();
+  document.getElementById('ptSummaryStrip').style.display = 'none';
+  showPortfolioEntry();
+}
+
 async function loadPaperTrades() {
+  document.getElementById('ptControls').style.display = 'flex';
+  document.getElementById('ptSubtitle').textContent = `Portfolio: ${_ptPortfolioCode.slice(0,4)}${'*'.repeat(Math.min(_ptPortfolioCode.length-4,8))} · Simulated positions — PnL updates on manual refresh`;
   document.getElementById('ptTradeList').innerHTML =
     '<div class="state-box" style="margin-top:30px"><div class="spinner"></div><p>Loading paper trades...</p></div>';
   try {
-    const res  = await fetch('/api/trades');
+    const res  = await fetch('/api/trades', {headers: {'X-Portfolio-Code': _ptPortfolioCode}});
     const data = await res.json();
     _ptTrades  = data.trades || [];
     renderPaperTrades();
@@ -3009,7 +3074,7 @@ function ptCardHtml(t) {
 async function refreshOneTrade(id) {
   showToast('Refreshing…');
   try {
-    const res  = await fetch(`/api/trades/${id}/refresh`, { method: 'POST' });
+    const res  = await fetch(`/api/trades/${id}/refresh`, { method: 'POST', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
     const data = await res.json();
     if (data.detail) { showToast('Refresh failed: ' + data.detail); return; }
     const idx = _ptTrades.findIndex(t => t.id === id);
@@ -3030,7 +3095,7 @@ async function refreshAllTrades() {
   let done = 0;
   for (const t of active) {
     try {
-      const res = await fetch(`/api/trades/${t.id}/refresh`, { method: 'POST' });
+      const res = await fetch(`/api/trades/${t.id}/refresh`, { method: 'POST', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
       const data = await res.json();
       if (!data.detail) {
         const idx = _ptTrades.findIndex(x => x.id === t.id);
@@ -3050,7 +3115,7 @@ async function refreshAllTrades() {
 async function closeTrade(id) {
   if (!confirm('Mark this position as manually closed?')) return;
   try {
-    const res  = await fetch(`/api/trades/${id}/close`, { method: 'POST' });
+    const res  = await fetch(`/api/trades/${id}/close`, { method: 'POST', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
     const data = await res.json();
     if (data.detail) { showToast('Failed: ' + data.detail); return; }
     const idx = _ptTrades.findIndex(t => t.id === id);
@@ -3066,7 +3131,7 @@ async function closeTrade(id) {
 async function deleteTrade(id) {
   if (!confirm('Delete this trade record permanently?')) return;
   try {
-    await fetch(`/api/trades/${id}`, { method: 'DELETE' });
+    await fetch(`/api/trades/${id}`, { method: 'DELETE', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
     _ptTrades = _ptTrades.filter(t => t.id !== id);
     renderPaperTrades();
     updatePtBadge();
@@ -3091,6 +3156,14 @@ function updatePtBadge() {
 renderWatchlistTags();
 setBriefingHeader();
 loadBriefing(); // auto-load on page open
+
+// Restore portfolio code state on page load
+if (_ptPortfolioCode) {
+  document.getElementById('ptSubtitle').textContent =
+    `Portfolio: ${_ptPortfolioCode.slice(0,4)}${'*'.repeat(Math.min(_ptPortfolioCode.length-4,8))} · Simulated positions — PnL updates on manual refresh`;
+} else {
+  document.getElementById('ptControls').style.display = 'none';
+}
 </script>
 </body>
 </html>

@@ -1851,8 +1851,10 @@ _init_db()
 
 
 def _get_user_token(request: Request) -> str:
-    token = request.cookies.get('oh_auth', '')
-    return token if token else 'anonymous'
+    code = request.headers.get('X-Portfolio-Code', '').strip()
+    if not code:
+        return 'anonymous'
+    return hashlib.sha256((code + 'pt-v1').encode()).hexdigest()
 
 
 class AnalyzeBody(BaseModel):
