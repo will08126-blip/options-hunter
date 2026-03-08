@@ -11,3 +11,5 @@ services:
     envVars:
       - key: DATA_DIR
         value: /data
+      - key: ACCESS_CODES
+        sync: false   # Set in Render dashboard — comma-separated codes, e.g. mypass,alice-abc,bob-xyz
