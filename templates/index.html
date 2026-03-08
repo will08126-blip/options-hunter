@@ -532,6 +532,22 @@ body { overscroll-behavior-y: none; }
 .pt-section-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 .pt-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
 
+/* ── Stock Trade Modal ── */
+.st-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.st-modal{background:#111827;border:1px solid var(--border);border-radius:14px;padding:28px 28px 24px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;}
+.st-modal h3{font-size:16px;font-weight:700;color:#fff;margin-bottom:18px}
+.st-field{margin-bottom:14px}
+.st-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.st-field input{width:100%;padding:10px 12px;background:#0b0e14;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s}
+.st-field input:focus{border-color:var(--blue)}
+.st-dir-toggle{display:flex;gap:6px}
+.st-dir-btn{flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s}
+.st-dir-btn.active-long{background:rgba(0,208,132,.15);border-color:var(--green);color:var(--green)}
+.st-dir-btn.active-short{background:rgba(255,77,106,.12);border-color:var(--red);color:var(--red)}
+.st-modal-actions{display:flex;gap:8px;margin-top:20px}
+.st-notes{width:100%;padding:10px 12px;background:#0b0e14;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;min-height:60px;outline:none;transition:border-color .2s;font-family:inherit}
+.st-notes:focus{border-color:var(--blue)}
+
 /* ── Sticky table header: offset by nav height so it's not hidden ── */
 .oh-table thead th { top: 50px; }
 
@@ -659,6 +675,15 @@ body { overscroll-behavior-y: none; }
         <div id="modeDteTag" style="color:var(--blue);font-weight:600;margin-bottom:2px">21–35 DTE</div>
         <div>Exit at 65–75% of max value</div>
         <div>Never hold through earnings</div>
+      </div>
+      <div style="border-left:1px solid var(--border);padding-left:16px;display:flex;flex-direction:column;gap:4px;min-width:130px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Contracts</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button onclick="adjustContracts(-1)" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+          <span id="contractsDisplay" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#fff;min-width:24px;text-align:center">1</span>
+          <button onclick="adjustContracts(1)" style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted)">per paper trade</div>
       </div>
     </div>
   </div>
@@ -887,7 +912,7 @@ body { overscroll-behavior-y: none; }
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
       <div>
         <div style="font-size:18px;font-weight:700;color:#fff">Paper Trades</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="ptSubtitle">Simulated positions — 1 contract each · PnL updates on manual refresh</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="ptSubtitle">Simulated positions — options & stocks · PnL updates on manual refresh</div>
       </div>
       <div id="ptControls" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
         <select id="ptFilter" onchange="renderPaperTrades()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:12px;cursor:pointer">
@@ -895,9 +920,14 @@ body { overscroll-behavior-y: none; }
           <option value="active">Active</option>
           <option value="closed">Closed</option>
           <option value="expired">Expired</option>
+          <option value="stock">Stocks Only</option>
+          <option value="options">Options Only</option>
         </select>
         <button class="btn-primary-oh" onclick="refreshAllTrades()" id="ptRefreshAllBtn" style="font-size:12px;padding:8px 16px">
           ↻ Refresh All PnL
+        </button>
+        <button onclick="openStockTradeModal()" style="padding:8px 14px;background:rgba(0,208,132,.1);border:1px solid rgba(0,208,132,.3);border-radius:8px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(0,208,132,.18)'" onmouseout="this.style.background='rgba(0,208,132,.1)'">
+          + Add Stock Trade
         </button>
         <button onclick="changePtPortfolio()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
           ⊘ Change Portfolio
@@ -935,6 +965,54 @@ body { overscroll-behavior-y: none; }
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ── STOCK TRADE MODAL ── -->
+<div class="st-modal-overlay" id="stockTradeModal" style="display:none" onclick="if(event.target===this)closeStockTradeModal()">
+  <div class="st-modal">
+    <h3>📈 Add Stock Trade</h3>
+    <div class="st-field">
+      <label>Ticker Symbol</label>
+      <input id="stTicker" type="text" placeholder="e.g. AAPL" maxlength="10" style="text-transform:uppercase"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="st-field">
+      <label>Direction</label>
+      <div class="st-dir-toggle">
+        <button class="st-dir-btn active-long" id="stBtnLong" onclick="setStockDir('LONG')">▲ LONG (Buy)</button>
+        <button class="st-dir-btn" id="stBtnShort" onclick="setStockDir('SHORT')">▼ SHORT (Sell)</button>
+      </div>
+    </div>
+    <div class="st-field">
+      <label>Number of Shares</label>
+      <input id="stShares" type="number" placeholder="e.g. 100" min="1" max="100000" value="100">
+    </div>
+    <div class="st-field">
+      <label>Entry Price per Share ($)</label>
+      <div style="display:flex;gap:8px">
+        <input id="stEntryPrice" type="number" placeholder="e.g. 195.50" min="0.01" step="0.01" style="flex:1">
+        <button onclick="fetchStockPrice()" id="stFetchBtn"
+          style="padding:0 14px;background:rgba(77,159,255,.1);border:1px solid rgba(77,159,255,.3);border-radius:8px;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .2s"
+          onmouseover="this.style.background='rgba(77,159,255,.2)'" onmouseout="this.style.background='rgba(77,159,255,.1)'">
+          ↻ Current Price
+        </button>
+      </div>
+      <div id="stPriceHint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <div class="st-field">
+      <label>Notes (optional)</label>
+      <textarea class="st-notes" id="stNotes" placeholder="e.g. Swing trade setup, earnings play…"></textarea>
+    </div>
+    <div id="stCalcPreview" style="display:none;background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:4px;margin-bottom:6px;font-size:12px;color:var(--muted)"></div>
+    <div class="st-modal-actions">
+      <button onclick="submitStockTrade()" class="btn-primary-oh" style="flex:1;padding:11px;font-size:13px">
+        Add to Portfolio
+      </button>
+      <button onclick="closeStockTradeModal()" style="padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer">
+        Cancel
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1946,6 +2024,22 @@ let _allSetups = [];
 let _setupFilter = 'all';
 let _scanData = null;
 let _tradeMode = 'spread'; // 'spread' | 'long'
+let _numContracts = parseInt(localStorage.getItem('oh_num_contracts') || '1', 10) || 1;
+
+function adjustContracts(delta) {
+  _numContracts = Math.max(1, Math.min(50, _numContracts + delta));
+  localStorage.setItem('oh_num_contracts', _numContracts);
+  document.getElementById('contractsDisplay').textContent = _numContracts;
+}
+
+function simulateWithContracts(payload) {
+  const nc = _numContracts;
+  payload.num_contracts = nc;
+  if (nc > 1 && payload.entry_total_cost) {
+    payload.entry_total_cost = parseFloat((payload.entry_total_cost * nc).toFixed(2));
+  }
+  simulateTrade(payload);
+}
 
 function setTradeMode(mode) {
   _tradeMode = mode;
@@ -2337,7 +2431,7 @@ function renderContracts(data) {
         </div>
       </div>
       <div class="cr-reasons">${reasons}</div>
-      <button class="btn-simulate" onclick='simulateTrade(${simPayloadContract})'>
+      <button class="btn-simulate" onclick='simulateWithContracts(${simPayloadContract})'>
         📋 Simulate Trade (Paper)
       </button>
     </div>`;
@@ -2625,7 +2719,7 @@ function renderSpreads(data) {
       </div>
 
       <div class="cr-reasons">${reasons}</div>
-      <button class="btn-simulate" onclick='simulateTrade(${JSON.stringify({
+      <button class="btn-simulate" onclick='simulateWithContracts(${JSON.stringify({
         trade_type: "debit_spread", ticker: data.ticker, direction: data.direction,
         long_strike: sp.long_strike, short_strike: sp.short_strike,
         spread_width: sp.spread_width, max_profit: sp.max_profit,
@@ -2796,7 +2890,7 @@ async function addManualTrade(event, idx) {
   const btn = event.currentTarget;
 
   if (_tradeMode === 'long') {
-    await simulateTrade({
+    await simulateWithContracts({
       trade_type: 'long_contract',
       ticker: _manualTicker,
       direction: r.type,
@@ -2824,7 +2918,7 @@ async function addManualTrade(event, idx) {
         return;
       }
       const sp = data.top_spreads[0];
-      await simulateTrade({
+      await simulateWithContracts({
         trade_type: 'debit_spread',
         ticker: _manualTicker,
         direction: r.type,
@@ -2949,7 +3043,7 @@ function setPtPortfolioCode(code) {
   _ptPortfolioCode = code;
   localStorage.setItem('pt_portfolio_code', code);
   document.getElementById('ptControls').style.display = 'flex';
-  document.getElementById('ptSubtitle').textContent = `Portfolio: ${code.slice(0,4)}${'*'.repeat(Math.min(code.length-4,8))} · Simulated positions — PnL updates on manual refresh`;
+  document.getElementById('ptSubtitle').textContent = `Portfolio: ${code.slice(0,4)}${'*'.repeat(Math.min(code.length-4,8))} · Simulated positions — options & stocks · PnL updates on manual refresh`;
   loadPaperTrades();
 }
 
@@ -2964,7 +3058,7 @@ function changePtPortfolio() {
 
 async function loadPaperTrades() {
   document.getElementById('ptControls').style.display = 'flex';
-  document.getElementById('ptSubtitle').textContent = `Portfolio: ${_ptPortfolioCode.slice(0,4)}${'*'.repeat(Math.min(_ptPortfolioCode.length-4,8))} · Simulated positions — PnL updates on manual refresh`;
+  document.getElementById('ptSubtitle').textContent = `Portfolio: ${_ptPortfolioCode.slice(0,4)}${'*'.repeat(Math.min(_ptPortfolioCode.length-4,8))} · Simulated positions — options & stocks · PnL updates on manual refresh`;
   document.getElementById('ptTradeList').innerHTML =
     '<div class="state-box" style="margin-top:30px"><div class="spinner"></div><p>Loading paper trades...</p></div>';
   try {
@@ -2981,7 +3075,11 @@ async function loadPaperTrades() {
 
 function renderPaperTrades() {
   const filter = document.getElementById('ptFilter').value;
-  const trades = filter === 'all' ? _ptTrades : _ptTrades.filter(t => t.status === filter);
+  let trades;
+  if (filter === 'all')     trades = _ptTrades;
+  else if (filter === 'stock')   trades = _ptTrades.filter(t => t.trade_type === 'stock_trade');
+  else if (filter === 'options') trades = _ptTrades.filter(t => t.trade_type !== 'stock_trade');
+  else trades = _ptTrades.filter(t => t.status === filter);
   const list   = document.getElementById('ptTradeList');
 
   // ── Summary strip ──────────────────────────────────────────────────────────
@@ -3019,7 +3117,7 @@ function renderPaperTrades() {
   if (!trades.length) {
     list.innerHTML = `<div class="pt-empty">
       ${filter === 'all'
-        ? '<div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-weight:600;color:var(--text);margin-bottom:6px">No paper trades yet</div><div>Find a contract in the Options Hunter tab and click <b style="color:var(--blue)">Simulate Trade</b> to get started.</div>'
+        ? '<div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-weight:600;color:var(--text);margin-bottom:6px">No paper trades yet</div><div>Find an option in the Options Hunter tab and click <b style="color:var(--blue)">Simulate Trade</b>, or click <b style="color:var(--green)">+ Add Stock Trade</b> above to track a stock position.</div>'
         : `<div style="font-size:28px;margin-bottom:10px">🔍</div><div>No ${filter} trades.</div>`
       }
     </div>`;
@@ -3045,36 +3143,46 @@ function ptCardHtml(t) {
   const isActive  = t.status === 'active';
   const isClosed  = t.status === 'closed';
   const isExpired = t.status === 'expired';
-
+  const isStock   = t.trade_type === 'stock_trade';
   const isSpread  = t.trade_type === 'debit_spread';
-  const typeColor = isSpread ? 'rgba(77,159,255,.2)' : 'rgba(0,208,132,.12)';
-  const typeText  = isSpread ? 'Debit Spread' : 'Long Option';
+  const numC      = t.num_contracts || 1;
 
-  const statusColor = isActive ? 'rgba(77,159,255,.15)' : isClosed ? 'rgba(90,100,128,.15)' : 'rgba(255,77,106,.12)';
+  let typeColor, typeText;
+  if (isStock)       { typeColor = 'rgba(255,193,7,.15)';    typeText = 'Stock Trade'; }
+  else if (isSpread) { typeColor = 'rgba(77,159,255,.2)';    typeText = 'Debit Spread'; }
+  else               { typeColor = 'rgba(0,208,132,.12)';    typeText = 'Long Option'; }
+
+  const statusColor     = isActive ? 'rgba(77,159,255,.15)' : isClosed ? 'rgba(90,100,128,.15)' : 'rgba(255,77,106,.12)';
   const statusTextColor = isActive ? 'var(--blue)' : isClosed ? 'var(--muted)' : 'var(--red)';
-  const statusLabel = isActive ? 'Active' : isClosed ? 'Closed' : 'Expired';
+  const statusLabel     = isActive ? 'Active' : isClosed ? 'Closed' : 'Expired';
 
-  const dirColor = t.direction === 'CALL' ? 'var(--green)' : 'var(--red)';
+  const dirIsLong = t.direction === 'CALL' || t.direction === 'LONG';
+  const dirColor  = dirIsLong ? 'var(--green)' : 'var(--red)';
 
-  // Strike / description
+  // Header description line
   let descLine = '';
-  if (isSpread) {
+  if (isStock) {
+    descLine = `${numC.toLocaleString()} shares · ${t.direction}`;
+  } else if (isSpread) {
     descLine = `$${t.long_strike} / $${t.short_strike} ${t.direction} Spread`;
+    if (numC > 1) descLine += ` · ${numC} contracts`;
   } else {
     descLine = `$${t.strike} ${t.direction}`;
+    if (numC > 1) descLine += ` · ${numC} contracts`;
   }
 
-  const expLine = t.expiration ? `${fmtDate(t.expiration)}` : '';
-  const dteEntry = t.dte_at_entry != null ? `${t.dte_at_entry} DTE at entry` : '';
-  const dteCur   = t.current_dte  != null ? ` · ${t.current_dte} DTE now`   : '';
+  const expLine  = (!isStock && t.expiration) ? fmtDate(t.expiration) : '';
+  const dteEntry = (!isStock && t.dte_at_entry != null) ? `${t.dte_at_entry} DTE at entry` : '';
+  const dteCur   = (!isStock && t.current_dte  != null) ? ` · ${t.current_dte} DTE now`   : '';
+  const dteLine  = [expLine, dteEntry + dteCur].filter(Boolean).join(' · ');
 
   // PnL display
   let pnlHtml = '<span style="color:var(--muted)">—</span>';
   if (t.pnl_dollars != null) {
-    const pos     = t.pnl_dollars >= 0;
-    const col     = pos ? 'var(--green)' : 'var(--red)';
-    const sign    = pos ? '+' : '';
-    const pnlPct  = t.pnl_pct != null ? ` (${pos ? '+' : ''}${t.pnl_pct.toFixed(1)}%)` : '';
+    const pos    = t.pnl_dollars >= 0;
+    const col    = pos ? 'var(--green)' : 'var(--red)';
+    const sign   = pos ? '+' : '';
+    const pnlPct = t.pnl_pct != null ? ` (${pos ? '+' : ''}${t.pnl_pct.toFixed(1)}%)` : '';
     pnlHtml = `<span style="color:${col};font-weight:700">${sign}$${Math.abs(t.pnl_dollars).toFixed(2)}${pnlPct}</span>`;
   }
 
@@ -3083,6 +3191,7 @@ function ptCardHtml(t) {
     : `<div style="font-size:10px;color:var(--muted);margin-top:6px">Not yet refreshed — click Refresh PnL to see current value</div>`;
 
   const entryDate = new Date(t.created_at + 'Z').toLocaleString();
+  const notesHtml = t.notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">📝 ${t.notes}</div>` : '';
 
   const actionsHtml = isActive
     ? `<button class="pt-btn-refresh" onclick="refreshOneTrade(${t.id})">↻ Refresh PnL</button>
@@ -3090,41 +3199,50 @@ function ptCardHtml(t) {
        <button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`
     : `<button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`;
 
-  const scoreHtml = t.entry_score != null
-    ? `<div class="pt-stat"><div class="pt-stat-label">Entry Score</div><div class="pt-stat-val" style="color:var(--blue)">${t.entry_score}/100 ${t.entry_grade ? `(${t.entry_grade})` : ''}</div></div>`
-    : '';
-
-  const deltaHtml = t.entry_delta != null
-    ? `<div class="pt-stat"><div class="pt-stat-label">Entry Delta</div><div class="pt-stat-val">${t.entry_delta}</div></div>`
-    : '';
-
-  const spreadMaxProfitHtml = isSpread && t.max_profit != null
-    ? `<div class="pt-stat"><div class="pt-stat-label">Max Profit</div><div class="pt-stat-val" style="color:var(--green)">$${t.max_profit}</div></div>`
-    : '';
-
-  return `<div class="pt-card status-${t.status}">
-    <div class="pt-card-header">
-      <div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="pt-ticker">${t.ticker}</span>
-          <span class="pt-type-badge" style="background:${typeColor};color:var(--blue)">${typeText}</span>
-          <span class="pt-type-badge" style="background:${t.direction==='CALL'?'rgba(0,208,132,.12)':'rgba(255,77,106,.12)'};color:${dirColor}">${t.direction}</span>
-          <span class="pt-status-badge" style="background:${statusColor};color:${statusTextColor}">${statusLabel}</span>
-        </div>
-        <div style="font-size:14px;font-weight:600;color:#fff;margin-top:5px">${descLine}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${expLine} · ${dteEntry}${dteCur}</div>
-        <div style="font-size:11px;color:var(--muted)">Entered: ${entryDate} · Entry stock: $${t.entry_stock_price}</div>
+  // Stats grid — varies by trade type
+  let statsHtml = '';
+  if (isStock) {
+    const currentStockPrice = t.current_price != null ? `$${t.current_price}` : '—';
+    statsHtml = `
+      <div class="pt-stat">
+        <div class="pt-stat-label">Entry Price/Share</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_price}</div>
       </div>
-    </div>
-
-    <div class="pt-stats">
+      <div class="pt-stat">
+        <div class="pt-stat-label">Shares</div>
+        <div class="pt-stat-val" style="color:var(--blue)">${numC.toLocaleString()}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Total Cost</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${parseFloat(t.entry_total_cost).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Current Price</div>
+        <div class="pt-stat-val">${currentStockPrice}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">PnL</div>
+        <div class="pt-stat-val">${pnlHtml}</div>
+      </div>`;
+  } else {
+    const contractLabel = numC > 1 ? `Cost (${numC} contracts)` : 'Cost (1 contract)';
+    const scoreHtml = t.entry_score != null
+      ? `<div class="pt-stat"><div class="pt-stat-label">Entry Score</div><div class="pt-stat-val" style="color:var(--blue)">${t.entry_score}/100 ${t.entry_grade ? `(${t.entry_grade})` : ''}</div></div>`
+      : '';
+    const deltaHtml = t.entry_delta != null
+      ? `<div class="pt-stat"><div class="pt-stat-label">Entry Delta</div><div class="pt-stat-val">${t.entry_delta}</div></div>`
+      : '';
+    const spreadMaxProfitHtml = isSpread && t.max_profit != null
+      ? `<div class="pt-stat"><div class="pt-stat-label">Max Profit</div><div class="pt-stat-val" style="color:var(--green)">$${t.max_profit}</div></div>`
+      : '';
+    statsHtml = `
       <div class="pt-stat">
         <div class="pt-stat-label">Entry Price</div>
         <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_price} <span style="font-size:10px;font-weight:400;color:var(--muted)">(mid)</span></div>
       </div>
       <div class="pt-stat">
-        <div class="pt-stat-label">Cost (1 contract)</div>
-        <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_total_cost}</div>
+        <div class="pt-stat-label">${contractLabel}</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${parseFloat(t.entry_total_cost).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
       </div>
       <div class="pt-stat">
         <div class="pt-stat-label">Current Price</div>
@@ -3137,8 +3255,29 @@ function ptCardHtml(t) {
       ${scoreHtml}
       ${deltaHtml}
       ${spreadMaxProfitHtml}
-      ${t.breakeven != null ? `<div class="pt-stat"><div class="pt-stat-label">Breakeven</div><div class="pt-stat-val" style="color:var(--yellow)">$${t.breakeven}</div></div>` : ''}
+      ${t.breakeven != null ? `<div class="pt-stat"><div class="pt-stat-label">Breakeven</div><div class="pt-stat-val" style="color:var(--yellow)">$${t.breakeven}</div></div>` : ''}`;
+  }
+
+  const dirBg = dirIsLong ? 'rgba(0,208,132,.12)' : 'rgba(255,77,106,.12)';
+  const typeTypeBadgeColor = isStock ? 'var(--yellow)' : 'var(--blue)';
+
+  return `<div class="pt-card status-${t.status}">
+    <div class="pt-card-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="pt-ticker">${t.ticker}</span>
+          <span class="pt-type-badge" style="background:${typeColor};color:${typeTypeBadgeColor}">${typeText}</span>
+          <span class="pt-type-badge" style="background:${dirBg};color:${dirColor}">${t.direction}</span>
+          <span class="pt-status-badge" style="background:${statusColor};color:${statusTextColor}">${statusLabel}</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;color:#fff;margin-top:5px">${descLine}</div>
+        ${dteLine ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${dteLine}</div>` : ''}
+        <div style="font-size:11px;color:var(--muted)">Entered: ${entryDate}${!isStock ? ` · Entry stock: $${t.entry_stock_price}` : ''}</div>
+        ${notesHtml}
+      </div>
     </div>
+
+    <div class="pt-stats">${statsHtml}</div>
     ${refreshedLine}
     <div class="pt-actions">${actionsHtml}</div>
   </div>`;
@@ -3214,6 +3353,110 @@ async function deleteTrade(id) {
   }
 }
 
+// ── Stock Trade Modal ─────────────────────────────────────────────────────────
+let _stDirection = 'LONG';
+
+function openStockTradeModal() {
+  if (!_ptPortfolioCode) {
+    showToast('⚠️ Set a portfolio code in the Paper Trades tab first');
+    return;
+  }
+  _stDirection = 'LONG';
+  document.getElementById('stTicker').value = '';
+  document.getElementById('stShares').value = '100';
+  document.getElementById('stEntryPrice').value = '';
+  document.getElementById('stNotes').value = '';
+  document.getElementById('stPriceHint').textContent = '';
+  document.getElementById('stCalcPreview').style.display = 'none';
+  document.getElementById('stBtnLong').className = 'st-dir-btn active-long';
+  document.getElementById('stBtnShort').className = 'st-dir-btn';
+  document.getElementById('stockTradeModal').style.display = 'flex';
+}
+
+function closeStockTradeModal() {
+  document.getElementById('stockTradeModal').style.display = 'none';
+}
+
+function setStockDir(dir) {
+  _stDirection = dir;
+  document.getElementById('stBtnLong').className  = dir === 'LONG'  ? 'st-dir-btn active-long'  : 'st-dir-btn';
+  document.getElementById('stBtnShort').className = dir === 'SHORT' ? 'st-dir-btn active-short' : 'st-dir-btn';
+  updateStCalcPreview();
+}
+
+function updateStCalcPreview() {
+  const shares = parseFloat(document.getElementById('stShares').value) || 0;
+  const price  = parseFloat(document.getElementById('stEntryPrice').value) || 0;
+  const preview = document.getElementById('stCalcPreview');
+  if (shares > 0 && price > 0) {
+    const total = (shares * price).toFixed(2);
+    preview.style.display = 'block';
+    preview.innerHTML = `<span style="color:var(--text)">${shares} shares × $${price.toFixed(2)} = </span><span style="color:var(--blue);font-weight:700">$${parseFloat(total).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span> total · Direction: <span style="color:${_stDirection==='LONG'?'var(--green)':'var(--red)'};font-weight:700">${_stDirection}</span>`;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+async function fetchStockPrice() {
+  const ticker = document.getElementById('stTicker').value.trim().toUpperCase();
+  if (!ticker) { showToast('Enter a ticker first'); return; }
+  const btn = document.getElementById('stFetchBtn');
+  const hint = document.getElementById('stPriceHint');
+  btn.textContent = '…';
+  btn.disabled = true;
+  hint.textContent = '';
+  try {
+    const res  = await fetch(`/api/stock/${ticker}`);
+    const data = await res.json();
+    if (data.error) { hint.textContent = 'Could not fetch price: ' + data.error; return; }
+    const price = data.price;
+    if (price) {
+      document.getElementById('stEntryPrice').value = price.toFixed(2);
+      hint.textContent = `Live price: $${price.toFixed(2)} — you can edit this`;
+      hint.style.color = 'var(--green)';
+      updateStCalcPreview();
+    } else {
+      hint.textContent = 'No price found for this ticker';
+    }
+  } catch(e) {
+    hint.textContent = 'Network error fetching price';
+  } finally {
+    btn.textContent = '↻ Current Price';
+    btn.disabled = false;
+  }
+}
+
+async function submitStockTrade() {
+  const ticker = document.getElementById('stTicker').value.trim().toUpperCase();
+  const shares = parseInt(document.getElementById('stShares').value, 10);
+  const price  = parseFloat(document.getElementById('stEntryPrice').value);
+  const notes  = document.getElementById('stNotes').value.trim() || null;
+
+  if (!ticker)           { showToast('Enter a ticker symbol'); return; }
+  if (!shares || shares < 1) { showToast('Enter a valid number of shares'); return; }
+  if (!price || price <= 0)  { showToast('Enter a valid entry price'); return; }
+
+  const totalCost = parseFloat((price * shares).toFixed(2));
+
+  await simulateTrade({
+    trade_type:        'stock_trade',
+    ticker:            ticker,
+    direction:         _stDirection,
+    entry_price:       price,
+    entry_total_cost:  totalCost,
+    entry_stock_price: price,
+    num_contracts:     shares,
+    notes:             notes
+  });
+
+  closeStockTradeModal();
+}
+
+// Live preview update on input change
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'stShares' || e.target.id === 'stEntryPrice') updateStCalcPreview();
+});
+
 function updatePtBadge() {
   const badge  = document.getElementById('ptBadge');
   const active = _ptTrades.filter(t => t.status === 'active').length;
@@ -3226,6 +3469,7 @@ function updatePtBadge() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('contractsDisplay').textContent = _numContracts;
 renderWatchlistTags();
 setBriefingHeader();
 loadBriefing(); // auto-load on page open
@@ -3233,7 +3477,7 @@ loadBriefing(); // auto-load on page open
 // Restore portfolio code state on page load
 if (_ptPortfolioCode) {
   document.getElementById('ptSubtitle').textContent =
-    `Portfolio: ${_ptPortfolioCode.slice(0,4)}${'*'.repeat(Math.min(_ptPortfolioCode.length-4,8))} · Simulated positions — PnL updates on manual refresh`;
+    `Portfolio: ${_ptPortfolioCode.slice(0,4)}${'*'.repeat(Math.min(_ptPortfolioCode.length-4,8))} · Simulated positions — options & stocks · PnL updates on manual refresh`;
 } else {
   document.getElementById('ptControls').style.display = 'none';
 }

@@ -1836,14 +1836,21 @@ def _init_db():
                 current_dte         INTEGER,
                 last_refreshed      TEXT,
                 pnl_dollars         REAL,
-                pnl_pct             REAL
+                pnl_pct             REAL,
+                num_contracts       INTEGER DEFAULT 1,
+                notes               TEXT
             )
         """)
-        # Migrate existing DBs that predate the user_token column
-        try:
-            conn.execute("ALTER TABLE simulated_trades ADD COLUMN user_token TEXT NOT NULL DEFAULT 'anonymous'")
-        except Exception:
-            pass  # column already exists
+        # Migrate existing DBs that predate newer columns
+        for col_sql in [
+            "ALTER TABLE simulated_trades ADD COLUMN user_token TEXT NOT NULL DEFAULT 'anonymous'",
+            "ALTER TABLE simulated_trades ADD COLUMN num_contracts INTEGER DEFAULT 1",
+            "ALTER TABLE simulated_trades ADD COLUMN notes TEXT",
+        ]:
+            try:
+                conn.execute(col_sql)
+            except Exception:
+                pass  # column already exists
         conn.commit()
         conn.close()
 
@@ -1863,9 +1870,9 @@ class AnalyzeBody(BaseModel):
 
 
 class SimulateTradeBody(BaseModel):
-    trade_type:         str    # 'long_contract' | 'debit_spread'
+    trade_type:         str    # 'long_contract' | 'debit_spread' | 'stock_trade'
     ticker:             str
-    direction:          str    # 'CALL' | 'PUT'
+    direction:          str    # 'CALL' | 'PUT' | 'LONG' | 'SHORT'
     strike:             float | None = None
     expiration:         str   | None = None
     long_strike:        float | None = None
@@ -1881,6 +1888,8 @@ class SimulateTradeBody(BaseModel):
     entry_grade:        str   | None = None
     entry_delta:        float | None = None
     entry_iv:           float | None = None
+    num_contracts:      int   = 1
+    notes:              str   | None = None
 
 
 @app.get('/login', response_class=HTMLResponse)
@@ -2639,15 +2648,17 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
                 (created_at, status, user_token, trade_type, ticker, direction,
                  strike, expiration, long_strike, short_strike, spread_width, max_profit,
                  dte_at_entry, entry_price, entry_total_cost, entry_stock_price,
-                 breakeven, entry_score, entry_grade, entry_delta, entry_iv)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 breakeven, entry_score, entry_grade, entry_delta, entry_iv,
+                 num_contracts, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (now, 'active', _get_user_token(request),
               body.trade_type, body.ticker.upper(), body.direction.upper(),
               body.strike, body.expiration, body.long_strike, body.short_strike,
               body.spread_width, body.max_profit, body.dte_at_entry,
               body.entry_price, body.entry_total_cost, body.entry_stock_price,
               body.breakeven, body.entry_score, body.entry_grade,
-              body.entry_delta, body.entry_iv))
+              body.entry_delta, body.entry_iv,
+              max(int(body.num_contracts or 1), 1), body.notes))
         trade_id = cur.lastrowid
         conn.commit()
         conn.close()
@@ -2688,6 +2699,7 @@ def refresh_trade(trade_id: int, request: Request):
 
     now = datetime.utcnow().isoformat()
     today = date.today()
+    num_c = max(int(trade.get('num_contracts') or 1), 1)
 
     try:
         stock = yf.Ticker(trade['ticker'])
@@ -2700,7 +2712,17 @@ def refresh_trade(trade_id: int, request: Request):
         pnl_pct       = None
         new_status    = 'active'
 
-        if trade['trade_type'] == 'long_contract':
+        if trade['trade_type'] == 'stock_trade':
+            # Stock trades: current_price = stock price, PnL = (price_change) * shares
+            current_price = current_stock
+            shares = num_c  # num_contracts stores share count for stock trades
+            if trade['direction'] == 'LONG':
+                pnl_dollars = round((current_stock - trade['entry_price']) * shares, 2)
+            else:  # SHORT
+                pnl_dollars = round((trade['entry_price'] - current_stock) * shares, 2)
+            pnl_pct = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
+
+        elif trade['trade_type'] == 'long_contract':
             exp_date = datetime.strptime(trade['expiration'], '%Y-%m-%d').date()
             current_dte = max((exp_date - today).days, 0)
 
@@ -2718,7 +2740,7 @@ def refresh_trade(trade_id: int, request: Request):
                     bid = float(r['bid']) if not pd.isna(r['bid']) else 0.0
                     ask = float(r['ask']) if not pd.isna(r['ask']) else 0.0
                     current_price = round((bid + ask) / 2, 4)
-                    pnl_dollars   = round((current_price - trade['entry_price']) * 100, 2)
+                    pnl_dollars   = round((current_price - trade['entry_price']) * 100 * num_c, 2)
                     pnl_pct       = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
 
         else:  # debit_spread
@@ -2736,7 +2758,7 @@ def refresh_trade(trade_id: int, request: Request):
                     short_val = max(trade['short_strike'] - s, 0)
                 spread_val    = round(long_val - short_val, 4)
                 current_price = spread_val
-                pnl_dollars   = round((spread_val - trade['entry_price']) * 100, 2)
+                pnl_dollars   = round((spread_val - trade['entry_price']) * 100 * num_c, 2)
                 pnl_pct       = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
                 new_status    = 'expired'
             else:
@@ -2755,7 +2777,7 @@ def refresh_trade(trade_id: int, request: Request):
                 short_mid = _mid(df, trade['short_strike'])
                 if long_mid is not None and short_mid is not None:
                     current_price = round(long_mid - short_mid, 4)
-                    pnl_dollars   = round((current_price - trade['entry_price']) * 100, 2)
+                    pnl_dollars   = round((current_price - trade['entry_price']) * 100 * num_c, 2)
                     pnl_pct       = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
 
         with _db_lock:
