@@ -548,6 +548,47 @@ body { overscroll-behavior-y: none; }
 .st-notes{width:100%;padding:10px 12px;background:#0b0e14;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;min-height:60px;outline:none;transition:border-color .2s;font-family:inherit}
 .st-notes:focus{border-color:var(--blue)}
 
+/* ── Paper Trades: SL/TP threshold indicators ── */
+.pt-card.sl-hit{border-left-color:var(--red)!important;box-shadow:0 0 0 1px rgba(255,77,106,.25);}
+.pt-card.tp-hit{border-left-color:var(--green)!important;box-shadow:0 0 0 1px rgba(0,208,132,.25);}
+.pt-targets-row{font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;}
+.pt-targets-sl{color:#ff7a7a;font-weight:600;}
+.pt-targets-tp{color:#4dffb4;font-weight:600;}
+.pt-alert-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-left:6px;}
+.pt-alert-sl{background:rgba(255,77,106,.2);color:var(--red);}
+.pt-alert-tp{background:rgba(0,208,132,.2);color:var(--green);}
+.pt-btn-targets{padding:7px 14px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:7px;color:#c084fc;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.pt-btn-targets:hover{background:rgba(168,85,247,.2);}
+
+/* ── Paper Trades: performance stats panel ── */
+.pt-perf-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none;}
+.pt-perf-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.pt-perf-toggle:hover{color:var(--text);}
+.pt-perf-body{display:none;padding-top:14px;border-top:1px solid var(--border);margin-top:12px;}
+.pt-perf-body.open{display:block;}
+.pt-perf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+
+/* ── Paper Trades: help panel ── */
+.pt-help-panel{background:#0b1220;border:1px solid rgba(77,159,255,.25);border-radius:10px;padding:18px 20px;margin-bottom:16px;display:none;font-size:12px;line-height:1.7;color:var(--muted);}
+.pt-help-panel.open{display:block;}
+.pt-help-panel h4{font-size:12px;font-weight:700;color:var(--blue);margin:12px 0 4px;}
+.pt-help-panel h4:first-child{margin-top:0;}
+.pt-help-panel strong{color:var(--text);}
+
+/* ── Close Position Modal & Set Targets Modal ── */
+.pt-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;}
+.pt-modal{background:#111827;border:1px solid var(--border);border-radius:14px;padding:28px 28px 24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;}
+.pt-modal h3{font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;}
+.pt-modal .pt-modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+.pt-modal-field{margin-bottom:14px;}
+.pt-modal-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
+.pt-modal-field input{width:100%;padding:10px 12px;background:#0b0e14;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s;}
+.pt-modal-field input:focus{border-color:var(--blue);}
+.pt-modal-field .pt-modal-hint{font-size:11px;color:var(--muted);margin-top:4px;}
+.pt-modal-pnl-preview{background:#0b1220;border:1px solid var(--border);border-radius:8px;padding:12px;margin:4px 0 8px;font-size:12px;color:var(--muted);min-height:36px;}
+.pt-modal-actions{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;}
+.pt-modal-actions .btn-cancel{padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;}
+
 /* ── Sticky table header: offset by nav height so it's not hidden ── */
 .oh-table thead th { top: 50px; }
 
@@ -909,12 +950,19 @@ body { overscroll-behavior-y: none; }
   <div style="max-width:1100px;margin:0 auto;padding:20px">
 
     <!-- Header bar -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
       <div>
         <div style="font-size:18px;font-weight:700;color:#fff">Paper Trades</div>
         <div style="font-size:12px;color:var(--muted);margin-top:2px" id="ptSubtitle">Simulated positions — options & stocks · PnL updates on manual refresh</div>
       </div>
       <div id="ptControls" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
+        <select id="ptSort" onchange="renderPaperTrades()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:12px;cursor:pointer" title="Sort trades">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="pnl_best">Best PnL First</option>
+          <option value="pnl_worst">Worst PnL First</option>
+          <option value="ticker">Ticker A–Z</option>
+        </select>
         <select id="ptFilter" onchange="renderPaperTrades()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:12px;cursor:pointer">
           <option value="all">All Trades</option>
           <option value="active">Active</option>
@@ -929,14 +977,46 @@ body { overscroll-behavior-y: none; }
         <button onclick="openStockTradeModal()" style="padding:8px 14px;background:rgba(0,208,132,.1);border:1px solid rgba(0,208,132,.3);border-radius:8px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(0,208,132,.18)'" onmouseout="this.style.background='rgba(0,208,132,.1)'">
           + Add Stock Trade
         </button>
+        <button onclick="exportTradesToCSV()" style="padding:8px 14px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:8px;color:var(--yellow);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(255,193,7,.16)'" onmouseout="this.style.background='rgba(255,193,7,.08)'" title="Download all trades as CSV">
+          ↓ Export CSV
+        </button>
+        <button onclick="togglePtHelp()" id="ptHelpBtn" style="padding:8px 12px;background:rgba(77,159,255,.08);border:1px solid rgba(77,159,255,.25);border-radius:8px;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(77,159,255,.16)'" onmouseout="this.style.background='rgba(77,159,255,.08)'" title="How it all works">
+          ? How It Works
+        </button>
         <button onclick="changePtPortfolio()" style="padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
           ⊘ Change Portfolio
         </button>
       </div>
     </div>
 
+    <!-- How It Works help panel -->
+    <div class="pt-help-panel" id="ptHelpPanel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:700;color:#fff">How Paper Trades Works</span>
+        <button onclick="togglePtHelp()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:0">×</button>
+      </div>
+      <h4>Portfolio Code</h4>
+      Your private identifier — the same code on any device loads the same trade history. New code = fresh portfolio. <strong>Keep it secret.</strong> Anyone who knows it can view your trades.
+      <h4>Refreshing PnL</h4>
+      PnL is <strong>not live</strong> — it updates only when you click Refresh. Options prices use bid/ask midpoints from live chains. Markets must be open (or near-open) for options data to be available. Stocks update any time.
+      <h4>Stop Loss &amp; Take Profit Targets</h4>
+      Set optional % thresholds per trade via the <strong>✎ Targets</strong> button. When you refresh PnL, the card glows <strong style="color:var(--green)">green</strong> if Take Profit is hit, <strong style="color:var(--red)">red</strong> if Stop Loss is hit. These are <em>visual alerts only</em> — they do not auto-close your trade.
+      <h4>Closing a Position</h4>
+      Click <strong>Close Position</strong> on any active trade. A modal lets you enter the <strong>actual exit price</strong> you'd close at — this locks in accurate, final PnL. Leave it blank to close at the last refreshed price. For options, enter the per-contract exit price (e.g. $3.50). For stocks, enter the price per share.
+      <h4>Win Rate</h4>
+      Calculated from all closed and expired trades that have PnL data. A trade counts as a win if its final PnL is positive.
+      <h4>Realized PnL &amp; Performance Stats</h4>
+      <strong>Realized PnL</strong> is the sum of PnL from all closed and expired positions. The <strong>Performance Stats</strong> panel (click to expand below the summary) shows: average win $, average loss $, profit factor (total wins ÷ total losses), and your best and worst single trades.
+      <h4>Export CSV</h4>
+      Downloads your full trade history as a spreadsheet. All fields are included — entry, exit, PnL, notes, targets, and more. Open in Excel, Google Sheets, or any CSV viewer.
+      <h4>Sorting</h4>
+      The sort dropdown reorders your trade list: <strong>Newest/Oldest</strong> by entry date, <strong>Best/Worst PnL</strong> by profit/loss (most profitable first or worst loss first), or <strong>Ticker A–Z</strong>.
+      <h4>Options vs Stocks</h4>
+      Options (long contracts &amp; debit spreads) expire — when DTE hits 0, they auto-mark as Expired and lock in the intrinsic value. Stock trades never expire. All positions are <strong>simulated only</strong> — no real money is involved.
+    </div>
+
     <!-- Summary strip (shown when there are trades) -->
-    <div id="ptSummaryStrip" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none">
+    <div id="ptSummaryStrip" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px">
       <div style="display:flex;flex-wrap:wrap;gap:20px">
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Active Trades</div>
@@ -951,8 +1031,49 @@ body { overscroll-behavior-y: none; }
           <div class="mono" style="font-size:18px;font-weight:700" id="ptTotalPnl">—</div>
         </div>
         <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Realized PnL</div>
+          <div class="mono" style="font-size:18px;font-weight:700" id="ptRealizedPnl">—</div>
+        </div>
+        <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Win Rate</div>
           <div class="mono" style="font-size:18px;font-weight:700;color:#fff" id="ptWinRate">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Stats (collapsible, shown when there are closed/expired trades) -->
+    <div class="pt-perf-panel" id="ptPerfPanel">
+      <div class="pt-perf-toggle" onclick="togglePerfStats()">
+        <span id="ptPerfArrow">▶</span>
+        <span>Performance Stats</span>
+        <span style="font-weight:400;margin-left:4px;color:var(--muted);text-transform:none;letter-spacing:0" id="ptPerfSummary"></span>
+      </div>
+      <div class="pt-perf-body" id="ptPerfBody">
+        <div class="pt-perf-grid">
+          <div class="pt-stat">
+            <div class="pt-stat-label">Total Closed</div>
+            <div class="pt-stat-val" style="color:#fff" id="perfTotalClosed">—</div>
+          </div>
+          <div class="pt-stat">
+            <div class="pt-stat-label">Avg Win</div>
+            <div class="pt-stat-val" style="color:var(--green)" id="perfAvgWin">—</div>
+          </div>
+          <div class="pt-stat">
+            <div class="pt-stat-label">Avg Loss</div>
+            <div class="pt-stat-val" style="color:var(--red)" id="perfAvgLoss">—</div>
+          </div>
+          <div class="pt-stat">
+            <div class="pt-stat-label">Profit Factor</div>
+            <div class="pt-stat-val" id="perfProfitFactor">—</div>
+          </div>
+          <div class="pt-stat">
+            <div class="pt-stat-label">Best Trade</div>
+            <div class="pt-stat-val" style="color:var(--green)" id="perfBestTrade">—</div>
+          </div>
+          <div class="pt-stat">
+            <div class="pt-stat-label">Worst Trade</div>
+            <div class="pt-stat-val" style="color:var(--red)" id="perfWorstTrade">—</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1001,6 +1122,22 @@ body { overscroll-behavior-y: none; }
       <div id="stPriceHint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
     </div>
     <div class="st-field">
+      <label>Stop Loss — alert if loss exceeds (% optional)</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input id="stStopLoss" type="number" placeholder="e.g. 25" min="0.1" max="100" step="0.5" style="flex:1">
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">% loss</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Enter 25 to alert when position is down 25%</div>
+    </div>
+    <div class="st-field">
+      <label>Take Profit — alert at gain of (% optional)</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input id="stTakeProfit" type="number" placeholder="e.g. 50" min="0.1" max="10000" step="0.5" style="flex:1">
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">% gain</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Enter 50 to alert when position is up 50%</div>
+    </div>
+    <div class="st-field">
       <label>Notes (optional)</label>
       <textarea class="st-notes" id="stNotes" placeholder="e.g. Swing trade setup, earnings play…"></textarea>
     </div>
@@ -1012,6 +1149,58 @@ body { overscroll-behavior-y: none; }
       <button onclick="closeStockTradeModal()" style="padding:11px 18px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer">
         Cancel
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CLOSE POSITION MODAL ── -->
+<div class="pt-modal-overlay" id="closePosModal" style="display:none" onclick="if(event.target===this)closeClosePosModal()">
+  <div class="pt-modal">
+    <h3>Close Position</h3>
+    <div class="pt-modal-sub" id="closePosDesc">Enter the actual price you'd exit at to lock in accurate final PnL.</div>
+    <div class="pt-modal-field">
+      <label id="closePosLabel">Exit Price ($)</label>
+      <input id="closePosPrice" type="number" placeholder="e.g. 3.50" min="0" step="0.01" oninput="updateClosePosPreview()">
+      <div class="pt-modal-hint" id="closePosHint"></div>
+    </div>
+    <div class="pt-modal-pnl-preview" id="closePosPreview" style="display:none"></div>
+    <div class="pt-modal-actions">
+      <button onclick="submitClosePosition()" class="btn-primary-oh" style="flex:1;padding:11px;font-size:13px">
+        Close Position
+      </button>
+      <button onclick="closeAtLastPrice()" style="padding:11px 14px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:8px;color:var(--yellow);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+        Use Last Price
+      </button>
+      <button onclick="closeClosePosModal()" class="btn-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SET TARGETS MODAL ── -->
+<div class="pt-modal-overlay" id="setTargetsModal" style="display:none" onclick="if(event.target===this)closeSetTargetsModal()">
+  <div class="pt-modal">
+    <h3>✎ Set Targets</h3>
+    <div class="pt-modal-sub">Set alert thresholds for this trade. Cards glow green when Take Profit is hit and red when Stop Loss is hit after a PnL refresh. These are visual alerts only — they don't auto-close the trade.</div>
+    <div class="pt-modal-field">
+      <label>Stop Loss — alert if loss exceeds (%)</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input id="tgtStopLoss" type="number" placeholder="e.g. 25" min="0.1" max="100" step="0.5" style="flex:1">
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">% loss</span>
+      </div>
+      <div class="pt-modal-hint">Enter 25 to alert when position is down 25%. Leave blank to clear.</div>
+    </div>
+    <div class="pt-modal-field">
+      <label>Take Profit — alert at gain of (%)</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input id="tgtTakeProfit" type="number" placeholder="e.g. 50" min="0.1" max="10000" step="0.5" style="flex:1">
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap">% gain</span>
+      </div>
+      <div class="pt-modal-hint">Enter 50 to alert when position is up 50%. Leave blank to clear.</div>
+    </div>
+    <div class="pt-modal-actions">
+      <button onclick="submitSetTargets()" class="btn-primary-oh" style="flex:1;padding:11px;font-size:13px">Save Targets</button>
+      <button onclick="clearSetTargets()" style="padding:11px 14px;background:rgba(255,77,106,.08);border:1px solid rgba(255,77,106,.2);border-radius:8px;color:var(--red);font-size:13px;font-weight:600;cursor:pointer">Clear</button>
+      <button onclick="closeSetTargetsModal()" class="btn-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -3075,16 +3264,28 @@ async function loadPaperTrades() {
 
 function renderPaperTrades() {
   const filter = document.getElementById('ptFilter').value;
+  const sort   = document.getElementById('ptSort').value;
   let trades;
-  if (filter === 'all')     trades = _ptTrades;
+  if (filter === 'all')          trades = _ptTrades.slice();
   else if (filter === 'stock')   trades = _ptTrades.filter(t => t.trade_type === 'stock_trade');
   else if (filter === 'options') trades = _ptTrades.filter(t => t.trade_type !== 'stock_trade');
   else trades = _ptTrades.filter(t => t.status === filter);
-  const list   = document.getElementById('ptTradeList');
+
+  // Apply sort
+  trades.sort((a, b) => {
+    if (sort === 'oldest')    return new Date(a.created_at) - new Date(b.created_at);
+    if (sort === 'pnl_best')  return (b.pnl_dollars ?? -Infinity) - (a.pnl_dollars ?? -Infinity);
+    if (sort === 'pnl_worst') return (a.pnl_dollars ?? Infinity) - (b.pnl_dollars ?? Infinity);
+    if (sort === 'ticker')    return a.ticker.localeCompare(b.ticker);
+    return new Date(b.created_at) - new Date(a.created_at); // newest (default)
+  });
+
+  const list = document.getElementById('ptTradeList');
 
   // ── Summary strip ──────────────────────────────────────────────────────────
   const active  = _ptTrades.filter(t => t.status === 'active');
   const strip   = document.getElementById('ptSummaryStrip');
+  const perfPanel = document.getElementById('ptPerfPanel');
   if (_ptTrades.length > 0) {
     strip.style.display = 'block';
     document.getElementById('ptCountActive').textContent = active.length;
@@ -3099,19 +3300,56 @@ function renderPaperTrades() {
       pnlEl.style.color  = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
     } else {
       document.getElementById('ptTotalPnl').textContent = '—';
+      document.getElementById('ptTotalPnl').style.color = 'var(--muted)';
     }
 
-    const closed  = _ptTrades.filter(t => t.status === 'closed' && t.pnl_dollars != null);
+    const closed  = _ptTrades.filter(t => t.status === 'closed'  && t.pnl_dollars != null);
     const expired = _ptTrades.filter(t => t.status === 'expired' && t.pnl_dollars != null);
     const resolved = [...closed, ...expired];
+
+    // Realized PnL
+    const realizedEl = document.getElementById('ptRealizedPnl');
     if (resolved.length) {
-      const wins    = resolved.filter(t => t.pnl_dollars > 0).length;
+      const realized = resolved.reduce((s, t) => s + t.pnl_dollars, 0);
+      realizedEl.textContent = (realized >= 0 ? '+$' : '-$') + Math.abs(realized).toFixed(0);
+      realizedEl.style.color = realized >= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      realizedEl.textContent = '—';
+      realizedEl.style.color = 'var(--muted)';
+    }
+
+    // Win rate
+    if (resolved.length) {
+      const wins = resolved.filter(t => t.pnl_dollars > 0).length;
       document.getElementById('ptWinRate').textContent = Math.round(wins / resolved.length * 100) + '%';
     } else {
       document.getElementById('ptWinRate').textContent = '—';
     }
+
+    // ── Performance stats ──────────────────────────────────────────────────
+    if (resolved.length) {
+      perfPanel.style.display = 'block';
+      const wins  = resolved.filter(t => t.pnl_dollars > 0);
+      const losses = resolved.filter(t => t.pnl_dollars <= 0);
+      document.getElementById('perfTotalClosed').textContent = resolved.length;
+      document.getElementById('perfAvgWin').textContent  = wins.length  ? '+$' + (wins.reduce((s,t)=>s+t.pnl_dollars,0) / wins.length).toFixed(2) : '—';
+      document.getElementById('perfAvgLoss').textContent = losses.length ? '-$' + Math.abs(losses.reduce((s,t)=>s+t.pnl_dollars,0) / losses.length).toFixed(2) : '—';
+      const totalWins   = wins.reduce((s,t)=>s+t.pnl_dollars,0);
+      const totalLosses = Math.abs(losses.reduce((s,t)=>s+t.pnl_dollars,0));
+      document.getElementById('perfProfitFactor').textContent = totalLosses > 0 ? (totalWins / totalLosses).toFixed(2) : wins.length ? '∞' : '—';
+      document.getElementById('perfProfitFactor').style.color = totalLosses === 0 && wins.length ? 'var(--green)' : parseFloat(document.getElementById('perfProfitFactor').textContent) >= 1 ? 'var(--green)' : 'var(--red)';
+      const best  = resolved.reduce((a,t) => t.pnl_dollars > a.pnl_dollars ? t : a, resolved[0]);
+      const worst = resolved.reduce((a,t) => t.pnl_dollars < a.pnl_dollars ? t : a, resolved[0]);
+      document.getElementById('perfBestTrade').textContent  = `+$${best.pnl_dollars.toFixed(2)} ${best.ticker}`;
+      document.getElementById('perfWorstTrade').textContent = `-$${Math.abs(worst.pnl_dollars).toFixed(2)} ${worst.ticker}`;
+      const winsCount = wins.length;
+      document.getElementById('ptPerfSummary').textContent = `· ${winsCount}W / ${losses.length}L`;
+    } else {
+      perfPanel.style.display = 'none';
+    }
   } else {
     strip.style.display = 'none';
+    perfPanel.style.display = 'none';
   }
 
   if (!trades.length) {
@@ -3193,9 +3431,14 @@ function ptCardHtml(t) {
   const entryDate = new Date(t.created_at + 'Z').toLocaleString();
   const notesHtml = t.notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic">📝 ${t.notes}</div>` : '';
 
+  // SL/TP threshold checks
+  const slHit = t.stop_loss_pct  != null && t.pnl_pct != null && t.pnl_pct <= t.stop_loss_pct;
+  const tpHit = t.take_profit_pct != null && t.pnl_pct != null && t.pnl_pct >= t.take_profit_pct;
+
   const actionsHtml = isActive
     ? `<button class="pt-btn-refresh" onclick="refreshOneTrade(${t.id})">↻ Refresh PnL</button>
-       <button class="pt-btn-close"   onclick="closeTrade(${t.id})">✓ Close Position</button>
+       <button class="pt-btn-close"   onclick="openClosePosModal(${t.id})">✓ Close Position</button>
+       <button class="pt-btn-targets" onclick="openSetTargetsModal(${t.id})">✎ Targets</button>
        <button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`
     : `<button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`;
 
@@ -3261,7 +3504,27 @@ function ptCardHtml(t) {
   const dirBg = dirIsLong ? 'rgba(0,208,132,.12)' : 'rgba(255,77,106,.12)';
   const typeTypeBadgeColor = isStock ? 'var(--yellow)' : 'var(--blue)';
 
-  return `<div class="pt-card status-${t.status}">
+  // Targets row
+  let targetsHtml = '';
+  if (t.stop_loss_pct != null || t.take_profit_pct != null) {
+    const slPart = t.stop_loss_pct  != null ? `<span class="pt-targets-sl">SL: −${Math.abs(t.stop_loss_pct)}%</span>` : '';
+    const tpPart = t.take_profit_pct != null ? `<span class="pt-targets-tp">TP: +${t.take_profit_pct}%</span>` : '';
+    const slBadge = slHit ? `<span class="pt-alert-badge pt-alert-sl">⚠ Stop Hit</span>` : '';
+    const tpBadge = tpHit ? `<span class="pt-alert-badge pt-alert-tp">✓ Target Hit</span>` : '';
+    targetsHtml = `<div class="pt-targets-row">${slPart}${tpPart}${slBadge}${tpBadge}</div>`;
+  }
+
+  // Exit price row (for closed/expired trades)
+  let exitPriceHtml = '';
+  if (!isActive && t.exit_price != null) {
+    const epLabel = isStock ? 'per share' : 'per contract';
+    exitPriceHtml = `<div style="font-size:11px;color:var(--muted);margin-top:4px">Exit price: <span class="mono" style="color:var(--text)">$${t.exit_price} <span style="font-size:10px">${epLabel}</span></span></div>`;
+  }
+
+  // Card extra classes
+  const cardExtra = isActive && tpHit ? ' tp-hit' : (isActive && slHit ? ' sl-hit' : '');
+
+  return `<div class="pt-card status-${t.status}${cardExtra}">
     <div class="pt-card-header">
       <div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3273,7 +3536,9 @@ function ptCardHtml(t) {
         <div style="font-size:14px;font-weight:600;color:#fff;margin-top:5px">${descLine}</div>
         ${dteLine ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${dteLine}</div>` : ''}
         <div style="font-size:11px;color:var(--muted)">Entered: ${entryDate}${!isStock ? ` · Entry stock: $${t.entry_stock_price}` : ''}</div>
+        ${targetsHtml}
         ${notesHtml}
+        ${exitPriceHtml}
       </div>
     </div>
 
@@ -3324,10 +3589,146 @@ async function refreshAllTrades() {
   showToast(`✅ Refreshed ${active.length} trade${active.length > 1 ? 's' : ''}`);
 }
 
-async function closeTrade(id) {
-  if (!confirm('Mark this position as manually closed?')) return;
+
+async function deleteTrade(id) {
+  if (!confirm('Delete this trade record permanently?')) return;
   try {
-    const res  = await fetch(`/api/trades/${id}/close`, { method: 'POST', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
+    await fetch(`/api/trades/${id}`, { method: 'DELETE', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
+    _ptTrades = _ptTrades.filter(t => t.id !== id);
+    renderPaperTrades();
+    updatePtBadge();
+    showToast('Trade deleted');
+  } catch(e) {
+    showToast('Failed to delete. Try again.');
+  }
+}
+
+// ── Help panel toggle ────────────────────────────────────────────────────────
+function togglePtHelp() {
+  const panel = document.getElementById('ptHelpPanel');
+  panel.classList.toggle('open');
+}
+
+// ── Performance stats toggle ──────────────────────────────────────────────────
+function togglePerfStats() {
+  const body  = document.getElementById('ptPerfBody');
+  const arrow = document.getElementById('ptPerfArrow');
+  const open  = body.classList.toggle('open');
+  arrow.textContent = open ? '▼' : '▶';
+}
+
+// ── Export trades to CSV ──────────────────────────────────────────────────────
+function exportTradesToCSV() {
+  if (!_ptTrades.length) { showToast('No trades to export'); return; }
+  const cols = [
+    'id','created_at','closed_at','status','trade_type','ticker','direction',
+    'strike','expiration','long_strike','short_strike','spread_width','max_profit',
+    'dte_at_entry','entry_price','entry_total_cost','entry_stock_price','breakeven',
+    'entry_score','entry_grade','entry_delta','entry_iv','num_contracts','notes',
+    'stop_loss_pct','take_profit_pct','current_price','current_stock_price',
+    'current_dte','last_refreshed','pnl_dollars','pnl_pct','exit_price'
+  ];
+  const header = cols.join(',');
+  const esc = v => {
+    if (v == null) return '';
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = _ptTrades.map(t => cols.map(c => esc(t[c])).join(','));
+  const csv  = [header, ...rows].join('\r\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `paper-trades-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✅ Exported ${_ptTrades.length} trade${_ptTrades.length !== 1 ? 's' : ''}`);
+}
+
+// ── Close Position Modal ──────────────────────────────────────────────────────
+let _closePosId   = null;
+let _closePosData = null;
+
+function openClosePosModal(id) {
+  _closePosId   = id;
+  _closePosData = _ptTrades.find(t => t.id === id);
+  if (!_closePosData) return;
+  const t      = _closePosData;
+  const isStock = t.trade_type === 'stock_trade';
+  const isSpread = t.trade_type === 'debit_spread';
+
+  document.getElementById('closePosLabel').textContent =
+    isStock ? 'Exit Price per Share ($)' : 'Exit Price per Contract ($)';
+
+  const hint = isStock
+    ? `Last refreshed stock price: ${t.current_price != null ? '$' + t.current_price : 'not yet refreshed'}`
+    : isSpread
+      ? `Last refreshed spread value: ${t.current_price != null ? '$' + t.current_price + ' (spread mid)' : 'not yet refreshed'}`
+      : `Last refreshed option price: ${t.current_price != null ? '$' + t.current_price + ' (mid)' : 'not yet refreshed'}`;
+  document.getElementById('closePosHint').textContent = hint;
+  document.getElementById('closePosDesc').textContent =
+    isStock
+      ? `Enter the price per share you'd sell at to lock in accurate PnL. Or click "Use Last Price" to close at the last refreshed price.`
+      : `Enter the per-contract price you'd close at. For spreads, enter the net spread value. Or click "Use Last Price".`;
+
+  const priceInput = document.getElementById('closePosPrice');
+  priceInput.value = t.current_price != null ? t.current_price : '';
+  document.getElementById('closePosPreview').style.display = 'none';
+  document.getElementById('closePosModal').style.display = 'flex';
+  updateClosePosPreview();
+}
+
+function closeClosePosModal() {
+  document.getElementById('closePosModal').style.display = 'none';
+  _closePosId = null; _closePosData = null;
+}
+
+function updateClosePosPreview() {
+  const t = _closePosData;
+  if (!t) return;
+  const exitPrice = parseFloat(document.getElementById('closePosPrice').value);
+  const preview   = document.getElementById('closePosPreview');
+  if (isNaN(exitPrice) || exitPrice < 0) { preview.style.display = 'none'; return; }
+
+  const isStock  = t.trade_type === 'stock_trade';
+  const numC     = t.num_contracts || 1;
+  let pnl;
+  if (isStock) {
+    pnl = t.direction === 'LONG'
+      ? (exitPrice - t.entry_price) * numC
+      : (t.entry_price - exitPrice) * numC;
+  } else {
+    pnl = (exitPrice - t.entry_price) * 100 * numC;
+  }
+  const pnlPct = t.entry_total_cost ? pnl / t.entry_total_cost * 100 : 0;
+  const pos    = pnl >= 0;
+  const col    = pos ? 'var(--green)' : 'var(--red)';
+  preview.style.display = 'block';
+  preview.innerHTML = `Projected final PnL: <span style="color:${col};font-weight:700">${pos?'+':'-'}$${Math.abs(pnl).toFixed(2)} (${pos?'+':''}${pnlPct.toFixed(1)}%)</span>`;
+}
+
+async function submitClosePosition() {
+  const exitPrice = parseFloat(document.getElementById('closePosPrice').value);
+  const body = isNaN(exitPrice) || exitPrice < 0
+    ? {}
+    : { exit_price: exitPrice };
+  await _doClosePosition(_closePosId, body);
+  closeClosePosModal();
+}
+
+async function closeAtLastPrice() {
+  await _doClosePosition(_closePosId, {});
+  closeClosePosModal();
+}
+
+async function _doClosePosition(id, body) {
+  try {
+    const res  = await fetch(`/api/trades/${id}/close`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Portfolio-Code': _ptPortfolioCode || ''},
+      body: JSON.stringify(body)
+    });
     const data = await res.json();
     if (data.detail) { showToast('Failed: ' + data.detail); return; }
     const idx = _ptTrades.findIndex(t => t.id === id);
@@ -3340,16 +3741,56 @@ async function closeTrade(id) {
   }
 }
 
-async function deleteTrade(id) {
-  if (!confirm('Delete this trade record permanently?')) return;
+// ── Set Targets Modal ─────────────────────────────────────────────────────────
+let _setTargetsId = null;
+
+function openSetTargetsModal(id) {
+  _setTargetsId = id;
+  const t = _ptTrades.find(x => x.id === id);
+  if (!t) return;
+  // Pre-fill with existing targets (stop_loss_pct is stored as negative, display as positive)
+  document.getElementById('tgtStopLoss').value   = t.stop_loss_pct  != null ? Math.abs(t.stop_loss_pct)  : '';
+  document.getElementById('tgtTakeProfit').value = t.take_profit_pct != null ? t.take_profit_pct : '';
+  document.getElementById('setTargetsModal').style.display = 'flex';
+}
+
+function closeSetTargetsModal() {
+  document.getElementById('setTargetsModal').style.display = 'none';
+  _setTargetsId = null;
+}
+
+async function submitSetTargets() {
+  const slRaw = parseFloat(document.getElementById('tgtStopLoss').value);
+  const tpRaw = parseFloat(document.getElementById('tgtTakeProfit').value);
+  const slPct = isNaN(slRaw) || slRaw <= 0 ? null : -Math.abs(slRaw); // store as negative
+  const tpPct = isNaN(tpRaw) || tpRaw <= 0 ? null : tpRaw;
+  await _doSetTargets(_setTargetsId, slPct, tpPct);
+  closeSetTargetsModal();
+}
+
+async function clearSetTargets() {
+  await _doSetTargets(_setTargetsId, null, null);
+  closeSetTargetsModal();
+}
+
+async function _doSetTargets(id, slPct, tpPct) {
   try {
-    await fetch(`/api/trades/${id}`, { method: 'DELETE', headers: {'X-Portfolio-Code': _ptPortfolioCode || ''} });
-    _ptTrades = _ptTrades.filter(t => t.id !== id);
+    const res  = await fetch(`/api/trades/${id}/targets`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json', 'X-Portfolio-Code': _ptPortfolioCode || ''},
+      body: JSON.stringify({ stop_loss_pct: slPct, take_profit_pct: tpPct })
+    });
+    const data = await res.json();
+    if (data.detail) { showToast('Failed: ' + data.detail); return; }
+    const idx = _ptTrades.findIndex(t => t.id === id);
+    if (idx !== -1) _ptTrades[idx] = data;
     renderPaperTrades();
-    updatePtBadge();
-    showToast('Trade deleted');
+    const slMsg = slPct != null ? `SL: −${Math.abs(slPct)}%` : '';
+    const tpMsg = tpPct != null ? `TP: +${tpPct}%` : '';
+    const parts = [slMsg, tpMsg].filter(Boolean);
+    showToast(parts.length ? `✅ Targets set — ${parts.join(', ')}` : 'Targets cleared');
   } catch(e) {
-    showToast('Failed to delete. Try again.');
+    showToast('Failed to save targets. Try again.');
   }
 }
 
@@ -3366,6 +3807,8 @@ function openStockTradeModal() {
   document.getElementById('stShares').value = '100';
   document.getElementById('stEntryPrice').value = '';
   document.getElementById('stNotes').value = '';
+  document.getElementById('stStopLoss').value = '';
+  document.getElementById('stTakeProfit').value = '';
   document.getElementById('stPriceHint').textContent = '';
   document.getElementById('stCalcPreview').style.display = 'none';
   document.getElementById('stBtnLong').className = 'st-dir-btn active-long';
@@ -3427,12 +3870,16 @@ async function fetchStockPrice() {
 }
 
 async function submitStockTrade() {
-  const ticker = document.getElementById('stTicker').value.trim().toUpperCase();
-  const shares = parseInt(document.getElementById('stShares').value, 10);
-  const price  = parseFloat(document.getElementById('stEntryPrice').value);
-  const notes  = document.getElementById('stNotes').value.trim() || null;
+  const ticker    = document.getElementById('stTicker').value.trim().toUpperCase();
+  const shares    = parseInt(document.getElementById('stShares').value, 10);
+  const price     = parseFloat(document.getElementById('stEntryPrice').value);
+  const notes     = document.getElementById('stNotes').value.trim() || null;
+  const slRaw     = parseFloat(document.getElementById('stStopLoss').value);
+  const tpRaw     = parseFloat(document.getElementById('stTakeProfit').value);
+  const slPct     = isNaN(slRaw) || slRaw <= 0 ? null : -Math.abs(slRaw);
+  const tpPct     = isNaN(tpRaw) || tpRaw <= 0 ? null : tpRaw;
 
-  if (!ticker)           { showToast('Enter a ticker symbol'); return; }
+  if (!ticker)               { showToast('Enter a ticker symbol'); return; }
   if (!shares || shares < 1) { showToast('Enter a valid number of shares'); return; }
   if (!price || price <= 0)  { showToast('Enter a valid entry price'); return; }
 
@@ -3446,7 +3893,9 @@ async function submitStockTrade() {
     entry_total_cost:  totalCost,
     entry_stock_price: price,
     num_contracts:     shares,
-    notes:             notes
+    notes:             notes,
+    stop_loss_pct:     slPct,
+    take_profit_pct:   tpPct
   });
 
   closeStockTradeModal();

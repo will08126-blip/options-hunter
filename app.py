@@ -1838,7 +1838,10 @@ def _init_db():
                 pnl_dollars         REAL,
                 pnl_pct             REAL,
                 num_contracts       INTEGER DEFAULT 1,
-                notes               TEXT
+                notes               TEXT,
+                stop_loss_pct       REAL,
+                take_profit_pct     REAL,
+                exit_price          REAL
             )
         """)
         # Migrate existing DBs that predate newer columns
@@ -1846,6 +1849,9 @@ def _init_db():
             "ALTER TABLE simulated_trades ADD COLUMN user_token TEXT NOT NULL DEFAULT 'anonymous'",
             "ALTER TABLE simulated_trades ADD COLUMN num_contracts INTEGER DEFAULT 1",
             "ALTER TABLE simulated_trades ADD COLUMN notes TEXT",
+            "ALTER TABLE simulated_trades ADD COLUMN stop_loss_pct REAL",
+            "ALTER TABLE simulated_trades ADD COLUMN take_profit_pct REAL",
+            "ALTER TABLE simulated_trades ADD COLUMN exit_price REAL",
         ]:
             try:
                 conn.execute(col_sql)
@@ -1890,6 +1896,17 @@ class SimulateTradeBody(BaseModel):
     entry_iv:           float | None = None
     num_contracts:      int   = 1
     notes:              str   | None = None
+    stop_loss_pct:      float | None = None
+    take_profit_pct:    float | None = None
+
+
+class CloseTradeBody(BaseModel):
+    exit_price: float | None = None
+
+
+class SetTargetsBody(BaseModel):
+    stop_loss_pct:   float | None = None
+    take_profit_pct: float | None = None
 
 
 @app.get('/login', response_class=HTMLResponse)
@@ -2649,8 +2666,8 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
                  strike, expiration, long_strike, short_strike, spread_width, max_profit,
                  dte_at_entry, entry_price, entry_total_cost, entry_stock_price,
                  breakeven, entry_score, entry_grade, entry_delta, entry_iv,
-                 num_contracts, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 num_contracts, notes, stop_loss_pct, take_profit_pct)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (now, 'active', _get_user_token(request),
               body.trade_type, body.ticker.upper(), body.direction.upper(),
               body.strike, body.expiration, body.long_strike, body.short_strike,
@@ -2658,7 +2675,8 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
               body.entry_price, body.entry_total_cost, body.entry_stock_price,
               body.breakeven, body.entry_score, body.entry_grade,
               body.entry_delta, body.entry_iv,
-              max(int(body.num_contracts or 1), 1), body.notes))
+              max(int(body.num_contracts or 1), 1), body.notes,
+              body.stop_loss_pct, body.take_profit_pct))
         trade_id = cur.lastrowid
         conn.commit()
         conn.close()
@@ -2803,14 +2821,59 @@ def refresh_trade(trade_id: int, request: Request):
 
 @app.post('/api/trades/{trade_id}/close')
 @limiter.limit("30/minute")
-def close_trade(trade_id: int, request: Request):
+def close_trade(trade_id: int, request: Request, body: CloseTradeBody | None = None):
     user_token = _get_user_token(request)
     now = datetime.utcnow().isoformat()
+    exit_price = body.exit_price if body else None
+    with _db_lock:
+        conn = _get_db()
+        row = conn.execute(
+            "SELECT * FROM simulated_trades WHERE id=? AND status='active' AND user_token=?",
+            (trade_id, user_token)
+        ).fetchone()
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail='Trade not found')
+        trade = dict(row)
+        num_c = max(int(trade.get('num_contracts') or 1), 1)
+        if exit_price is not None:
+            # Recalculate PnL based on the manually entered exit price
+            if trade['trade_type'] == 'stock_trade':
+                if trade['direction'] == 'LONG':
+                    pnl_dollars = round((exit_price - trade['entry_price']) * num_c, 2)
+                else:
+                    pnl_dollars = round((trade['entry_price'] - exit_price) * num_c, 2)
+            else:
+                # Options (long_contract or debit_spread): exit_price is per-contract
+                pnl_dollars = round((exit_price - trade['entry_price']) * 100 * num_c, 2)
+            pnl_pct = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
+            conn.execute(
+                "UPDATE simulated_trades SET status='closed', closed_at=?, exit_price=?, pnl_dollars=?, pnl_pct=? WHERE id=? AND user_token=?",
+                (now, exit_price, pnl_dollars, pnl_pct, trade_id, user_token)
+            )
+        else:
+            conn.execute(
+                "UPDATE simulated_trades SET status='closed', closed_at=? WHERE id=? AND user_token=?",
+                (now, trade_id, user_token)
+            )
+        conn.commit()
+        row2 = conn.execute(
+            "SELECT * FROM simulated_trades WHERE id=? AND user_token=?",
+            (trade_id, user_token)
+        ).fetchone()
+        conn.close()
+    return dict(row2)
+
+
+@app.patch('/api/trades/{trade_id}/targets')
+@limiter.limit("30/minute")
+def set_trade_targets(trade_id: int, body: SetTargetsBody, request: Request):
+    user_token = _get_user_token(request)
     with _db_lock:
         conn = _get_db()
         conn.execute(
-            "UPDATE simulated_trades SET status='closed', closed_at=? WHERE id=? AND status='active' AND user_token=?",
-            (now, trade_id, user_token)
+            "UPDATE simulated_trades SET stop_loss_pct=?, take_profit_pct=? WHERE id=? AND user_token=?",
+            (body.stop_loss_pct, body.take_profit_pct, trade_id, user_token)
         )
         conn.commit()
         row = conn.execute(
