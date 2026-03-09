@@ -2469,7 +2469,7 @@ async function openSpreadView(ticker, direction, setupScore) {
   }
 }
 
-function renderSpreads(data) {
+function renderSpreads(data, containerId = 'contractResults') {
   const spreads  = data.top_spreads || [];
   const isBull   = data.direction === 'CALL';
   const accentCol = isBull ? 'var(--green)' : 'var(--red)';
@@ -2744,7 +2744,7 @@ function renderSpreads(data) {
     </div>`;
   }).join('');
 
-  document.getElementById('contractResults').innerHTML = `
+  document.getElementById(containerId).innerHTML = `
     ${summaryHtml}
     <div class="contract-rec-grid" style="padding-bottom:4px">${cardsHtml}</div>
     ${exitRulesHtml}`;
@@ -2992,38 +2992,38 @@ async function addManualTrade(event, idx) {
       entry_iv: r.iv
     });
   } else {
+    // Spread mode: show spread recommendation cards before paper trading
     btn.disabled = true;
-    const origText = btn.textContent;
     btn.textContent = '\u2026';
+
+    document.getElementById('filterBar').style.display = 'none';
+    document.getElementById('resultsArea').innerHTML = `
+      <div style="padding:10px 0 6px">
+        <button onclick="document.getElementById('filterBar').style.display='flex';renderTable(currentFilter)"
+          style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer">
+          ← Back to contracts
+        </button>
+      </div>
+      <div id="manualSpreadResults">
+        <div class="state-box" style="padding:30px"><div class="spinner"></div><p>Finding best debit spreads for ${_manualTicker}\u2026</p></div>
+      </div>`;
+    document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
     try {
-      const res = await fetch(`/api/spread-recommend/${_manualTicker}?direction=${r.type}&setup_score=${r.score}`);
+      const res = await fetch(`/api/spread-recommend/${_manualTicker}?direction=${r.type.toLowerCase()}&setup_score=${r.score}`);
       const data = await res.json();
       if (data.error || !data.top_spreads?.length) {
-        showToast('No spreads found for this contract');
+        document.getElementById('manualSpreadResults').innerHTML =
+          `<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>${data.error || 'No spreads found for this contract.'}</p></div>`;
         return;
       }
-      const sp = data.top_spreads[0];
-      await simulateTrade({
-        trade_type: 'debit_spread',
-        ticker: _manualTicker,
-        direction: r.type,
-        long_strike: sp.long_strike,
-        short_strike: sp.short_strike,
-        spread_width: sp.spread_width,
-        max_profit: sp.max_profit,
-        expiration: sp.expiration,
-        dte_at_entry: sp.dte,
-        entry_price: sp.net_debit,
-        entry_total_cost: sp.net_debit_total,
-        entry_stock_price: _manualStockPrice,
-        breakeven: sp.breakeven,
-        entry_score: sp.score
-      });
+      renderSpreads(data, 'manualSpreadResults');
     } catch(e) {
-      showToast('Could not fetch spread. Try again.');
+      document.getElementById('manualSpreadResults').innerHTML =
+        '<div class="state-box" style="padding:24px"><div class="icon">⚠️</div><p>Failed to load spreads. Try again.</p></div>';
     } finally {
       btn.disabled = false;
-      btn.textContent = origText;
+      btn.textContent = 'Spread';
     }
   }
 }
