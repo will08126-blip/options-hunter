@@ -2307,8 +2307,16 @@ function renderContracts(data) {
     'D':  {bg:'rgba(255,77,106,.12)',color:'var(--red)',border:'rgba(255,77,106,.3)'},
   };
 
+  const fillColors = {
+    'Easy':      {bg:'rgba(0,208,132,.15)',color:'var(--green)',border:'rgba(0,208,132,.3)',dot:'#00d084'},
+    'Moderate':  {bg:'rgba(255,193,7,.15)', color:'var(--yellow)',border:'rgba(255,193,7,.3)',dot:'#ffc107'},
+    'Hard':      {bg:'rgba(255,148,77,.15)',color:'#ff944d',border:'rgba(255,148,77,.3)',dot:'#ff944d'},
+    'Very Hard': {bg:'rgba(255,77,106,.15)',color:'var(--red)',border:'rgba(255,77,106,.3)',dot:'#ff4d6a'},
+  };
+
   const cardsHtml = contracts.map((c, i) => {
     const gc = gradeColors[c.grade] || gradeColors['C'];
+    const fc = fillColors[c.fill_rating] || fillColors['Hard'];
     const isTop = i === 0;
     const topLabel = isTop ? '<span style="font-size:10px;background:rgba(0,208,132,.15);color:var(--green);border-radius:10px;padding:1px 8px;font-weight:700">TOP PICK</span>' : '';
 
@@ -2323,6 +2331,22 @@ function renderContracts(data) {
       ? `+${((c.breakeven / data.price - 1) * 100).toFixed(1)}% to breakeven`
       : `-${((1 - c.breakeven / data.price) * 100).toFixed(1)}% to breakeven`;
 
+    const fillBadge = c.fill_rating ? `
+      <span class="cr-fill-badge" style="background:${fc.bg};color:${fc.color};border:1px solid ${fc.border};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${fc.dot};display:inline-block;flex-shrink:0"></span>
+        ${c.fill_rating} Fill
+      </span>` : '';
+
+    const entryBox = c.recommended_entry ? `
+      <div style="margin:8px 0 2px;padding:8px 10px;background:rgba(77,159,255,.07);border:1px solid rgba(77,159,255,.2);border-radius:8px;font-size:12px">
+        <span style="color:var(--muted)">Bid/Ask Spread:</span>
+        <span class="mono" style="color:var(--text);margin-left:4px">$${(c.spread_dollar||0).toFixed(2)} (${(c.spread_pct||0).toFixed(1)}%)</span>
+        &nbsp;·&nbsp;
+        <span style="color:var(--muted)">Robinhood Entry:</span>
+        <span class="mono" style="color:var(--blue);font-weight:700;margin-left:4px">$${c.recommended_entry}</span>
+        <div style="color:var(--muted);font-size:11px;margin-top:3px">${c.entry_note || ''}</div>
+      </div>` : '';
+
     const simPayloadContract = JSON.stringify({
       trade_type: 'long_contract', ticker: data.ticker, direction: data.direction,
       strike: c.strike, expiration: c.expiration, dte_at_entry: c.dte,
@@ -2334,10 +2358,14 @@ function renderContracts(data) {
     return `<div class="contract-rec${isTop ? ' top-pick' : ''}">
       <div class="cr-header">
         <div class="cr-rank">#${c.rank} Pick &nbsp; ${topLabel}</div>
-        <span class="cr-grade-badge" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.border}">${c.grade}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${fillBadge}
+          <span class="cr-grade-badge" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.border}">${c.grade}</span>
+        </div>
       </div>
       <div class="cr-strike">$${c.strike} ${data.direction}</div>
       <div class="cr-exp">${fmtDate(c.expiration)} · ${c.dte} DTE · Score ${c.score}/100</div>
+      ${entryBox}
       <div class="cr-stats">
         <div class="cr-stat">
           <div class="cr-stat-label">Contract Cost</div>
@@ -2595,10 +2623,29 @@ function renderSpreads(data) {
     const rrColor = sp.rr_ratio >= 1.5 ? 'var(--green)' : sp.rr_ratio >= 1.0 ? 'var(--text)' : 'var(--yellow)';
     const debitPctColor = sp.debit_pct_width <= 40 ? 'var(--green)' : sp.debit_pct_width <= 55 ? 'var(--text)' : 'var(--yellow)';
 
+    const fillColors = {
+      'Easy':      {bg:'rgba(0,208,132,.15)',color:'var(--green)',border:'rgba(0,208,132,.3)',dot:'#00d084'},
+      'Moderate':  {bg:'rgba(255,193,7,.15)', color:'var(--yellow)',border:'rgba(255,193,7,.3)',dot:'#ffc107'},
+      'Hard':      {bg:'rgba(255,148,77,.15)',color:'#ff944d',border:'rgba(255,148,77,.3)',dot:'#ff944d'},
+      'Very Hard': {bg:'rgba(255,77,106,.15)',color:'var(--red)',border:'rgba(255,77,106,.3)',dot:'#ff4d6a'},
+    };
+    const cfc = fillColors[sp.combined_fill_rating] || fillColors['Hard'];
+    const lfc = fillColors[sp.long_fill_rating]     || fillColors['Hard'];
+    const sfc = fillColors[sp.short_fill_rating]    || fillColors['Hard'];
+
+    const combinedFillBadge = sp.combined_fill_rating ? `
+      <span style="background:${cfc.bg};color:${cfc.color};border:1px solid ${cfc.border};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${cfc.dot};display:inline-block"></span>
+        ${sp.combined_fill_rating} Fill
+      </span>` : '';
+
     return `<div class="contract-rec${isTop ? ' top-pick' : ''}">
       <div class="cr-header">
         <div class="cr-rank">#${sp.rank} Pick ${topLabel}</div>
-        <span class="cr-grade-badge" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.border}">${grade}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${combinedFillBadge}
+          <span class="cr-grade-badge" style="background:${gc.bg};color:${gc.color};border:1px solid ${gc.border}">${grade}</span>
+        </div>
       </div>
 
       <div style="margin:10px 0 6px">
@@ -2643,17 +2690,42 @@ function renderSpreads(data) {
 
       ${pnlSectionHtml}
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--muted)">
-          <span style="color:var(--green);font-weight:600">LONG (BUY)</span> $${sp.long_strike} ${data.direction}<br>
-          $${sp.long_bid}/$${sp.long_ask} mid · <b style="color:#fff">$${sp.long_mid}</b> · δ${sp.long_delta} · IV ${sp.long_iv}%<br>
-          Vol ${(sp.long_volume ?? 0).toLocaleString()} / OI ${(sp.long_oi ?? 0).toLocaleString()}
+      <div style="margin:8px 0;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Leg Details &amp; Fill Guidance</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="font-size:11px;color:var(--muted);padding:8px;background:rgba(0,208,132,.04);border:1px solid rgba(0,208,132,.15);border-radius:7px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="color:var(--green);font-weight:700">LONG (BUY)</span>
+              <span style="background:${lfc.bg};color:${lfc.color};border:1px solid ${lfc.border};border-radius:6px;padding:1px 6px;font-size:10px;font-weight:600">
+                <span style="width:6px;height:6px;border-radius:50%;background:${lfc.dot};display:inline-block;margin-right:3px;vertical-align:middle"></span>${sp.long_fill_rating || '—'}
+              </span>
+            </div>
+            <div><b style="color:#fff">$${sp.long_strike} ${data.direction}</b></div>
+            <div style="margin-top:3px">Bid <b style="color:#fff">$${sp.long_bid}</b> / Ask <b style="color:#fff">$${sp.long_ask}</b> · Mid <b style="color:var(--blue)">$${sp.long_mid}</b></div>
+            <div style="margin-top:2px">Spread: <b style="color:#fff">$${(sp.long_spread_dollar ?? 0).toFixed(2)}</b> (${(sp.long_spread_pct ?? 0).toFixed(1)}%) · δ${sp.long_delta} · IV ${sp.long_iv}%</div>
+            <div style="margin-top:2px">Vol ${(sp.long_volume ?? 0).toLocaleString()} / OI ${(sp.long_oi ?? 0).toLocaleString()}</div>
+            ${sp.long_entry_note ? `<div style="margin-top:5px;padding:4px 6px;background:rgba(77,159,255,.1);border-radius:5px;font-size:10px;color:var(--blue)">${sp.long_entry_note}</div>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--muted);padding:8px;background:rgba(255,77,106,.04);border:1px solid rgba(255,77,106,.15);border-radius:7px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="color:var(--red);font-weight:700">SHORT (SELL)</span>
+              <span style="background:${sfc.bg};color:${sfc.color};border:1px solid ${sfc.border};border-radius:6px;padding:1px 6px;font-size:10px;font-weight:600">
+                <span style="width:6px;height:6px;border-radius:50%;background:${sfc.dot};display:inline-block;margin-right:3px;vertical-align:middle"></span>${sp.short_fill_rating || '—'}
+              </span>
+            </div>
+            <div><b style="color:#fff">$${sp.short_strike} ${data.direction}</b></div>
+            <div style="margin-top:3px">Bid <b style="color:#fff">$${sp.short_bid}</b> / Ask <b style="color:#fff">$${sp.short_ask}</b> · Mid <b style="color:var(--blue)">$${sp.short_mid}</b></div>
+            <div style="margin-top:2px">Spread: <b style="color:#fff">$${(sp.short_spread_dollar ?? 0).toFixed(2)}</b> (${(sp.short_spread_pct ?? 0).toFixed(1)}%) · δ${sp.short_delta} · IV ${sp.short_iv}%</div>
+            <div style="margin-top:2px">Vol ${(sp.short_volume ?? 0).toLocaleString()} / OI ${(sp.short_oi ?? 0).toLocaleString()}</div>
+            ${sp.short_entry_note ? `<div style="margin-top:5px;padding:4px 6px;background:rgba(77,159,255,.1);border-radius:5px;font-size:10px;color:var(--blue)">${sp.short_entry_note}</div>` : ''}
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--muted)">
-          <span style="color:var(--red);font-weight:600">SHORT (SELL)</span> $${sp.short_strike} ${data.direction}<br>
-          $${sp.short_bid}/$${sp.short_ask} mid · <b style="color:#fff">$${sp.short_mid}</b> · δ${sp.short_delta} · IV ${sp.short_iv}%<br>
-          Vol ${(sp.short_volume ?? 0).toLocaleString()} / OI ${(sp.short_oi ?? 0).toLocaleString()}
-        </div>
+        ${sp.combined_entry_note ? `
+        <div style="margin-top:7px;padding:7px 10px;background:rgba(77,159,255,.07);border:1px solid rgba(77,159,255,.2);border-radius:7px;font-size:12px">
+          <span style="color:var(--muted)">Robinhood:</span>
+          <span style="color:var(--blue);font-weight:600;margin-left:4px">${sp.combined_entry_note}</span>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Use multi-leg order entry — do not leg in separately.</div>
+        </div>` : ''}
       </div>
 
       <div class="cr-reasons">${reasons}</div>

@@ -1165,27 +1165,30 @@ def score_option(row, greeks, dte):
     else:
         t_score = 0; reasons.append(('bad', 'No price data'))
 
-    # Liquidity (25 pts)
+    # Liquidity (25 pts: 8 vol + 8 OI + 9 spread)
     liq = 0
-    if vol > 1000: liq += 10
-    elif vol > 500: liq += 8
-    elif vol > 100: liq += 6
-    elif vol > 50:  liq += 4
-    elif vol > 10:  liq += 2
-    if oi > 5000: liq += 10
-    elif oi > 1000: liq += 8
-    elif oi > 500:  liq += 6
-    elif oi > 100:  liq += 4
-    elif oi > 50:   liq += 2
+    if vol > 1000: liq += 8
+    elif vol > 500: liq += 6
+    elif vol > 100: liq += 4
+    elif vol > 50:  liq += 3
+    elif vol > 10:  liq += 1
+    if oi > 5000: liq += 8
+    elif oi > 1000: liq += 6
+    elif oi > 500:  liq += 5
+    elif oi > 100:  liq += 3
+    elif oi > 50:   liq += 1
+    sp = 0.0
     if ask > 0:
         sp = ((ask - bid) / ask) * 100
-        if sp < 5: liq += 5
-        elif sp < 10: liq += 3
-        elif sp < 20: liq += 1
+        if sp < 5:   liq += 9
+        elif sp < 10: liq += 6
+        elif sp < 20: liq += 3
+        elif sp < 35: liq += 1
     liq = min(liq, 25)
-    if liq >= 20: reasons.append(('good', f'Vol {vol:,} / OI {oi:,} — great liquidity'))
-    elif liq >= 12: reasons.append(('ok',  f'Vol {vol:,} / OI {oi:,} — decent liquidity'))
-    else:           reasons.append(('bad', f'Vol {vol:,} / OI {oi:,} — low liquidity'))
+    sp_str = f' / Spread {sp:.1f}%' if ask > 0 else ''
+    if liq >= 20: reasons.append(('good', f'Vol {vol:,} / OI {oi:,}{sp_str} — great liquidity'))
+    elif liq >= 12: reasons.append(('ok',  f'Vol {vol:,} / OI {oi:,}{sp_str} — decent liquidity'))
+    else:           reasons.append(('bad', f'Vol {vol:,} / OI {oi:,}{sp_str} — low liquidity, hard to fill'))
 
     # DTE (15 pts) — target window is 30-45 days for swing trades
     if 30 <= dte <= 45:   dte_s = 15; reasons.append(('good', f'{dte} DTE — ideal for swing trade (30–45 day window)'))
@@ -1210,6 +1213,87 @@ def score_option(row, greeks, dte):
     else:             grade = 'D'
 
     return total, grade, reasons
+
+
+def fill_rate_score(bid, ask, vol, oi):
+    """
+    Compute a fillability score (0–100) for an options contract on Robinhood.
+    Returns a dict with score, rating, color, spread metrics, and recommended entry.
+    """
+    bid = float(bid or 0)
+    ask = float(ask or 0)
+    vol = int(vol or 0)
+    oi  = int(oi or 0)
+
+    if ask <= 0:
+        return {
+            'fill_score': 0, 'fill_rating': 'Very Hard', 'fill_color': 'red',
+            'spread_dollar': 0.0, 'spread_pct': 0.0,
+            'recommended_entry': 0.0, 'entry_note': 'No ask price — untradeable',
+        }
+
+    spread_dollar = round(ask - bid, 2)
+    spread_pct    = round((ask - bid) / ask * 100, 1)
+    mid           = round((bid + ask) / 2, 2)
+
+    # Bid-ask spread % (40 pts)
+    if   spread_pct < 5:  sp_score = 40
+    elif spread_pct < 10: sp_score = 28
+    elif spread_pct < 20: sp_score = 15
+    elif spread_pct < 35: sp_score = 5
+    else:                 sp_score = 0
+
+    # Dollar spread (20 pts)
+    if   spread_dollar < 0.05: ds_score = 20
+    elif spread_dollar < 0.15: ds_score = 15
+    elif spread_dollar < 0.30: ds_score = 9
+    elif spread_dollar < 0.60: ds_score = 3
+    else:                      ds_score = 0
+
+    # Volume (20 pts)
+    if   vol > 500: v_score = 20
+    elif vol > 100: v_score = 14
+    elif vol > 50:  v_score = 8
+    elif vol > 10:  v_score = 3
+    else:           v_score = 0
+
+    # Open Interest (20 pts)
+    if   oi > 2000: oi_score = 20
+    elif oi > 500:  oi_score = 14
+    elif oi > 100:  oi_score = 8
+    elif oi > 50:   oi_score = 3
+    else:           oi_score = 0
+
+    fill_score = sp_score + ds_score + v_score + oi_score
+
+    if   fill_score >= 80: rating, color = 'Easy',      'green'
+    elif fill_score >= 60: rating, color = 'Moderate',  'yellow'
+    elif fill_score >= 40: rating, color = 'Hard',      'orange'
+    else:                  rating, color = 'Very Hard', 'red'
+
+    # Recommended entry price (for BUY / debit side limit order)
+    if rating == 'Easy':
+        rec_entry = mid
+        entry_note = f'Enter at mid ${mid:.2f} — tight spread, expect fill'
+    elif rating == 'Moderate':
+        rec_entry = round(mid + 0.15 * (ask - mid), 2)
+        entry_note = f'Try ${rec_entry:.2f} — slightly above mid for better fill'
+    elif rating == 'Hard':
+        rec_entry = round(mid + 0.30 * (ask - mid), 2)
+        entry_note = f'Try ${rec_entry:.2f} — push toward ask, wide spread'
+    else:
+        rec_entry = round(ask * 0.97, 2)
+        entry_note = f'Try ${rec_entry:.2f} — very wide spread, consider skipping'
+
+    return {
+        'fill_score':        fill_score,
+        'fill_rating':       rating,
+        'fill_color':        color,
+        'spread_dollar':     spread_dollar,
+        'spread_pct':        spread_pct,
+        'recommended_entry': rec_entry,
+        'entry_note':        entry_note,
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1419,10 +1503,10 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
 
             score   = 0
             reasons = []
-            if rr >= 2.0:      score += 35; reasons.append(('good', f'R:R {rr:.1f}:1 — excellent'))
-            elif rr >= 1.5:    score += 28; reasons.append(('good', f'R:R {rr:.1f}:1 — good'))
-            elif rr >= 1.0:    score += 18; reasons.append(('ok',   f'R:R {rr:.1f}:1 — acceptable'))
-            elif rr >= 0.75:   score += 8;  reasons.append(('warn', f'R:R {rr:.1f}:1 — below ideal (want ≥1:1)'))
+            if rr >= 2.0:      score += 30; reasons.append(('good', f'R:R {rr:.1f}:1 — excellent'))
+            elif rr >= 1.5:    score += 24; reasons.append(('good', f'R:R {rr:.1f}:1 — good'))
+            elif rr >= 1.0:    score += 15; reasons.append(('ok',   f'R:R {rr:.1f}:1 — acceptable'))
+            elif rr >= 0.75:   score += 6;  reasons.append(('warn', f'R:R {rr:.1f}:1 — below ideal (want ≥1:1)'))
             else:              score += 0;  reasons.append(('bad',  f'R:R {rr:.1f}:1 — poor risk/reward'))
 
             if deb_pct_w <= 40:   score += 25; reasons.append(('good', f'Debit is {deb_pct_w:.0f}% of width — excellent value'))
@@ -1443,53 +1527,94 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
             min_vol = min(l_vol, s_vol)
             min_oi  = min(l_oi, s_oi)
             liq = 0
-            if min_vol > 100: liq += 5
-            elif min_vol > 10: liq += 2
-            if min_oi > 500: liq += 5
-            elif min_oi > 50: liq += 2
-            liq = min(liq, 10)
+            # Volume (8 pts)
+            if min_vol > 500: liq += 8
+            elif min_vol > 100: liq += 6
+            elif min_vol > 50:  liq += 4
+            elif min_vol > 10:  liq += 2
+            # Open Interest (8 pts)
+            if min_oi > 2000: liq += 8
+            elif min_oi > 500:  liq += 6
+            elif min_oi > 100:  liq += 4
+            elif min_oi > 50:   liq += 2
+            # Spread — worst leg drives penalty (4 pts)
+            l_sp = ((la - lb) / la * 100) if la > 0 else 100
+            s_sp = ((sa - sb) / sa * 100) if sa > 0 else 100
+            worst_sp = max(l_sp, s_sp)
+            if   worst_sp < 10: liq += 4
+            elif worst_sp < 20: liq += 2
+            elif worst_sp < 35: liq += 1
+            liq = min(liq, 20)
             score += liq
-            if liq >= 8:   reasons.append(('good', 'Good liquidity on both legs'))
-            elif liq >= 4: reasons.append(('ok',   'Acceptable liquidity on both legs'))
-            else:          reasons.append(('warn', 'Low liquidity — check bid/ask before trading'))
+            if liq >= 16:  reasons.append(('good', f'Good liquidity on both legs (min vol {min_vol}, OI {min_oi})'))
+            elif liq >= 8: reasons.append(('ok',   f'Acceptable liquidity (min vol {min_vol}, OI {min_oi})'))
+            else:          reasons.append(('warn', f'Low liquidity — wide spreads may be hard to fill (min vol {min_vol}, OI {min_oi})'))
+
+            # Fill rate per leg and combined
+            l_fill = fill_rate_score(lb, la, l_vol, l_oi)
+            s_fill = fill_rate_score(sb, sa, s_vol, s_oi)
+            # Combined fill = worst of the two legs (weakest-link)
+            _fill_order = ['Easy', 'Moderate', 'Hard', 'Very Hard']
+            combined_rating = _fill_order[max(_fill_order.index(l_fill['fill_rating']),
+                                              _fill_order.index(s_fill['fill_rating']))]
+            combined_color  = {'Easy': 'green', 'Moderate': 'yellow',
+                                'Hard': 'orange', 'Very Hard': 'red'}[combined_rating]
+            rec_net_debit   = round(l_fill['recommended_entry'] - s_fill['recommended_entry'], 2)
+            combined_note   = (f'Enter spread at net debit ~${max(rec_net_debit, 0.01):.2f} '
+                               f'({combined_rating} to fill on Robinhood)')
 
             spreads.append({
-                'direction':        direction.upper(),
-                'expiration':       expiration,
-                'dte':              dte,
-                'long_strike':      long_strike,
-                'short_strike':     short_strike,
-                'spread_width':     round(width, 2),
-                'net_debit':        round(net_deb, 2),
-                'net_debit_total':  round(max_loss, 2),
-                'max_profit':       round(max_prof, 2),
-                'max_loss':         round(max_loss, 2),
-                'rr_ratio':         rr,
-                'debit_pct_width':  deb_pct_w,
-                'breakeven':        round(beven, 2),
-                'breakeven_pct':    bpct,
-                'val_65':           val_65,
-                'val_75':           val_75,
-                'profit_at_65':     prof_65,
-                'profit_at_75':     prof_75,
-                'long_bid':         round(lb, 2),
-                'long_ask':         round(la, 2),
-                'long_mid':         round(lm, 2),
-                'long_delta':       l_g['delta'],
-                'long_iv':          round(l_iv * 100, 1),
-                'long_volume':      l_vol,
-                'long_oi':          l_oi,
-                'short_bid':        round(sb, 2),
-                'short_ask':        round(sa, 2),
-                'short_mid':        round(sm, 2),
-                'short_delta':      s_g['delta'],
-                'short_iv':         round(s_iv * 100, 1),
-                'short_volume':     s_vol,
-                'short_oi':         s_oi,
-                'net_delta':        round(abs(l_g['delta']) - abs(s_g['delta']), 3),
-                'is_target_aligned': bool(abs(short_strike - price_target) <= width),
-                'score':            score,
-                'reasons':          reasons,
+                'direction':               direction.upper(),
+                'expiration':              expiration,
+                'dte':                     dte,
+                'long_strike':             long_strike,
+                'short_strike':            short_strike,
+                'spread_width':            round(width, 2),
+                'net_debit':               round(net_deb, 2),
+                'net_debit_total':         round(max_loss, 2),
+                'max_profit':              round(max_prof, 2),
+                'max_loss':                round(max_loss, 2),
+                'rr_ratio':                rr,
+                'debit_pct_width':         deb_pct_w,
+                'breakeven':               round(beven, 2),
+                'breakeven_pct':           bpct,
+                'val_65':                  val_65,
+                'val_75':                  val_75,
+                'profit_at_65':            prof_65,
+                'profit_at_75':            prof_75,
+                'long_bid':                round(lb, 2),
+                'long_ask':                round(la, 2),
+                'long_mid':                round(lm, 2),
+                'long_delta':              l_g['delta'],
+                'long_iv':                 round(l_iv * 100, 1),
+                'long_volume':             l_vol,
+                'long_oi':                 l_oi,
+                'long_fill_rating':        l_fill['fill_rating'],
+                'long_fill_color':         l_fill['fill_color'],
+                'long_spread_dollar':      l_fill['spread_dollar'],
+                'long_spread_pct':         l_fill['spread_pct'],
+                'long_recommended_entry':  l_fill['recommended_entry'],
+                'long_entry_note':         l_fill['entry_note'],
+                'short_bid':               round(sb, 2),
+                'short_ask':               round(sa, 2),
+                'short_mid':              round(sm, 2),
+                'short_delta':             s_g['delta'],
+                'short_iv':                round(s_iv * 100, 1),
+                'short_volume':            s_vol,
+                'short_oi':                s_oi,
+                'short_fill_rating':       s_fill['fill_rating'],
+                'short_fill_color':        s_fill['fill_color'],
+                'short_spread_dollar':     s_fill['spread_dollar'],
+                'short_spread_pct':        s_fill['spread_pct'],
+                'short_recommended_entry': s_fill['recommended_entry'],
+                'short_entry_note':        s_fill['entry_note'],
+                'combined_fill_rating':    combined_rating,
+                'combined_fill_color':     combined_color,
+                'combined_entry_note':     combined_note,
+                'net_delta':               round(abs(l_g['delta']) - abs(s_g['delta']), 3),
+                'is_target_aligned':       bool(abs(short_strike - price_target) <= width),
+                'score':                   score,
+                'reasons':                 reasons,
             })
 
     spreads.sort(key=lambda x: x['score'], reverse=True)
@@ -2446,6 +2571,12 @@ def contract_recommend(request: Request, ticker: str, direction: str = 'call'):
                 if mid < 0.05 or mid > 20.0:
                     continue
 
+                # Skip completely dead markets (untradeable — no volume/OI and very wide spread)
+                vol_raw = int(row.get('volume', 0) or 0)
+                oi_raw  = int(row.get('openInterest', 0) or 0)
+                if ask > 0 and ((ask - bid) / ask * 100) > 50 and vol_raw == 0 and oi_raw < 10:
+                    continue
+
                 greeks = calculate_greeks(price, strike, T, r_f, iv, direction)
                 delta  = abs(greeks['delta'])
 
@@ -2454,29 +2585,37 @@ def contract_recommend(request: Request, ticker: str, direction: str = 'call'):
                     continue
 
                 score, grade, reasons = score_option(row.to_dict(), greeks, dte)
+                fill = fill_rate_score(bid, ask, vol_raw, oi_raw)
 
                 candidates.append({
-                    'type':         direction.upper(),
-                    'strike':       strike,
-                    'expiration':   best_exp,
-                    'dte':          dte,
-                    'bid':          round(bid, 2),
-                    'ask':          round(ask, 2),
-                    'mid':          round(mid, 2),
-                    'cost':         round(mid * 100, 2),
-                    'delta':        greeks['delta'],
-                    'theta':        greeks['theta'],
-                    'gamma':        greeks['gamma'],
-                    'vega':         greeks['vega'],
-                    'iv':           round(iv * 100, 1),
-                    'volume':       int(row['volume'])       if not pd.isna(row.get('volume'))       else 0,
-                    'openInterest': int(row['openInterest']) if not pd.isna(row.get('openInterest')) else 0,
-                    'breakeven':    round(strike + mid, 2)   if direction == 'call' else round(strike - mid, 2),
-                    'inTheMoney':   bool(row.get('inTheMoney', False)),
-                    'score':        score,
-                    'grade':        grade,
-                    'reasons':      reasons,
-                    'rank':         0,
+                    'type':              direction.upper(),
+                    'strike':            strike,
+                    'expiration':        best_exp,
+                    'dte':               dte,
+                    'bid':               round(bid, 2),
+                    'ask':               round(ask, 2),
+                    'mid':               round(mid, 2),
+                    'cost':              round(mid * 100, 2),
+                    'delta':             greeks['delta'],
+                    'theta':             greeks['theta'],
+                    'gamma':             greeks['gamma'],
+                    'vega':              greeks['vega'],
+                    'iv':                round(iv * 100, 1),
+                    'volume':            int(row['volume'])       if not pd.isna(row.get('volume'))       else 0,
+                    'openInterest':      int(row['openInterest']) if not pd.isna(row.get('openInterest')) else 0,
+                    'breakeven':         round(strike + mid, 2)   if direction == 'call' else round(strike - mid, 2),
+                    'inTheMoney':        bool(row.get('inTheMoney', False)),
+                    'score':             score,
+                    'grade':             grade,
+                    'reasons':           reasons,
+                    'fill_score':        fill['fill_score'],
+                    'fill_rating':       fill['fill_rating'],
+                    'fill_color':        fill['fill_color'],
+                    'spread_dollar':     fill['spread_dollar'],
+                    'spread_pct':        fill['spread_pct'],
+                    'recommended_entry': fill['recommended_entry'],
+                    'entry_note':        fill['entry_note'],
+                    'rank':              0,
                 })
             except Exception:
                 continue
