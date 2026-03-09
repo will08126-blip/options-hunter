@@ -2933,7 +2933,7 @@ function renderTable(filter) {
 }
 
 function buildDetail(r) {
-  const rsns = r.reasons.map(([t,txt]) => `<li class="r-${t}">${t==='good'?'✓':t==='ok'?'◎':'✗'} ${txt}</li>`).join('');
+  const rsns = r.reasons.map(([t,txt]) => `<li class="r-${t}"><span style="flex-shrink:0">${t==='good'?'✓':t==='ok'?'◎':'✗'}</span><span>${txt}</span></li>`).join('');
   return `<div class="detail-inner">
     <div class="detail-card"><h6>Contract Details</h6>
       <div class="detail-item"><span>Strike</span><span class="val">$${r.strike}</span></div>
