@@ -537,6 +537,7 @@ body { overscroll-behavior-y: none; }
 
 /* ── Scroll-margin so filter bar lands below sticky nav ── */
 #filterBar { scroll-margin-top: 54px; }
+#resultsArea { scroll-margin-top: 8px; }
 
 /* ── Crypto paper trade panel ── */
 .crypto-panel{background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 20px 0;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;}
@@ -2878,7 +2879,7 @@ async function analyze() {
     allResults = data.results;
     document.getElementById('filterBar').style.display = 'flex';
     renderTable(currentFilter);
-    requestAnimationFrame(() => document.getElementById('filterBar').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    requestAnimationFrame(() => document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' }));
   } catch(e) { showToast('Analysis failed. Please try again.'); }
   finally { document.getElementById('analyzeBtn').disabled = false; }
 }
