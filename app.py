@@ -1844,6 +1844,11 @@ def _init_db():
             conn.execute("ALTER TABLE simulated_trades ADD COLUMN user_token TEXT NOT NULL DEFAULT 'anonymous'")
         except Exception:
             pass  # column already exists
+        # Migrate existing DBs that predate the quantity column
+        try:
+            conn.execute("ALTER TABLE simulated_trades ADD COLUMN quantity REAL")
+        except Exception:
+            pass  # column already exists
         conn.commit()
         conn.close()
 
@@ -1863,9 +1868,9 @@ class AnalyzeBody(BaseModel):
 
 
 class SimulateTradeBody(BaseModel):
-    trade_type:         str    # 'long_contract' | 'debit_spread'
+    trade_type:         str    # 'long_contract' | 'debit_spread' | 'crypto_long'
     ticker:             str
-    direction:          str    # 'CALL' | 'PUT'
+    direction:          str    # 'CALL' | 'PUT' | 'BUY'
     strike:             float | None = None
     expiration:         str   | None = None
     long_strike:        float | None = None
@@ -1881,6 +1886,7 @@ class SimulateTradeBody(BaseModel):
     entry_grade:        str   | None = None
     entry_delta:        float | None = None
     entry_iv:           float | None = None
+    quantity:           float | None = None  # for crypto_long
 
 
 @app.get('/login', response_class=HTMLResponse)
@@ -2132,6 +2138,17 @@ def stock_info(request: Request, ticker: str):
         data['expirations'] = list(yf.Ticker(ticker).options)
         cache_set(cache_key, data)
         return data
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
+@app.get('/api/crypto/price/{symbol}')
+@limiter.limit("30/minute")
+def crypto_price(symbol: str, request: Request):
+    sym = symbol.upper().strip()
+    try:
+        price = round(float(yf.Ticker(sym).fast_info.last_price), 2)
+        return {'symbol': sym, 'price': price}
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=400)
 
@@ -2639,15 +2656,15 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
                 (created_at, status, user_token, trade_type, ticker, direction,
                  strike, expiration, long_strike, short_strike, spread_width, max_profit,
                  dte_at_entry, entry_price, entry_total_cost, entry_stock_price,
-                 breakeven, entry_score, entry_grade, entry_delta, entry_iv)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 breakeven, entry_score, entry_grade, entry_delta, entry_iv, quantity)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (now, 'active', _get_user_token(request),
               body.trade_type, body.ticker.upper(), body.direction.upper(),
               body.strike, body.expiration, body.long_strike, body.short_strike,
               body.spread_width, body.max_profit, body.dte_at_entry,
               body.entry_price, body.entry_total_cost, body.entry_stock_price,
               body.breakeven, body.entry_score, body.entry_grade,
-              body.entry_delta, body.entry_iv))
+              body.entry_delta, body.entry_iv, body.quantity))
         trade_id = cur.lastrowid
         conn.commit()
         conn.close()
@@ -2700,7 +2717,15 @@ def refresh_trade(trade_id: int, request: Request):
         pnl_pct       = None
         new_status    = 'active'
 
-        if trade['trade_type'] == 'long_contract':
+        if trade['trade_type'] == 'crypto_long':
+            current_price = round(float(info.last_price), 2)
+            current_stock = current_price
+            qty = trade.get('quantity') or 1.0
+            pnl_dollars = round((current_price - trade['entry_price']) * qty, 2)
+            pnl_pct     = round(pnl_dollars / trade['entry_total_cost'] * 100, 2) if trade['entry_total_cost'] else 0
+            current_dte = None
+
+        elif trade['trade_type'] == 'long_contract':
             exp_date = datetime.strptime(trade['expiration'], '%Y-%m-%d').date()
             current_dte = max((exp_date - today).days, 0)
 

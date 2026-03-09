@@ -538,6 +538,13 @@ body { overscroll-behavior-y: none; }
 /* ── Scroll-margin so filter bar lands below sticky nav ── */
 #filterBar { scroll-margin-top: 54px; }
 
+/* ── Crypto paper trade panel ── */
+.crypto-panel{background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 20px 0;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+.crypto-panel-price{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--green);}
+.crypto-panel-total{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--blue);}
+/* ── Crypto trade card (Paper Trades tab) ── */
+.pt-crypto-badge{background:rgba(255,193,7,.12);color:#ffc107;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;}
+
 /* ── Prevent text selection flicker on tap in data cells ── */
 .oh-table td, .metric-pill, .index-card, .mover-item, .sector-card, .setup-card { -webkit-user-select: none; user-select: none; }
 
@@ -863,6 +870,28 @@ body { overscroll-behavior-y: none; }
     <div class="stock-name" id="stockName">—</div>
     <div class="stock-price mono" id="stockPrice">$—</div>
     <div class="stock-meta" id="stockMeta">—</div>
+  </div>
+
+  <!-- Crypto Paper Trade Panel (shown only for crypto tickers) -->
+  <div id="cryptoPanel" style="display:none">
+    <div class="crypto-panel">
+      <div>
+        <div class="field-label">Current Price</div>
+        <div class="crypto-panel-price" id="cryptoPriceDisplay">—</div>
+      </div>
+      <div>
+        <div class="field-label">Quantity</div>
+        <input class="oh-input" id="cryptoQtyInput" type="number" step="any" min="0.000001" placeholder="0.1" style="width:120px" oninput="updateCryptoTotal()"/>
+      </div>
+      <div>
+        <div class="field-label">Total Cost</div>
+        <div class="crypto-panel-total" id="cryptoTotalDisplay">—</div>
+      </div>
+      <div style="padding-bottom:1px">
+        <div class="field-label">&nbsp;</div>
+        <button class="btn-primary-oh" onclick="addCryptoTrade()">📋 Paper Trade</button>
+      </div>
+    </div>
   </div>
 
   <!-- Filter Bar -->
@@ -2663,10 +2692,42 @@ let _manualTicker = '';       // ticker from last loadStock() call
 let _manualStockPrice = 0;    // stock price from last loadStock() call
 let _renderedRows = [];       // filtered rows currently visible in the table
 
+function _isCryptoTicker(ticker) {
+  return ticker.endsWith('-USD') || typeof CRYPTO_NAMES[ticker] !== 'undefined';
+}
+
 async function loadStock() {
   const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
   if (!ticker) return showToast('Enter a ticker symbol');
+  document.getElementById('cryptoPanel').style.display = 'none';
   document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="spinner"></div><p>Loading stock data...</p></div>';
+
+  if (_isCryptoTicker(ticker)) {
+    // ── Crypto flow ──────────────────────────────────────────────────────────
+    try {
+      const res  = await fetch(`/api/crypto/price/${ticker}`);
+      const data = await res.json();
+      if (data.error) return showToast(data.error);
+      _manualTicker     = ticker;
+      _manualStockPrice = data.price;
+      const name = CRYPTO_NAMES[ticker] || ticker;
+      document.getElementById('stockName').textContent  = name;
+      document.getElementById('stockPrice').textContent = `$${data.price.toLocaleString()}`;
+      document.getElementById('stockMeta').textContent  = 'Crypto';
+      document.getElementById('stockStrip').classList.add('visible');
+      document.getElementById('expWrap').style.display     = 'none';
+      document.getElementById('analyzeWrap').style.display = 'none';
+      document.getElementById('filterBar').style.display   = 'none';
+      document.getElementById('cryptoPriceDisplay').textContent = `$${data.price.toLocaleString()}`;
+      document.getElementById('cryptoQtyInput').value = '';
+      document.getElementById('cryptoTotalDisplay').textContent = '—';
+      document.getElementById('cryptoPanel').style.display = 'block';
+      document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="icon">₿</div><p>Enter a quantity above and click <b>Paper Trade</b> to simulate a crypto position.</p></div>';
+    } catch(e) { showToast('Could not load crypto price. Check ticker and try again.'); }
+    return;
+  }
+
+  // ── Options / stock flow (unchanged) ────────────────────────────────────
   try {
     const res  = await fetch(`/api/stock/${ticker}`);
     const data = await res.json();
@@ -2689,6 +2750,47 @@ async function loadStock() {
     document.getElementById('resultsArea').innerHTML = '<div class="state-box"><div class="icon">📅</div><p>Select an expiration date and click Analyze Options</p></div>';
     document.getElementById('filterBar').style.display = 'none';
   } catch(e) { showToast('Could not load stock. Check ticker and try again.'); }
+}
+
+function updateCryptoTotal() {
+  const qty   = parseFloat(document.getElementById('cryptoQtyInput').value);
+  const price = _manualStockPrice;
+  if (qty > 0 && price > 0) {
+    const total = (price * qty).toFixed(2);
+    document.getElementById('cryptoTotalDisplay').textContent = `$${parseFloat(total).toLocaleString()}`;
+  } else {
+    document.getElementById('cryptoTotalDisplay').textContent = '—';
+  }
+}
+
+async function addCryptoTrade() {
+  if (!_ptPortfolioCode) {
+    showToast('Open the Paper Trades tab and enter your portfolio code first');
+    return;
+  }
+  const qty = parseFloat(document.getElementById('cryptoQtyInput').value);
+  if (!qty || qty <= 0) { showToast('Enter a valid quantity'); return; }
+  const price     = _manualStockPrice;
+  const totalCost = Math.round(price * qty * 100) / 100;
+  try {
+    const res = await fetch('/api/trades/simulate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Portfolio-Code': _ptPortfolioCode},
+      body: JSON.stringify({
+        trade_type:        'crypto_long',
+        ticker:            _manualTicker,
+        direction:         'BUY',
+        entry_price:       price,
+        entry_total_cost:  totalCost,
+        entry_stock_price: price,
+        quantity:          qty
+      })
+    });
+    const data = await res.json();
+    if (data.detail) { showToast('Failed: ' + data.detail); return; }
+    _ptTrades = [];  // clear cache so next load is fresh
+    showToast(`✅ ${_manualTicker} ×${qty} paper trade added!`);
+  } catch(e) { showToast('Failed to add trade. Try again.'); }
 }
 
 async function analyze() {
@@ -3023,7 +3125,7 @@ function renderPaperTrades() {
   if (!trades.length) {
     list.innerHTML = `<div class="pt-empty">
       ${filter === 'all'
-        ? '<div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-weight:600;color:var(--text);margin-bottom:6px">No paper trades yet</div><div>Find a contract in the Options Hunter tab and click <b style="color:var(--blue)">Simulate Trade</b> to get started.</div>'
+        ? '<div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-weight:600;color:var(--text);margin-bottom:6px">No paper trades yet</div><div>Find a contract in the Options Hunter tab and click <b style="color:var(--blue)">Paper Trade</b>, or load a crypto ticker (e.g. BTC-USD) to simulate a position.</div>'
         : `<div style="font-size:28px;margin-bottom:10px">🔍</div><div>No ${filter} trades.</div>`
       }
     </div>`;
@@ -3045,7 +3147,75 @@ function renderPaperTrades() {
   `).join('');
 }
 
+function ptCryptoCardHtml(t) {
+  const isActive = t.status === 'active';
+  const isClosed = t.status === 'closed';
+  const statusColor     = isActive ? 'rgba(77,159,255,.15)' : 'rgba(90,100,128,.15)';
+  const statusTextColor = isActive ? 'var(--blue)' : 'var(--muted)';
+  const statusLabel     = isActive ? 'Active' : isClosed ? 'Closed' : 'Expired';
+  const qty     = t.quantity != null ? t.quantity : 1;
+  const entryDate = new Date(t.created_at + 'Z').toLocaleString();
+
+  let pnlHtml = '<span style="color:var(--muted)">—</span>';
+  if (t.pnl_dollars != null) {
+    const pos    = t.pnl_dollars >= 0;
+    const col    = pos ? 'var(--green)' : 'var(--red)';
+    const sign   = pos ? '+' : '';
+    const pnlPct = t.pnl_pct != null ? ` (${pos?'+':''}${t.pnl_pct.toFixed(1)}%)` : '';
+    pnlHtml = `<span style="color:${col};font-weight:700">${sign}$${Math.abs(t.pnl_dollars).toFixed(2)}${pnlPct}</span>`;
+  }
+
+  const refreshedLine = t.last_refreshed
+    ? `<div style="font-size:10px;color:var(--muted);margin-top:6px">Last refreshed: ${new Date(t.last_refreshed + 'Z').toLocaleString()}</div>`
+    : `<div style="font-size:10px;color:var(--muted);margin-top:6px">Not yet refreshed — click Refresh PnL to see current value</div>`;
+
+  const actionsHtml = isActive
+    ? `<button class="pt-btn-refresh" onclick="refreshOneTrade(${t.id})">↻ Refresh PnL</button>
+       <button class="pt-btn-close"   onclick="closeTrade(${t.id})">✓ Close Position</button>
+       <button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`
+    : `<button class="pt-btn-delete"  onclick="deleteTrade(${t.id})">✗ Delete</button>`;
+
+  return `<div class="pt-card status-${t.status}">
+    <div class="pt-card-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="pt-ticker">${t.ticker}</span>
+          <span class="pt-crypto-badge">Crypto</span>
+          <span class="pt-status-badge" style="background:${statusColor};color:${statusTextColor}">${statusLabel}</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;color:#fff;margin-top:5px">Long ${qty} ${t.ticker}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Entered: ${entryDate}</div>
+      </div>
+    </div>
+    <div class="pt-stats">
+      <div class="pt-stat">
+        <div class="pt-stat-label">Entry Price</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_price.toLocaleString()}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Quantity</div>
+        <div class="pt-stat-val">${qty}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Total Cost</div>
+        <div class="pt-stat-val" style="color:var(--blue)">$${t.entry_total_cost.toLocaleString()}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">Current Price</div>
+        <div class="pt-stat-val">${t.current_price != null ? '$' + t.current_price.toLocaleString() : '—'}</div>
+      </div>
+      <div class="pt-stat">
+        <div class="pt-stat-label">PnL</div>
+        <div class="pt-stat-val">${pnlHtml}</div>
+      </div>
+    </div>
+    ${refreshedLine}
+    <div class="pt-actions">${actionsHtml}</div>
+  </div>`;
+}
+
 function ptCardHtml(t) {
+  if (t.trade_type === 'crypto_long') return ptCryptoCardHtml(t);
   const isActive  = t.status === 'active';
   const isClosed  = t.status === 'closed';
   const isExpired = t.status === 'expired';
