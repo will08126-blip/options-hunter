@@ -535,6 +535,9 @@ body { overscroll-behavior-y: none; }
 /* ── Sticky table header: offset by nav height so it's not hidden ── */
 .oh-table thead th { top: 50px; }
 
+/* ── Scroll-margin so filter bar lands below sticky nav ── */
+#filterBar { scroll-margin-top: 54px; }
+
 /* ── Prevent text selection flicker on tap in data cells ── */
 .oh-table td, .metric-pill, .index-card, .mover-item, .sector-card, .setup-card { -webkit-user-select: none; user-select: none; }
 
@@ -2701,6 +2704,7 @@ async function analyze() {
     allResults = data.results;
     document.getElementById('filterBar').style.display = 'flex';
     renderTable(currentFilter);
+    requestAnimationFrame(() => document.getElementById('filterBar').scrollIntoView({ behavior: 'smooth', block: 'start' }));
   } catch(e) { showToast('Analysis failed. Please try again.'); }
   finally { document.getElementById('analyzeBtn').disabled = false; }
 }
