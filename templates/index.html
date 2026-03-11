@@ -538,8 +538,6 @@ body { overscroll-behavior-y: none; }
 /* ── Scroll-margin so filter bar lands below sticky nav ── */
 #filterBar { scroll-margin-top: 54px; }
 #resultsArea { scroll-margin-top: 8px; }
-/* ── Ensure first data row is never hidden under nav + filterBar + thead when scrolled into view ── */
-#resultsArea tbody tr:first-child { scroll-margin-top: 148px; }
 
 /* ── Crypto paper trade panel ── */
 .crypto-panel{background:#0b1220;border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin:0 20px 0;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;}
@@ -2660,6 +2658,22 @@ function renderSpreads(data, containerId = 'contractResults') {
         </div>
       </div>
 
+      <div style="margin:8px 0 10px;padding:10px 12px;background:rgba(0,130,255,.07);border:1px solid rgba(77,159,255,.3);border-radius:8px">
+        <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">How to Place This Order on Robinhood</div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:6px">
+          <div style="font-size:12px;color:var(--muted)">Spread market:
+            <b style="color:#fff">$${(sp.natural_spread_bid ?? sp.net_debit).toFixed(2)} bid</b>
+            <span style="color:var(--muted)"> / </span>
+            <b style="color:#fff">$${(sp.natural_spread_ask ?? sp.net_debit).toFixed(2)} ask</b>
+          </div>
+          <div style="font-size:13px;font-weight:700">
+            Limit: <span style="color:var(--blue)">$${(sp.net_recommended_entry ?? sp.net_debit).toFixed(2)}</span> net debit &nbsp;${combinedFillBadge}
+          </div>
+        </div>
+        ${sp.combined_fill_rating === 'Hard' ? `<div style="font-size:11px;color:#ff944d;margin-bottom:5px">⚠ Wide bid-ask — if no fill in 5 min, raise limit by $0.05 and retry.</div>` : ''}
+        <div style="font-size:10px;color:var(--muted)">Use Robinhood multi-leg order. Do <b style="color:#fff">not</b> leg in separately — you will overpay.</div>
+      </div>
+
       <div class="cr-stats" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
         <div class="cr-stat">
           <div class="cr-stat-label">Net Debit (Max Loss)</div>
@@ -2737,7 +2751,7 @@ function renderSpreads(data, containerId = 'contractResults') {
         long_strike: sp.long_strike, short_strike: sp.short_strike,
         spread_width: sp.spread_width, max_profit: sp.max_profit,
         expiration: sp.expiration, dte_at_entry: sp.dte,
-        entry_price: sp.net_debit, entry_total_cost: sp.net_debit_total,
+        entry_price: sp.net_recommended_entry ?? sp.net_debit, entry_total_cost: sp.net_debit_total,
         entry_stock_price: data.price, breakeven: sp.breakeven,
         entry_score: sp.score
       }).replace(/'/g,"&#39;")})'>
@@ -2882,9 +2896,11 @@ async function analyze() {
     document.getElementById('filterBar').style.display = 'flex';
     renderTable(currentFilter);
     requestAnimationFrame(() => {
-      const firstRow = document.querySelector('#resultsArea tbody tr:first-child');
-      if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      else document.getElementById('resultsArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const fb = document.getElementById('filterBar');
+      if (fb) {
+        const top = fb.getBoundingClientRect().top + window.pageYOffset - 54;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
     });
   } catch(e) { showToast('Analysis failed. Please try again.'); }
   finally { document.getElementById('analyzeBtn').disabled = false; }

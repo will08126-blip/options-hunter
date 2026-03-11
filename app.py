@@ -1447,10 +1447,13 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
         lm = (lb + la) / 2 if la > 0 else _fv(lr.get('lastPrice'))
         if lm <= 0:
             continue
-        l_iv  = float(lr['impliedVolatility']) if not pd.isna(lr['impliedVolatility']) else 0.3
-        l_g   = calculate_greeks(price, long_strike, T, r_f, l_iv, direction)
         l_vol = _iv(lr.get('volume'))
         l_oi  = _iv(lr.get('openInterest'))
+        # Skip completely dead long-leg strikes (no market)
+        if l_vol == 0 and l_oi == 0:
+            continue
+        l_iv  = float(lr['impliedVolatility']) if not pd.isna(lr['impliedVolatility']) else 0.3
+        l_g   = calculate_greeks(price, long_strike, T, r_f, l_iv, direction)
 
         if direction == 'call':
             valid_sh = [s for s in strikes if min_w <= s - long_strike <= max_w]
@@ -1473,10 +1476,13 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
             sm = (sb + sa) / 2 if sa > 0 else _fv(sr.get('lastPrice'))
             if sm <= 0:
                 continue
-            s_iv  = float(sr['impliedVolatility']) if not pd.isna(sr['impliedVolatility']) else 0.3
-            s_g   = calculate_greeks(price, short_strike, T, r_f, s_iv, direction)
             s_vol = _iv(sr.get('volume'))
             s_oi  = _iv(sr.get('openInterest'))
+            # Skip completely dead short-leg strikes (no market)
+            if s_vol == 0 and s_oi == 0:
+                continue
+            s_iv  = float(sr['impliedVolatility']) if not pd.isna(sr['impliedVolatility']) else 0.3
+            s_g   = calculate_greeks(price, short_strike, T, r_f, s_iv, direction)
 
             net_deb = lm - sm
             if net_deb <= 0.01:
@@ -1503,52 +1509,57 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
 
             score   = 0
             reasons = []
-            if rr >= 2.0:      score += 30; reasons.append(('good', f'R:R {rr:.1f}:1 — excellent'))
-            elif rr >= 1.5:    score += 24; reasons.append(('good', f'R:R {rr:.1f}:1 — good'))
-            elif rr >= 1.0:    score += 15; reasons.append(('ok',   f'R:R {rr:.1f}:1 — acceptable'))
-            elif rr >= 0.75:   score += 6;  reasons.append(('warn', f'R:R {rr:.1f}:1 — below ideal (want ≥1:1)'))
+            # R:R Ratio (22 pts max)
+            if rr >= 2.0:      score += 22; reasons.append(('good', f'R:R {rr:.1f}:1 — excellent'))
+            elif rr >= 1.5:    score += 17; reasons.append(('good', f'R:R {rr:.1f}:1 — good'))
+            elif rr >= 1.0:    score += 11; reasons.append(('ok',   f'R:R {rr:.1f}:1 — acceptable'))
+            elif rr >= 0.75:   score += 4;  reasons.append(('warn', f'R:R {rr:.1f}:1 — below ideal (want \u22651:1)'))
             else:              score += 0;  reasons.append(('bad',  f'R:R {rr:.1f}:1 — poor risk/reward'))
 
+            # Debit % of Width (25 pts)
             if deb_pct_w <= 40:   score += 25; reasons.append(('good', f'Debit is {deb_pct_w:.0f}% of width — excellent value'))
             elif deb_pct_w <= 50: score += 18; reasons.append(('good', f'Debit is {deb_pct_w:.0f}% of width — good value'))
             elif deb_pct_w <= 60: score += 10; reasons.append(('ok',   f'Debit is {deb_pct_w:.0f}% of width — acceptable'))
             else:                 score += 3;  reasons.append(('warn', f'Debit is {deb_pct_w:.0f}% of width — paying too much'))
 
-            if 21 <= dte <= 35:   score += 20; reasons.append(('good', f'{dte} DTE — ideal window (21–35 days)'))
-            elif 18 <= dte <= 45: score += 13; reasons.append(('ok',   f'{dte} DTE — acceptable'))
-            elif 14 <= dte <= 55: score += 6;  reasons.append(('warn', f'{dte} DTE — outside ideal range'))
+            # DTE (18 pts max)
+            if 21 <= dte <= 35:   score += 18; reasons.append(('good', f'{dte} DTE — ideal window (21\u201335 days)'))
+            elif 18 <= dte <= 45: score += 11; reasons.append(('ok',   f'{dte} DTE — acceptable'))
+            elif 14 <= dte <= 55: score += 5;  reasons.append(('warn', f'{dte} DTE — outside ideal range'))
             else:                 score += 2;  reasons.append(('bad',  f'{dte} DTE — not ideal for this strategy'))
 
+            # Long leg delta (10 pts)
             ld = abs(l_g['delta'])
             if 0.45 <= ld <= 0.70:   score += 10; reasons.append(('good', f'Long leg \u03b4{ld:.2f} — ATM/ITM (ideal)'))
             elif 0.35 <= ld <= 0.80: score += 6;  reasons.append(('ok',   f'Long leg \u03b4{ld:.2f} — acceptable'))
             else:                     score += 2;  reasons.append(('warn', f'Long leg \u03b4{ld:.2f} — not ATM/ITM'))
 
+            # Liquidity (30 pts max — now the largest factor, penalises wide spreads heavily)
             min_vol = min(l_vol, s_vol)
             min_oi  = min(l_oi, s_oi)
             liq = 0
-            # Volume (8 pts)
-            if min_vol > 500: liq += 8
-            elif min_vol > 100: liq += 6
+            # Volume (10 pts)
+            if min_vol > 500:   liq += 10
+            elif min_vol > 100: liq += 7
             elif min_vol > 50:  liq += 4
             elif min_vol > 10:  liq += 2
-            # Open Interest (8 pts)
-            if min_oi > 2000: liq += 8
-            elif min_oi > 500:  liq += 6
-            elif min_oi > 100:  liq += 4
-            elif min_oi > 50:   liq += 2
-            # Spread — worst leg drives penalty (4 pts)
+            # Open Interest (10 pts)
+            if min_oi > 2000:  liq += 10
+            elif min_oi > 500: liq += 7
+            elif min_oi > 100: liq += 4
+            elif min_oi > 50:  liq += 2
+            # Bid-ask spread % — worst leg (10 pts, up from 4)
             l_sp = ((la - lb) / la * 100) if la > 0 else 100
             s_sp = ((sa - sb) / sa * 100) if sa > 0 else 100
             worst_sp = max(l_sp, s_sp)
-            if   worst_sp < 10: liq += 4
-            elif worst_sp < 20: liq += 2
-            elif worst_sp < 35: liq += 1
-            liq = min(liq, 20)
+            if   worst_sp < 10: liq += 10
+            elif worst_sp < 20: liq += 6
+            elif worst_sp < 35: liq += 2
+            liq = min(liq, 30)
             score += liq
-            if liq >= 16:  reasons.append(('good', f'Good liquidity on both legs (min vol {min_vol}, OI {min_oi})'))
-            elif liq >= 8: reasons.append(('ok',   f'Acceptable liquidity (min vol {min_vol}, OI {min_oi})'))
-            else:          reasons.append(('warn', f'Low liquidity — wide spreads may be hard to fill (min vol {min_vol}, OI {min_oi})'))
+            if liq >= 24:   reasons.append(('good', f'Good liquidity on both legs (min vol {min_vol}, OI {min_oi}, spread {worst_sp:.0f}%)'))
+            elif liq >= 12: reasons.append(('ok',   f'Acceptable liquidity (min vol {min_vol}, OI {min_oi}, spread {worst_sp:.0f}%)'))
+            else:           reasons.append(('warn', f'Low liquidity — wide spreads may be hard to fill (min vol {min_vol}, OI {min_oi}, spread {worst_sp:.0f}%)'))
 
             # Fill rate per leg and combined
             l_fill = fill_rate_score(lb, la, l_vol, l_oi)
@@ -1557,11 +1568,25 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
             _fill_order = ['Easy', 'Moderate', 'Hard', 'Very Hard']
             combined_rating = _fill_order[max(_fill_order.index(l_fill['fill_rating']),
                                               _fill_order.index(s_fill['fill_rating']))]
-            combined_color  = {'Easy': 'green', 'Moderate': 'yellow',
-                                'Hard': 'orange', 'Very Hard': 'red'}[combined_rating]
-            rec_net_debit   = round(l_fill['recommended_entry'] - s_fill['recommended_entry'], 2)
-            combined_note   = (f'Enter spread at net debit ~${max(rec_net_debit, 0.01):.2f} '
-                               f'({combined_rating} to fill on Robinhood)')
+            # Skip spreads that are essentially unfillable
+            if combined_rating == 'Very Hard':
+                continue
+            combined_color = {'Easy': 'green', 'Moderate': 'yellow',
+                               'Hard': 'orange', 'Very Hard': 'red'}[combined_rating]
+            # Realistic entry: buy long leg above mid, sell short leg below mid
+            if s_fill['fill_rating'] == 'Easy':
+                short_sell_price = s_fill['mid']
+            elif s_fill['fill_rating'] == 'Moderate':
+                short_sell_price = round(s_fill['mid'] - 0.15 * (s_fill['mid'] - sb), 2)
+            elif s_fill['fill_rating'] == 'Hard':
+                short_sell_price = round(s_fill['mid'] - 0.30 * (s_fill['mid'] - sb), 2)
+            else:
+                short_sell_price = round(sb * 1.03, 2)
+            rec_net_debit  = max(round(l_fill['recommended_entry'] - short_sell_price, 2), 0.01)
+            natural_ask    = round(max(la - sb, 0.01), 2)   # what you'd pay with market order
+            natural_bid    = round(max(lb - sa, 0.01), 2)   # what you'd receive if selling
+            combined_note  = (f'Enter spread at net debit ~${rec_net_debit:.2f} '
+                              f'({combined_rating} to fill on Robinhood)')
 
             spreads.append({
                 'direction':               direction.upper(),
@@ -1611,6 +1636,9 @@ def find_best_spreads(chain_df, price, price_target, direction, expiration, dte)
                 'combined_fill_rating':    combined_rating,
                 'combined_fill_color':     combined_color,
                 'combined_entry_note':     combined_note,
+                'natural_spread_ask':      natural_ask,
+                'natural_spread_bid':      natural_bid,
+                'net_recommended_entry':   rec_net_debit,
                 'net_delta':               round(abs(l_g['delta']) - abs(s_g['delta']), 3),
                 'is_target_aligned':       bool(abs(short_strike - price_target) <= width),
                 'score':                   score,
