@@ -3654,7 +3654,7 @@ function _etfSpreadRows(spreads, ticker, direction, cardData) {
     const sfc     = fillClr[sp.short_fill_rating] || 'var(--muted)';
     const worstFill = ['Very Hard','Hard','Moderate','Easy'].find(r => r === sp.long_fill_rating || r === sp.short_fill_rating) || sp.long_fill_rating || '—';
     const worstClr  = fillClr[worstFill] || 'var(--muted)';
-    const rrClr   = (sp.risk_reward || 0) >= 1.5 ? 'var(--green)' : (sp.risk_reward || 0) >= 1.0 ? 'var(--yellow)' : 'var(--red)';
+    const rrClr   = (sp.rr_ratio || 0) >= 1.5 ? 'var(--green)' : (sp.rr_ratio || 0) >= 1.0 ? 'var(--yellow)' : 'var(--red)';
     const rankLabel = ['#1','#2','#3'][i] || `#${i+1}`;
 
     const payload = JSON.stringify({
@@ -3688,8 +3688,8 @@ function _etfSpreadRows(spreads, ticker, direction, cardData) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;margin-bottom:6px">
         <div>Debit <b style="color:#fff;font-family:'JetBrains Mono',monospace">$${sp.net_debit}</b></div>
         <div>Max Profit <b style="color:var(--green);font-family:'JetBrains Mono',monospace">$${sp.max_profit}</b></div>
-        <div>R:R <b style="color:${rrClr}">${(sp.risk_reward||0).toFixed(1)}:1</b></div>
-        <div>Debit% <b style="color:var(--text)">${(sp.debit_pct||0).toFixed(0)}%</b></div>
+        <div>R:R <b style="color:${rrClr}">${(sp.rr_ratio||0).toFixed(1)}:1</b></div>
+        <div>Debit% <b style="color:var(--text)">${(sp.debit_pct_width||0).toFixed(0)}%</b></div>
       </div>
       <button onclick='simulateTrade(${payload})'
         style="width:100%;padding:5px;background:rgba(77,159,255,.1);border:1px solid rgba(77,159,255,.25);color:var(--blue);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">
