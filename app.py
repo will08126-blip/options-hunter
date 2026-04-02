@@ -2780,6 +2780,177 @@ def spread_recommend(request: Request, ticker: str, direction: str = 'call', set
         return JSONResponse({'error': str(e)}, status_code=400)
 
 
+# ── ETF Debit Spread Dashboard ────────────────────────────────────────────────
+_ETF_SPREAD_TICKERS = ['SPY', 'QQQ', 'IWM']
+
+@app.get('/api/etf-spreads/{ticker}')
+@limiter.limit("10/minute")
+def etf_spreads(request: Request, ticker: str, mode: str = 'standard'):
+    """
+    Returns debit spread recommendations (both CALL and PUT) for a single index
+    ETF: SPY, QQQ, or IWM.
+
+    mode=standard → 21–35 DTE (default swing window)
+    mode=weekly   → 7–14 DTE  (shorter weekly swing)
+
+    Key ETF advantages over stocks:
+      - No earnings risk (ETFs track indices)
+      - Deep liquidity → near-guaranteed Easy fill ratings
+      - Weekly expirations for flexible DTE targeting
+    """
+    ticker = ticker.upper().strip()
+    if ticker not in _ETF_SPREAD_TICKERS:
+        return JSONResponse(
+            {'error': f'ETF Spreads only supports: {", ".join(_ETF_SPREAD_TICKERS)}'},
+            status_code=400
+        )
+
+    mode = mode.lower()
+    if mode not in ('standard', 'weekly'):
+        mode = 'standard'
+
+    cache_key = f'etf_spreads_{ticker}_{mode}'
+    cached    = cache_get(cache_key, ttl=CACHE_TTL_STOCK)
+    if cached:
+        return cached
+
+    try:
+        stock = yf.Ticker(ticker)
+
+        # ── Price ────────────────────────────────────────────────────────────
+        price = 0.0
+        prev_close = 0.0
+        try:
+            fi         = stock.fast_info
+            price      = float(fi.last_price or 0)
+            prev_close = float(fi.previous_close or 0)
+        except Exception:
+            pass
+        if not price:
+            try:
+                info       = stock.info
+                price      = float(info.get('currentPrice') or info.get('regularMarketPrice') or 0)
+                prev_close = float(info.get('previousClose') or 0)
+            except Exception:
+                pass
+        if not price:
+            hist_p     = stock.history(period='2d')
+            if not hist_p.empty:
+                price      = float(hist_p['Close'].iloc[-1])
+                prev_close = float(hist_p['Close'].iloc[-2]) if len(hist_p) >= 2 else 0.0
+        price = float(price)
+        if not price:
+            return JSONResponse({'error': f'Could not get price for {ticker}'}, status_code=400)
+
+        price_change_pct = round(((price - prev_close) / prev_close * 100), 2) if prev_close else 0.0
+
+        # ── Technical score ──────────────────────────────────────────────────
+        score_data    = quick_score_ticker(ticker)
+        score         = score_data.get('score', 0)     if score_data else 0
+        direction_lbl = score_data.get('direction', 'NEUTRAL') if score_data else 'NEUTRAL'
+        dir_label     = score_data.get('dir_label', 'Mixed Signals') if score_data else 'Mixed Signals'
+
+        # ── Find best expiration ─────────────────────────────────────────────
+        expirations = stock.options
+        if not expirations:
+            return JSONResponse({'error': f'No options available for {ticker}'}, status_code=400)
+
+        today = date.today()
+        if mode == 'weekly':
+            target_dte, min_dte, max_dte = 10, 5, 20
+        else:
+            target_dte, min_dte, max_dte = 28, 18, 45
+
+        best_exp  = None
+        best_diff = 999
+        for exp in expirations:
+            exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
+            dte_val  = (exp_date - today).days
+            if min_dte <= dte_val <= max_dte:
+                diff = abs(dte_val - target_dte)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_exp  = exp
+
+        # Fallback: nearest expiry ≥ min_dte
+        if not best_exp:
+            for exp in expirations:
+                exp_date = datetime.strptime(exp, '%Y-%m-%d').date()
+                if (exp_date - today).days >= min_dte:
+                    best_exp = exp
+                    break
+
+        if not best_exp:
+            dte_label = '7–14' if mode == 'weekly' else '21–35'
+            return JSONResponse(
+                {'error': f'No expiration found in {dte_label} DTE range for {ticker}.'},
+                status_code=400
+            )
+
+        chain = stock.option_chain(best_exp)
+        exp_d = datetime.strptime(best_exp, '%Y-%m-%d').date()
+        dte   = max((exp_d - today).days, 0)
+
+        # ── ATM IV ───────────────────────────────────────────────────────────
+        calls_df     = chain.calls.copy()
+        dist_series  = (calls_df['strike'] - price).abs()
+        atm_row      = calls_df.loc[dist_series.idxmin()] if not calls_df.empty else None
+        atm_iv_val   = atm_row.get('impliedVolatility', 0.3) if atm_row is not None else 0.3
+        atm_iv       = float(atm_iv_val) if not pd.isna(atm_iv_val) else 0.3
+
+        # ── Shared 1y history (IVR + price target) ───────────────────────────
+        try:
+            shared_hist = stock.history(period='1y')
+        except Exception:
+            shared_hist = pd.DataFrame()
+
+        # ── IVR + structure (ETFs never have earnings) ───────────────────────
+        ivr_data      = estimate_ivr(stock, atm_iv, hist=shared_hist)
+        earnings_info = {'has_earnings': False, 'date': None, 'dte': None, 'warning': False}
+        structure_rec = recommend_structure(ivr_data, score, earnings_info)
+
+        # ── Build spreads for both directions ────────────────────────────────
+        def _etf_spreads_for(direction):
+            chain_df = chain.calls if direction == 'call' else chain.puts
+            atm_rng  = price * 0.30
+            filtered = chain_df[
+                (chain_df['strike'] >= price - atm_rng) &
+                (chain_df['strike'] <= price + atm_rng)
+            ].copy()
+            if filtered.empty:
+                return []
+            tgt = estimate_price_target(stock, price, direction, hist=shared_hist)
+            return find_best_spreads(filtered, price, tgt, direction, best_exp, dte)
+
+        call_spreads = _etf_spreads_for('call')
+        put_spreads  = _etf_spreads_for('put')
+
+        del chain, calls_df
+        gc.collect()
+
+        out = {
+            'ticker':           ticker,
+            'price':            round(price, 2),
+            'price_change_pct': price_change_pct,
+            'score':            score,
+            'direction':        direction_lbl,
+            'dir_label':        dir_label,
+            'ivr':              ivr_data,
+            'mode':             mode,
+            'expiration':       best_exp,
+            'dte':              dte,
+            'structure_rec':    structure_rec,
+            'call_spreads':     call_spreads,
+            'put_spreads':      put_spreads,
+            'last_updated':     datetime.utcnow().strftime('%H:%M UTC'),
+        }
+        cache_set(cache_key, out)
+        return out
+
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=400)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  PAPER TRADES API
 # ══════════════════════════════════════════════════════════════════════════════
