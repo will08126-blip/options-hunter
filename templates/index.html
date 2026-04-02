@@ -565,6 +565,7 @@ body { overscroll-behavior-y: none; }
     <div class="nav-tab"       onclick="switchTab('technical')" id="tab-technical"><span class="tab-icon">📊</span><span class="tab-text">Technical</span></div>
     <div class="nav-tab"       onclick="switchTab('options')"   id="tab-options"><span class="tab-icon">🎯</span><span class="tab-text">Options Hunter</span></div>
     <div class="nav-tab"       onclick="switchTab('paper')"     id="tab-paper"><span class="tab-icon">📋</span><span class="tab-text">Paper Trades</span><span class="pt-badge" id="ptBadge" style="display:none"></span></div>
+    <div class="nav-tab"       onclick="switchTab('etf')"       id="tab-etf"><span class="tab-icon">📈</span><span class="tab-text">ETF Spreads</span></div>
   </div>
 </nav>
 
@@ -971,6 +972,52 @@ body { overscroll-behavior-y: none; }
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════════════════════
+     TAB 5 — ETF SPREADS
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-oh" id="content-etf">
+  <div style="max-width:1300px;margin:0 auto;padding:20px">
+
+    <!-- Header -->
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-size:1.25rem;font-weight:700;color:#fff;margin:0">ETF Spread Tracker</h2>
+          <p style="color:var(--muted);font-size:12px;margin:4px 0 0">
+            SPY · QQQ · IWM — Index ETFs with deep liquidity for high fill-rate debit spreads
+          </p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <!-- DTE mode toggle -->
+          <div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <button id="etfModeStd" onclick="setEtfMode('standard')"
+              style="padding:7px 14px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .2s;background:var(--blue);color:#fff">
+              Standard 21–35 DTE
+            </button>
+            <button id="etfModeWkly" onclick="setEtfMode('weekly')"
+              style="padding:7px 14px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .2s;background:transparent;color:var(--muted)">
+              Weekly 7–14 DTE
+            </button>
+          </div>
+          <button onclick="loadEtfSpreads(true)"
+            style="padding:7px 16px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">
+            ↻ Refresh All
+          </button>
+          <span id="etfLastUpdated" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ETF card grid -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+      <div id="etf-card-SPY"></div>
+      <div id="etf-card-QQQ"></div>
+      <div id="etf-card-IWM"></div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ── TOAST ── -->
 <div class="toast-wrap" id="toastWrap" style="display:none"><div class="toast-msg" id="toastMsg"></div></div>
 
@@ -990,6 +1037,7 @@ function switchTab(name) {
     if (_ptPortfolioCode) loadPaperTrades();
     else showPortfolioEntry();
   }
+  if (name === 'etf') loadEtfSpreads();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -3470,6 +3518,203 @@ function updatePtBadge() {
   } else {
     badge.style.display = 'none';
   }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  ETF SPREAD TRACKER
+// ═════════════════════════════════════════════════════════════════════════════
+let _etfMode         = 'standard';
+let _etfLastLoad     = 0;        // epoch ms — client-side freshness guard
+const ETF_TICKERS    = ['SPY', 'QQQ', 'IWM'];
+const ETF_FULL_NAMES = { SPY: 'S&P 500', QQQ: 'NASDAQ 100', IWM: 'Russell 2000' };
+
+async function loadEtfSpreads(force = false) {
+  const now = Date.now();
+  if (!force && _etfLastLoad && (now - _etfLastLoad) < 300_000) return; // 5-min client cache
+  _etfLastLoad = now;
+
+  // Show spinners immediately
+  ETF_TICKERS.forEach(t => {
+    document.getElementById('etf-card-' + t).innerHTML = _etfCardSpinner(t);
+  });
+
+  // Fire all 3 in parallel
+  await Promise.all(ETF_TICKERS.map(t => _fetchEtfCard(t)));
+
+  const ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('etfLastUpdated').textContent = `Updated ${ts}`;
+}
+
+async function _fetchEtfCard(ticker) {
+  try {
+    const res  = await fetch(`/api/etf-spreads/${ticker}?mode=${_etfMode}`);
+    const data = await res.json();
+    if (data.error) {
+      document.getElementById('etf-card-' + ticker).innerHTML = _etfCardError(ticker, data.error);
+    } else {
+      renderEtfCard(ticker, data);
+    }
+  } catch(e) {
+    document.getElementById('etf-card-' + ticker).innerHTML = _etfCardError(ticker, 'Network error — try again');
+  }
+}
+
+function setEtfMode(mode) {
+  _etfMode = mode;
+  _etfLastLoad = 0; // bust cache so next loadEtfSpreads forces a fresh fetch
+  document.getElementById('etfModeStd').style.background  = mode === 'standard' ? 'var(--blue)' : 'transparent';
+  document.getElementById('etfModeStd').style.color       = mode === 'standard' ? '#fff' : 'var(--muted)';
+  document.getElementById('etfModeWkly').style.background = mode === 'weekly'   ? 'var(--blue)' : 'transparent';
+  document.getElementById('etfModeWkly').style.color      = mode === 'weekly'   ? '#fff' : 'var(--muted)';
+  loadEtfSpreads(true);
+}
+
+function refreshEtfCard(ticker) {
+  _etfLastLoad = 0;
+  document.getElementById('etf-card-' + ticker).innerHTML = _etfCardSpinner(ticker);
+  _fetchEtfCard(ticker);
+}
+
+// ── Card rendering ────────────────────────────────────────────────────────────
+function renderEtfCard(ticker, d) {
+  const dir    = (d.direction || 'NEUTRAL').toUpperCase();
+  const dirClr = dir === 'BULLISH' ? 'var(--green)' : dir === 'BEARISH' ? 'var(--red)' : 'var(--muted)';
+  const pChg   = d.price_change_pct ?? 0;
+  const pChgClr= pChg >= 0 ? 'var(--green)' : 'var(--red)';
+  const pChgPfx= pChg >= 0 ? '+' : '';
+
+  const ivr    = d.ivr || {};
+  const ivrClr = { Low:'var(--green)', Normal:'var(--blue)', Elevated:'var(--yellow)', High:'var(--red)' }[ivr.label] || 'var(--muted)';
+
+  const struc  = d.structure_rec || {};
+  const strucFlg = struc.flag === 'green' ? 'var(--green)' : struc.flag === 'warning' ? 'var(--yellow)' : 'var(--blue)';
+
+  const modeLabel = d.mode === 'weekly' ? 'Weekly' : 'Standard';
+
+  const html = `
+  <div class="oh-card" style="padding:0;overflow:hidden">
+
+    <!-- Card header -->
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.2rem;font-weight:800;color:#fff;font-family:'JetBrains Mono',monospace">${ticker}</span>
+          <span style="font-size:11px;color:var(--muted)">${ETF_FULL_NAMES[ticker] || ''}</span>
+        </div>
+        <button onclick="refreshEtfCard('${ticker}')"
+          style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">
+          ↻
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:1.3rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:#fff">$${d.price.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+        <span style="font-size:12px;font-weight:600;color:${pChgClr}">${pChgPfx}${pChg}%</span>
+        <span style="margin-left:auto;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;background:${dirClr}22;color:${dirClr};border:1px solid ${dirClr}44">
+          ${dir} <span style="opacity:.7;font-weight:500">${d.score >= 0 ? '+' : ''}${d.score}</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- IVR + structure + DTE info -->
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;font-size:11px">
+      <span>IVR <b style="color:${ivrClr}">${ivr.ivr ?? '—'}% (${ivr.label || '—'})</b></span>
+      <span style="color:var(--muted)">·</span>
+      <span style="color:${strucFlg};font-weight:600">${struc.structure || '—'}</span>
+      <span style="color:var(--muted)">·</span>
+      <span style="color:var(--muted)">${modeLabel} · Exp <b style="color:var(--text)">${d.expiration}</b> (${d.dte}d)</span>
+    </div>
+
+    <!-- Spread columns -->
+    <div style="display:grid;grid-template-columns:1fr 1fr">
+      <div style="padding:12px 14px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--green);font-weight:700;margin-bottom:8px">▲ Call Spreads</div>
+        ${_etfSpreadRows(d.call_spreads, ticker, 'call', d)}
+      </div>
+      <div style="padding:12px 14px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--red);font-weight:700;margin-bottom:8px">▼ Put Spreads</div>
+        ${_etfSpreadRows(d.put_spreads, ticker, 'put', d)}
+      </div>
+    </div>
+
+    <!-- IVR tip -->
+    ${ivr.action ? `<div style="padding:8px 16px;background:rgba(77,159,255,.05);border-top:1px solid var(--border);font-size:10px;color:var(--muted)">${ivr.action}</div>` : ''}
+  </div>`;
+
+  document.getElementById('etf-card-' + ticker).innerHTML = html;
+}
+
+function _etfSpreadRows(spreads, ticker, direction, cardData) {
+  if (!spreads || spreads.length === 0) {
+    return `<div style="color:var(--muted);font-size:11px;padding:6px 0">No spreads found for this DTE window</div>`;
+  }
+  const top3 = spreads.slice(0, 3);
+  return top3.map((sp, i) => {
+    const fillClr = { Easy:'var(--green)', Moderate:'var(--yellow)', Hard:'var(--red)', 'Very Hard':'#ff6b35' };
+    const lfc     = fillClr[sp.long_fill_rating]  || 'var(--muted)';
+    const sfc     = fillClr[sp.short_fill_rating] || 'var(--muted)';
+    const worstFill = ['Very Hard','Hard','Moderate','Easy'].find(r => r === sp.long_fill_rating || r === sp.short_fill_rating) || sp.long_fill_rating || '—';
+    const worstClr  = fillClr[worstFill] || 'var(--muted)';
+    const rrClr   = (sp.rr_ratio || 0) >= 1.5 ? 'var(--green)' : (sp.rr_ratio || 0) >= 1.0 ? 'var(--yellow)' : 'var(--red)';
+    const rankLabel = ['#1','#2','#3'][i] || `#${i+1}`;
+
+    const payload = JSON.stringify({
+      trade_type: 'debit_spread',
+      ticker,
+      direction,
+      long_strike: sp.long_strike,
+      short_strike: sp.short_strike,
+      spread_width: sp.spread_width,
+      max_profit: sp.max_profit,
+      expiration: sp.expiration,
+      dte_at_entry: sp.dte,
+      entry_price: sp.net_debit,
+      entry_total_cost: sp.net_debit_total,
+      entry_stock_price: cardData.price,
+      breakeven: sp.breakeven,
+      entry_score: sp.score
+    }).replace(/'/g, "&#39;");
+
+    return `
+    <div style="background:#0b0e14;border:1px solid var(--border);border-radius:7px;padding:9px 10px;margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#fff">
+          $${sp.long_strike}/$${sp.short_strike}
+        </span>
+        <div style="display:flex;gap:5px;align-items:center">
+          <span style="font-size:9px;color:var(--muted);background:#1a1f2e;border-radius:4px;padding:1px 5px">${rankLabel}</span>
+          <span style="font-size:10px;font-weight:700;color:${worstClr};background:${worstClr}18;border:1px solid ${worstClr}44;border-radius:5px;padding:1px 6px">${worstFill}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;margin-bottom:6px">
+        <div>Debit <b style="color:#fff;font-family:'JetBrains Mono',monospace">$${sp.net_debit}</b></div>
+        <div>Max Profit <b style="color:var(--green);font-family:'JetBrains Mono',monospace">$${sp.max_profit}</b></div>
+        <div>R:R <b style="color:${rrClr}">${(sp.rr_ratio||0).toFixed(1)}:1</b></div>
+        <div>Debit% <b style="color:var(--text)">${(sp.debit_pct_width||0).toFixed(0)}%</b></div>
+      </div>
+      <button onclick='simulateTrade(${payload})'
+        style="width:100%;padding:5px;background:rgba(77,159,255,.1);border:1px solid rgba(77,159,255,.25);color:var(--blue);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">
+        Paper Trade
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function _etfCardSpinner(ticker) {
+  return `<div class="oh-card" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+    <div style="font-weight:700;color:var(--muted);font-size:1rem">${ticker}</div>
+    <div style="color:var(--muted);font-size:12px">Loading spreads...</div>
+  </div>`;
+}
+
+function _etfCardError(ticker, msg) {
+  return `<div class="oh-card" style="min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+    <div style="font-weight:700;color:var(--muted)">${ticker}</div>
+    <div style="color:var(--red);font-size:11px;text-align:center">${msg}</div>
+    <button onclick="refreshEtfCard('${ticker}')"
+      style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer">
+      Retry
+    </button>
+  </div>`;
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
