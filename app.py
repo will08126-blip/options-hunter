@@ -35,6 +35,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -72,6 +73,17 @@ class _AuthMiddleware(BaseHTTPMiddleware):
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/hour"])
 
 app       = FastAPI(title="Options Hunter v2.0", docs_url=None)
+
+# ─── CORS MIDDLEWARE ─────────────────────────────────────────────────────────
+# Allow access from any origin (Tailscale network is private anyway)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory="templates")
 app.add_middleware(_AuthMiddleware)
 app.state.limiter = limiter
@@ -80,7 +92,8 @@ def _json_rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
 app.add_exception_handler(RateLimitExceeded, _json_rate_limit_handler)
 try:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    # app.mount("/static", StaticFiles(directory="static"), name="static")
+    pass
 except Exception:
     pass   # empty static dir is fine
 
@@ -2066,7 +2079,7 @@ async def login_submit(request: Request):
 
 @app.get('/')
 def index(request: Request):
-    return templates.TemplateResponse('index.html', {'request': request})
+    return templates.TemplateResponse(request, 'index.html')
 
 
 # ── Morning Briefing ──────────────────────────────────────────────────────────
@@ -2942,7 +2955,7 @@ def etf_spreads(request: Request, ticker: str, mode: str = 'standard'):
             'structure_rec':    structure_rec,
             'call_spreads':     call_spreads,
             'put_spreads':      put_spreads,
-            'last_updated':     datetime.utcnow().strftime('%H:%M UTC'),
+            'last_updated':     datetime.now(datetime.UTC).strftime('%H:%M UTC'),
         }
         cache_set(cache_key, out)
         return out
@@ -2958,7 +2971,7 @@ def etf_spreads(request: Request, ticker: str, mode: str = 'standard'):
 @app.post('/api/trades/simulate')
 @limiter.limit("30/minute")
 def simulate_trade(body: SimulateTradeBody, request: Request):
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(datetime.UTC).isoformat()
     with _db_lock:
         conn = _get_db()
         cur = conn.execute("""
@@ -2985,14 +2998,105 @@ def simulate_trade(body: SimulateTradeBody, request: Request):
 @limiter.limit("60/minute")
 def get_trades(request: Request):
     user_token = _get_user_token(request)
+    
+    # First, auto-expire any options that have reached 0 DTE
     with _db_lock:
         conn = _get_db()
+        # Get all active option trades
+        active_options = conn.execute(
+            """SELECT id, ticker, expiration, trade_type 
+               FROM simulated_trades 
+               WHERE user_token=? AND status='active' 
+               AND trade_type IN ('long_contract', 'debit_spread')""",
+            (user_token,)
+        ).fetchall()
+        
+        today = date.today()
+        for opt in active_options:
+            if opt['expiration']:
+                try:
+                    exp_date = datetime.strptime(opt['expiration'], '%Y-%m-%d').date()
+                    if exp_date < today:
+                        # Option has expired
+                        conn.execute(
+                            "UPDATE simulated_trades SET status='expired', closed_at=? WHERE id=?",
+                            (datetime.now(datetime.UTC).isoformat(), opt['id'])
+                        )
+                        print(f"Auto-expired trade {opt['id']} ({opt['ticker']})")
+                except Exception as e:
+                    print(f"Error checking expiration for trade {opt['id']}: {e}")
+        
+        conn.commit()
+        
+        # Now fetch all trades
         rows = conn.execute(
             "SELECT * FROM simulated_trades WHERE user_token=? ORDER BY created_at DESC",
             (user_token,)
         ).fetchall()
         conn.close()
+    
     return {'trades': [dict(r) for r in rows]}
+
+
+@app.get('/api/trades/auto-refresh')
+@limiter.limit("10/minute")
+def get_trades_auto_refresh(request: Request):
+    """Get trades with automatic refresh of active positions"""
+    user_token = _get_user_token(request)
+    
+    with _db_lock:
+        conn = _get_db()
+        
+        # First, auto-expire any options that have reached 0 DTE
+        active_options = conn.execute(
+            """SELECT id, ticker, expiration, trade_type 
+               FROM simulated_trades 
+               WHERE user_token=? AND status='active' 
+               AND trade_type IN ('long_contract', 'debit_spread')""",
+            (user_token,)
+        ).fetchall()
+        
+        today = date.today()
+        for opt in active_options:
+            if opt['expiration']:
+                try:
+                    exp_date = datetime.strptime(opt['expiration'], '%Y-%m-%d').date()
+                    if exp_date < today:
+                        # Option has expired
+                        conn.execute(
+                            "UPDATE simulated_trades SET status='expired', closed_at=? WHERE id=?",
+                            (datetime.now(datetime.UTC).isoformat(), opt['id'])
+                        )
+                        print(f"Auto-expired trade {opt['id']} ({opt['ticker']})")
+                except Exception as e:
+                    print(f"Error checking expiration for trade {opt['id']}: {e}")
+        
+        conn.commit()
+        
+        # Get all active trades that need refresh
+        active_trades = conn.execute(
+            "SELECT id FROM simulated_trades WHERE user_token=? AND status='active'",
+            (user_token,)
+        ).fetchall()
+        
+        # Refresh each active trade
+        for trade in active_trades:
+            try:
+                # Call the internal refresh logic
+                _refresh_trade_position(conn, trade['id'])
+            except Exception as e:
+                print(f"Error auto-refreshing trade {trade['id']}: {e}")
+        
+        conn.commit()
+        
+        # Now fetch all trades
+        rows = conn.execute(
+            "SELECT * FROM simulated_trades WHERE user_token=? ORDER BY created_at DESC",
+            (user_token,)
+        ).fetchall()
+        conn.close()
+    
+    return {'trades': [dict(r) for r in rows], 'auto_refreshed': len(active_trades)}
 
 
 @app.post('/api/trades/{trade_id}/refresh')
@@ -3013,7 +3117,7 @@ def refresh_trade(trade_id: int, request: Request):
     if trade['status'] != 'active':
         return trade
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(datetime.UTC).isoformat()
     today = date.today()
 
     try:
@@ -3118,7 +3222,7 @@ def refresh_trade(trade_id: int, request: Request):
 @limiter.limit("30/minute")
 def close_trade(trade_id: int, request: Request):
     user_token = _get_user_token(request)
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(datetime.UTC).isoformat()
     with _db_lock:
         conn = _get_db()
         conn.execute(
@@ -3151,6 +3255,86 @@ def delete_trade(trade_id: int, request: Request):
     return {'deleted': trade_id}
 
 
+@app.get('/api/trades/export')
+@limiter.limit("10/minute")
+def export_trades(request: Request, format: str = 'csv'):
+    """
+    Export trades to CSV or JSON format.
+    
+    Query params:
+        format: 'csv' or 'json' (default: csv)
+        period: 'all', 'today', 'week', 'month' (default: all)
+    """
+    user_token = _get_user_token(request)
+    period = request.query_params.get('period', 'all')
+    
+    with _db_lock:
+        conn = _get_db()
+        
+        # Get all trades for user
+        rows = conn.execute(
+            "SELECT * FROM simulated_trades WHERE user_token=? ORDER BY created_at DESC",
+            (user_token,)
+        ).fetchall()
+        conn.close()
+    
+    trades = [dict(r) for r in rows]
+    
+    # Filter by period if needed
+    if period != 'all':
+        from datetime import datetime, timedelta
+        now = datetime.now(datetime.UTC)
+        
+        if period == 'today':
+            today = now.date()
+            trades = [t for t in trades if datetime.fromisoformat(t['created_at'].replace('Z', '+00:00')).date() == today]
+        elif period == 'week':
+            week_ago = now - timedelta(days=7)
+            trades = [t for t in trades if datetime.fromisoformat(t['created_at'].replace('Z', '+00:00')) >= week_ago]
+        elif period == 'month':
+            month_ago = now - timedelta(days=30)
+            trades = [t for t in trades if datetime.fromisoformat(t['created_at'].replace('Z', '+00:00')) >= month_ago]
+    
+    if format.lower() == 'json':
+        return JSONResponse(content={'trades': trades, 'count': len(trades)})
+    
+    # Generate CSV
+    import io
+    import csv
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Headers
+    headers = [
+        'id', 'created_at', 'closed_at', 'status', 'trade_type', 'ticker',
+        'direction', 'strike', 'expiration', 'long_strike', 'short_strike',
+        'spread_width', 'max_profit', 'dte_at_entry', 'entry_price',
+        'entry_total_cost', 'entry_stock_price', 'breakeven', 'entry_score',
+        'entry_grade', 'entry_delta', 'entry_iv', 'current_price',
+        'current_stock_price', 'current_dte', 'last_refreshed', 'pnl_dollars',
+        'pnl_pct', 'quantity'
+    ]
+    writer.writerow(headers)
+    
+    # Data rows
+    for trade in trades:
+        row = [trade.get(col, '') for col in headers]
+        writer.writerow(row)
+    
+    csv_content = output.getvalue()
+    
+    # Return CSV as download
+    from fastapi.responses import Response
+    return Response(
+        content=csv_content,
+        media_type='text/csv',
+        headers={
+            'Content-Disposition': f'attachment; filename="trades_{period}_{datetime.now(datetime.UTC).strftime("%Y%m%d")}.csv"'
+        }
+    )
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  HELPERS & STARTUP
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3180,12 +3364,6 @@ if __name__ == '__main__':
         print(f"  Local:     http://localhost:{port}")
         print(f"  WiFi:      http://{ip}:{port}")
         print(f"  API docs:  http://localhost:{port}/docs")
-        try:
-            from pyngrok import ngrok
-            public_url = ngrok.connect(port, bind_tls=True).public_url
-            print(f"  PUBLIC:    {public_url}")
-        except Exception:
-            pass
         print("="*55 + "\n")
         threading.Thread(target=open_browser, daemon=True).start()
 

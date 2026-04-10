@@ -8,7 +8,6 @@ yfinance
 numpy
 scipy
 pandas
-pyngrok
 requests
 tradingview-datafeed
 websocket-client
